@@ -53,32 +53,49 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
 /*
  * Create and map the vectors page for AArch32 tasks.
  */
-static struct page *vectors_page[1] __ro_after_init;
+static struct page *vectors_page[] __ro_after_init;
+static const struct vm_special_mapping compat_vdso_spec[] = {
+	{
+		/* Must be named [sigpage] for compatibility with arm. */
+		.name	= "[sigpage]",
+		.pages	= &vectors_page[0],
+	},
+#ifdef CONFIG_KUSER_HELPERS
+	{
+		.name	= "[kuserhelpers]",
+		.pages	= &vectors_page[1],
+	},
+#endif
+};
+static struct page *vectors_page[ARRAY_SIZE(compat_vdso_spec)] __ro_after_init;
+	size_t kuser_sz = __kuser_helper_end - __kuser_helper_start;
+	unsigned long kuser_vpage;
+#endif
 
-static int __init alloc_vectors_page(void)
-{
-	extern char __kuser_helper_start[], __kuser_helper_end[];
 	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
 
 	int kuser_sz = __kuser_helper_end - __kuser_helper_start;
 	int sigret_sz = __aarch32_sigret_code_end - __aarch32_sigret_code_start;
 	unsigned long vpage;
 
-	vpage = get_zeroed_page(GFP_ATOMIC);
+#ifdef CONFIG_KUSER_HELPERS
+	kuser_vpage = get_zeroed_page(GFP_ATOMIC);
+	if (!kuser_vpage) {
+		free_page(sigret_vpage);
+		return -ENOMEM;
+	}
+#endif
 
 	if (!vpage)
 		return -ENOMEM;
 
+#ifdef CONFIG_KUSER_HELPERS
 	/* kuser helpers */
 	memcpy((void *)vpage + 0x1000 - kuser_sz, __kuser_helper_start,
 		kuser_sz);
-
-	/* sigreturn code */
-	memcpy((void *)vpage + AARCH32_KERN_SIGRET_CODE_OFFSET,
-               __aarch32_sigret_code_start, sigret_sz);
-
-	flush_icache_range(vpage, vpage + PAGE_SIZE);
-	vectors_page[0] = virt_to_page(vpage);
+	flush_icache_range(kuser_vpage, kuser_vpage + PAGE_SIZE);
+	vectors_page[1] = virt_to_page(kuser_vpage);
+#endif
 
 	return 0;
 }
@@ -99,11 +116,14 @@ int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 		return -EINTR;
 	current->mm->context.vdso = (void *)addr;
 
-	/* Map vectors page at the high address. */
-	ret = _install_special_mapping(mm, addr, PAGE_SIZE,
+#ifdef CONFIG_KUSER_HELPERS
+	/* Map the kuser helpers at the ABI-defined high address. */
+	ret = _install_special_mapping(mm, AARCH32_KUSER_HELPERS_BASE,
+				       PAGE_SIZE,
 				       VM_READ|VM_EXEC|VM_MAYREAD|VM_MAYEXEC,
-				       &spec);
-
+				       &compat_vdso_spec[1]);
+#endif
+out:
 	up_write(&mm->mmap_sem);
 
 	return PTR_ERR_OR_ZERO(ret);
