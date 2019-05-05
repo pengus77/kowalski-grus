@@ -4639,7 +4639,9 @@ static void lim_tx_mgmt_frame(tpAniSirGlobal mac_ctx,
 	struct sir_mgmt_msg *mb_msg, uint32_t msg_len,
 	void *packet, uint8_t *frame)
 {
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 	tpSirMacFrameCtl fc = (tpSirMacFrameCtl) mb_msg->data;
+#endif
 	QDF_STATUS qdf_status;
 	uint8_t sme_session_id = 0;
 	tpPESession session;
@@ -4653,8 +4655,10 @@ static void lim_tx_mgmt_frame(tpAniSirGlobal mac_ctx,
 		return;
 	}
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 	MTRACE(qdf_trace(QDF_MODULE_ID_PE, TRACE_CODE_TX_MGMT,
 			 session->peSessionId, fc->subType));
+#endif
 
 	mac_ctx->auth_ack_status = LIM_AUTH_ACK_NOT_RCD;
 	min_rid = lim_get_min_session_txrate(session);
