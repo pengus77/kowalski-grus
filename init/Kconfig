@@ -2131,6 +2131,14 @@ config MODVERSIONS
 	  make them incompatible with the kernel you are running.  If
 	  unsure, say N.
 
+config MODULE_IGNOREVER
+	depends on MODVERSIONS
+	bool "Force skip version checking"
+	help
+	  This option allows you to ignore bad_version.
+	  This is mainly for kernel developers and desperate users.
+	  If unsure, say N.
+
 config MODULE_SRCVERSION_ALL
 	bool "Source checksum for all modules"
 	help

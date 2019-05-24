@@ -1257,6 +1257,7 @@ static int try_to_force_load(struct module *mod, const char *reason)
 }
 
 #ifdef CONFIG_MODVERSIONS
+#ifndef CONFIG_MODULE_IGNOREVER
 /* If the arch applies (non-zero) relocations to kernel kcrctab, unapply it. */
 static unsigned long maybe_relocated(unsigned long crc,
 				     const struct module *crc_owner)
@@ -1267,6 +1268,7 @@ static unsigned long maybe_relocated(unsigned long crc,
 #endif
 	return crc;
 }
+#endif
 
 static int check_version(Elf_Shdr *sechdrs,
 			 unsigned int versindex,
@@ -1275,6 +1277,11 @@ static int check_version(Elf_Shdr *sechdrs,
 			 const unsigned long *crc,
 			 const struct module *crc_owner)
 {
+#ifdef CONFIG_MODULE_IGNOREVER
+	/* Force skip version checking */
+	return 1;
+#else
+
 	unsigned int i, num_versions;
 	struct modversion_info *versions;
 
@@ -1309,6 +1316,7 @@ bad_version:
 	pr_warn("%s: disagrees about version of symbol %s\n",
 	       mod->name, symname);
 	return 0;
+#endif
 }
 
 static inline int check_modstruct_version(Elf_Shdr *sechdrs,
