@@ -41,6 +41,11 @@ static DEFINE_MUTEX(zram_index_mutex);
 static int zram_major;
 static const char *default_compressor = "lzo";
 
+/* Limit disksize on zram initialization 
+ * 0 = disable
+ */
+static u64 max_disksize_creation = 1536 * 1024 * 1024; // 1.5GB
+
 /*
  * We don't need to see memory allocation errors more than once every 1
  * second to know that a problem is occurring.
@@ -1111,6 +1116,11 @@ static ssize_t disksize_store(struct device *dev,
 	atomic_set(&zram->refcount, 1);
 	zram->meta = meta;
 	zram->comp = comp;
+
+	/* filter zram size if zram is limited */
+	if(max_disksize_creation > 1024)
+		disksize = min(disksize, max_disksize_creation);
+
 	zram->disksize = disksize;
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 	zram_revalidate_disk(zram);
