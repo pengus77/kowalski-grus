@@ -12,8 +12,8 @@
 
 #include "memsw_state.h"
 
-#define memsw_freeram      (global_page_state(NR_FREE_PAGES) - totalreserve_pages)
-#define memsw_filepage     (global_page_state(NR_FILE_PAGES) - total_swapcache_pages())
+#define memsw_freeram      (NR_FREE_PAGES - totalreserve_pages)
+#define memsw_filepage     (global_node_page_state(NR_FILE_PAGES) - total_swapcache_pages())
 
 #define MEMSW_FREEMEM_KB   ((memsw_freeram + memsw_filepage) << (PAGE_SHIFT - 10))
 #define MEMSW_FREESWAP_KB  (get_nr_swap_pages() << (PAGE_SHIFT - 10))
