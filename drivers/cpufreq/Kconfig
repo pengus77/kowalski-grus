@@ -130,6 +130,16 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 
+config CPU_FREQ_DEFAULT_GOV_SCHEDUTIL_PIXEL
+	bool "schedutil_pixel"
+	depends on SMP
+	select CPU_FREQ_GOV_SCHEDUTIL_PIXEL
+	select CPU_FREQ_GOV_PERFORMANCE
+	help
+	  Use the 'schedutil_pixel' CPUFreq governor by default. If unsure,
+	  have a look at the help section of that governor. The fallback
+	  governor will be 'performance'.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -253,6 +263,16 @@ config CPU_FREQ_GOV_SCHEDUTIL
 	  case, it is proportional to the current frequency of the CPU.  The
 	  frequency tipping point is at utilization/capacity equal to 80% in
 	  both cases.
+
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_SCHEDUTIL_PIXEL
+	bool "'schedutil_pixel' cpufreq policy governor"
+	depends on CPU_FREQ && SMP
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  This governor is a schedutil with Google Pixel Patches
 
 	  If in doubt, say N.
 
