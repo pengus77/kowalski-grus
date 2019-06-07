@@ -20,7 +20,6 @@ GNU General Public License for more details.
 static int __init audio_q6_init(void)
 {
 	adsp_err_init();
-	audio_cal_init();
 	rtac_init();
 	adm_init();
 	afe_init();
@@ -52,7 +51,6 @@ static void __exit audio_q6_exit(void)
 	afe_exit();
 	adm_exit();
 	rtac_exit();
-	audio_cal_exit();
 	adsp_err_exit();
 }
 
