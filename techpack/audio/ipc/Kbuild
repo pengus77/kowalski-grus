@@ -31,10 +31,6 @@ ifeq ($(CONFIG_ARCH_MSM8917), y)
 endif
 KDIR := $(TOP)/kernel/msm-$(TARGET_KERNEL_VERSION)
 
-ifeq ($(KERNEL_BUILD), 1)
-	AUDIO_ROOT := $(KDIR)/techpack/audio
-endif
-
 ifeq ($(KERNEL_BUILD), 0)
 	ifeq ($(CONFIG_ARCH_SDM845), y)
 		include $(AUDIO_ROOT)/config/sdm845auto.conf
