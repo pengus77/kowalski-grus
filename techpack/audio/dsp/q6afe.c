@@ -24,6 +24,9 @@
 #include <dsp/audio_cal_utils.h>
 #include <dsp/q6afe-v2.h>
 #include <dsp/q6audio-v2.h>
+#ifdef CONFIG_ELLIPTIC_UPS
+#include <dsp/apr_elliptic.h>
+#endif
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
 #include <dsp/q6core.h>
@@ -383,6 +386,13 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 				return -EINVAL;
 		}
 		wake_up(&this_afe.wait[data->token]);
+#ifdef CONFIG_ELLIPTIC_UPS
+	} else if (data->opcode == ULTRASOUND_OPCODE) {
+		if (NULL != data->payload)
+			elliptic_process_apr_payload(data->payload);
+		else
+			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
+#endif
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
@@ -1142,6 +1152,17 @@ fail_cmd:
 	__func__, config.pdata.param_id, ret, src_port);
 	return ret;
 }
+
+#ifdef CONFIG_ELLIPTIC_UPS
+afe_ultrasound_state_t elus_afe = {
+	.ptr_apr= &this_afe.apr,
+	.ptr_status= &this_afe.status,
+	.ptr_state= &this_afe.state,
+	.ptr_wait= this_afe.wait,
+	.timeout_ms= TIMEOUT_MS,
+};
+EXPORT_SYMBOL(elus_afe);
+#endif
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {

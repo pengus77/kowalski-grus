@@ -49,6 +49,11 @@
 #include <dsp/msm-cirrus-playback.h>
 #endif
 
+#ifdef CONFIG_ELLIPTIC_UPS
+#include <dsp/apr_elliptic.h>
+#include <elliptic/elliptic_mixer_controls.h>
+#endif
+
 #ifndef CONFIG_DOLBY_DAP
 #undef DOLBY_ADM_COPP_TOPOLOGY_ID
 #define DOLBY_ADM_COPP_TOPOLOGY_ID 0xFFFFFFFE
@@ -17598,6 +17603,9 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 				ARRAY_SIZE(stereo_channel_reverse_control));
 #ifdef CONFIG_MSM_CSPL
 	msm_crus_pb_add_controls(platform);
+#endif
+#ifdef CONFIG_ELLIPTIC_UPS
+	elliptic_add_platform_controls(platform);
 #endif
 	return 0;
 }

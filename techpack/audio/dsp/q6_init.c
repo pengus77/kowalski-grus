@@ -33,12 +33,18 @@ static int __init audio_q6_init(void)
 #ifdef CONFIG_MSM_CSPL
 	crus_sp_init();
 #endif
+#ifdef CONFIG_ELLIPTIC_UPS
+	elliptic_driver_init();
+#endif
 	return 0;
 }
 
 static void __exit audio_q6_exit(void)
 {
 	avtimer_exit();
+#ifdef CONFIG_ELLIPTIC_UPS
+	elliptic_driver_exit();
+#endif
 #ifdef CONFIG_MSM_CSPL
 	crus_sp_exit();
 #endif
