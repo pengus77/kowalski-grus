@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -225,6 +226,7 @@ enum {
 	IDX_AFE_PORT_ID_QUINARY_TDM_RX_7,
 	IDX_AFE_PORT_ID_QUINARY_TDM_TX_7,
 	IDX_AFE_LOOPBACK_TX,
+	IDX_AFE_PORT_ID_PSEUDOPORT_01,
 	AFE_MAX_PORTS
 };
 
@@ -395,4 +397,7 @@ int afe_tdm_port_start(u16 port_id, struct afe_tdm_port_config *tdm_port,
 void afe_set_routing_callback(routing_cb cb);
 int afe_get_av_dev_drift(struct afe_param_id_dev_timing_stats *timing_stats,
 		u16 port);
+#ifdef CONFIG_MSM_CSPL
+int afe_apr_send_pkt_crus(void *data, int index, int set);
+#endif
 #endif /* __Q6AFE_V2_H__ */

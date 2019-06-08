@@ -1,4 +1,5 @@
 /* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -456,6 +457,7 @@ struct wcd_mbhc_cb {
 	void (*trim_btn_reg)(struct snd_soc_codec *);
 	void (*compute_impedance)(struct wcd_mbhc *, uint32_t *, uint32_t *);
 	void (*set_micbias_value)(struct snd_soc_codec *);
+	void (*set_micbias2_value)(struct snd_soc_codec *, u32);
 	void (*set_auto_zeroing)(struct snd_soc_codec *, bool);
 	struct firmware_cal * (*get_hwdep_fw_cal)(struct wcd_mbhc *,
 			enum wcd_cal_type);

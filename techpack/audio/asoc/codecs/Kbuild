@@ -148,6 +148,10 @@ ifdef CONFIG_SND_SOC_MSM_HDMI_CODEC_RX
 	HDMICODEC_OBJS += msm_hdmi_codec_rx.o
 endif
 
+ifdef CONFIG_SPK_ID
+	SPK_OBJS += spk-id.o
+endif
+
 LINUX_INC +=	-Iinclude/linux
 
 INCS +=		$(COMMON_INC) \
@@ -218,6 +222,9 @@ wcd_cpe_dlkm-y := $(WCD_CPE_OBJS)
 
 obj-$(CONFIG_SND_SOC_WCD_SPI) += wcd_spi_dlkm.o
 wcd_spi_dlkm-y := $(SPI_OBJS)
+
+obj-$(CONFIG_SPK_ID)    += spk_id_dlkm.o
+spk_id_dlkm-y := $(SPK_OBJS)
 
 obj-$(CONFIG_SND_SOC_WCD_MBHC) += mbhc_dlkm.o
 mbhc_dlkm-y := $(MBHC_OBJS)

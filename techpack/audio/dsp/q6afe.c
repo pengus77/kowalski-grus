@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +28,9 @@
 #include "adsp_err.h"
 #include <dsp/q6core.h>
 
+#ifdef CONFIG_MSM_CSPL
+#include <dsp/msm-cirrus-playback.h>
+#endif
 #define WAKELOCK_TIMEOUT	5000
 enum {
 	AFE_COMMON_RX_CAL = 0,
@@ -355,6 +359,10 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 	if (data->opcode == AFE_PORT_CMDRSP_GET_PARAM_V2) {
 		uint32_t *payload = data->payload;
 
+#ifdef CONFIG_MSM_CSPL
+		if (crus_afe_callback(data->payload, data->payload_size) == 0)
+			return 0;
+#endif
 		if (!payload || (data->token >= AFE_MAX_PORTS)) {
 			pr_err("%s: Error: size %d payload %pK token %d\n",
 				__func__, data->payload_size,
@@ -798,6 +806,21 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 	pr_debug("%s: leave %d\n", __func__, ret);
 	return ret;
 }
+
+#ifdef CONFIG_MSM_CSPL
+int afe_apr_send_pkt_crus(void *data, int index, int set)
+{
+	pr_info("[CSPL] %s: index = %d, set=%d, data = %p\n",
+		__func__, index, set, data);
+
+	if (set)
+		return afe_apr_send_pkt(data, &this_afe.wait[index]);
+	else /* get */
+		return afe_apr_send_pkt(data, 0);
+}
+
+EXPORT_SYMBOL(afe_apr_send_pkt_crus);
+#endif
 
 static int afe_send_cal_block(u16 port_id, struct cal_block_data *cal_block)
 {

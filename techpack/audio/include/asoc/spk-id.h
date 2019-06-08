@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -10,20 +10,24 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#ifndef __WCD_MBHC_LEGACY_H__
-#define __WCD_MBHC_LEGACY_H__
 
-#include "wcdcal-hwdep.h"
-#include "wcd-mbhc-v2.h"
+#ifndef __SPK_ID_H_
+#define __SPK_ID_H_
 
-#if IS_ENABLED(CONFIG_SND_SOC_WCD_MBHC_LEGACY)
-void wcd_mbhc_legacy_init(struct wcd_mbhc *mbhc);
-#else
-static inline void wcd_mbhc_legacy_init(struct wcd_mbhc *mbhc)
-{
-}
+#include <linux/types.h>
+#include <linux/of.h>
+
+#define PIN_PULL_DOWN		0
+#define PIN_PULL_UP		1
+#define PIN_FLOAT		2
+
+#define VENDOR_ID_NONE		0
+#define VENDOR_ID_AAC		1
+#define VENDOR_ID_SSI		2
+#define VENDOR_ID_GOER		3
+
+#define VENDOR_ID_UNKNOWN	4
+
+extern int spk_id_get_pin_3state(struct device_node *np);
+
 #endif
-
-void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,enum wcd_mbhc_plug_type plug_type);
-
-#endif /* __WCD_MBHC_LEGACY_H__ */

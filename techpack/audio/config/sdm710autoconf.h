@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -41,7 +42,6 @@
 #define CONFIG_SND_SOC_WCD_MBHC_ADC 1
 #define CONFIG_SND_SOC_WCD_MBHC_LEGACY 1
 #define CONFIG_SND_SOC_QDSP6V2 1
-#define CONFIG_SND_SOC_MSM_QDSP6V2_INTF 1
 #define CONFIG_QTI_PP 1
 #define CONFIG_QTI_PP_AUDIOSPHERE 1
 #define CONFIG_SND_HWDEP_ROUTING 1
@@ -62,3 +62,5 @@
 #define CONFIG_SND_SOC_DIGITAL_CDC 1
 #define CONFIG_SND_SOC_MSM_SDW 1
 #define CONFIG_SND_SOC_MSM_HDMI_CODEC_RX 1
+#define CONFIG_MSM_CSPL 1
+#define CONFIG_SPK_ID 1

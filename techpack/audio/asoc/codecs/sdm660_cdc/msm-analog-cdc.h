@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -223,6 +224,7 @@ struct sdm660_cdc_priv {
 		[ANLG_CDC_CHILD_DEVICES_MAX];
 	int child_count;
 	struct msm_cap_mode cap_mode;
+	bool micb1_always_on;
 };
 
 struct sdm660_cdc_pdata {

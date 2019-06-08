@@ -111,6 +111,10 @@ ifdef CONFIG_MSM_ULTRASOUND
 USF_OBJS += usf.o usfcdev.o q6usm.o
 endif
 
+ifdef CONFIG_MSM_CSPL
+	Q6_OBJS += msm-cirrus-playback.o
+endif
+
 LINUX_INC +=	-Iinclude/linux
 
 INCS +=		$(COMMON_INC) \

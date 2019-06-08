@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +28,7 @@
 #include <dsp/q6afe-v2.h>
 #include <dsp/q6core.h>
 #include <ipc/apr.h>
+#include <soc/qcom/socinfo.h>
 #include "msm-analog-cdc.h"
 #include "msm-cdc-common.h"
 #include "sdm660-cdc-irq.h"
@@ -194,6 +196,7 @@ static int msm_anlg_cdc_enable_ext_mb_source(struct wcd_mbhc *wcd_mbhc,
 					     bool turn_on);
 static void msm_anlg_cdc_trim_btn_reg(struct snd_soc_codec *codec);
 static void msm_anlg_cdc_set_micb_v(struct snd_soc_codec *codec);
+static void msm_anlg_cdc_set_micb2_v(struct snd_soc_codec *codec, u32 mv);
 static void msm_anlg_cdc_set_boost_v(struct snd_soc_codec *codec);
 static void msm_anlg_cdc_set_auto_zeroing(struct snd_soc_codec *codec,
 					  bool enable);
@@ -513,15 +516,70 @@ static bool msm_anlg_cdc_micb_en_status(struct wcd_mbhc *mbhc, int micb_num)
 	return false;
 }
 
+static int msm_anlg_cdc_codec_standalone_micbias(struct snd_soc_codec *codec,
+					     bool enable)
+{
+	struct on_demand_supply *supply;
+	bool micbias2;
+	int ret = 0;
+
+	struct sdm660_cdc_priv *sdm660_cdc =
+				snd_soc_codec_get_drvdata(codec);
+
+	dev_err(codec->dev, "<%s><%d>: enable micbias1 %d.\n",
+			__func__, __LINE__, enable);
+
+	supply = &sdm660_cdc->on_demand_list[ON_DEMAND_MICBIAS];
+	if (atomic_inc_return(&supply->ref) == 1) {
+		ret = regulator_set_voltage(supply->supply,
+					    supply->min_uv,
+					    supply->max_uv);
+		ret += regulator_set_load(supply->supply,
+					 supply->optimum_ua);
+		ret += regulator_enable(supply->supply);
+	}
+	if (ret) {
+		dev_err(codec->dev, "%s: Failed to enable %s\n",
+			__func__,
+			on_demand_supply_name[ON_DEMAND_MICBIAS]);
+	}
+
+	micbias2 = (snd_soc_read(codec,
+			MSM89XX_PMIC_ANALOG_MICB_2_EN) & 0x80);
+	if (enable) {
+		snd_soc_update_bits(codec,
+			MSM89XX_PMIC_ANALOG_TX_1_2_ATEST_CTL_2, 0x02, 0x02);
+		snd_soc_update_bits(codec,
+			MSM89XX_PMIC_ANALOG_MICB_1_EN, 0x80, (1 << 7));
+		msm_anlg_cdc_configure_cap(codec, true, micbias2);
+	} else {
+		msm_anlg_cdc_configure_cap(codec, false, micbias2);
+	}
+
+	dev_err(codec->dev, "<%s><%d>: X\n", __func__, __LINE__);
+
+	return 0;
+}
+
 static void msm_anlg_cdc_enable_master_bias(struct snd_soc_codec *codec,
 					    bool enable)
 {
-	if (enable)
+	struct sdm660_cdc_priv *sdm660_cdc =
+				snd_soc_codec_get_drvdata(codec);
+
+	if (enable) {
 		snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MASTER_BIAS_CTL,
 				    0x30, 0x30);
-	else
+		if (sdm660_cdc->micb1_always_on) {
+			dev_err(codec->dev, "%s: do turn on micb1.\n", __func__);
+			msm_anlg_cdc_codec_standalone_micbias(codec, true);
+		} else {
+			dev_err(codec->dev, "%s: do not turn on micb1.\n", __func__);
+		}
+	} else {
 		snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MASTER_BIAS_CTL,
 				    0x30, 0x00);
+	}
 }
 
 static void msm_anlg_cdc_mbhc_common_micb_ctrl(struct snd_soc_codec *codec,
@@ -914,6 +972,7 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.trim_btn_reg = msm_anlg_cdc_trim_btn_reg,
 	.compute_impedance = msm_anlg_cdc_mbhc_calc_impedance,
 	.set_micbias_value = msm_anlg_cdc_set_micb_v,
+	.set_micbias2_value = msm_anlg_cdc_set_micb2_v,
 	.set_auto_zeroing = msm_anlg_cdc_set_auto_zeroing,
 	.get_hwdep_fw_cal = msm_anlg_cdc_get_hwdep_fw_cal,
 	.set_cap_mode = msm_anlg_cdc_configure_cap,
@@ -2524,6 +2583,8 @@ static int msm_anlg_cdc_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 		if (w->reg == MSM89XX_PMIC_ANALOG_MICB_1_EN)
 			msm_anlg_cdc_configure_cap(codec, true, micbias2);
 
+		snd_soc_update_bits(codec,
+				MSM89XX_PMIC_ANALOG_MICB_1_EN, 0x80, 0x80);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		if (get_codec_version(sdm660_cdc) <= TOMBAK_2_0)
@@ -2546,6 +2607,10 @@ static int msm_anlg_cdc_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
+		if (!sdm660_cdc->micb1_always_on) {
+			snd_soc_update_bits(codec,
+				MSM89XX_PMIC_ANALOG_MICB_1_EN, 0x80, 0x00);
+		}
 		if (strnstr(w->name, internal1_text, strlen(w->name))) {
 			snd_soc_update_bits(codec, micb_int_reg, 0xC0, 0x40);
 		} else if (strnstr(w->name, internal2_text, strlen(w->name))) {
@@ -3488,7 +3553,7 @@ static const struct snd_soc_dapm_widget msm_anlg_cdc_dapm_widgets[] = {
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MICBIAS_E("MIC BIAS External",
-		MSM89XX_PMIC_ANALOG_MICB_1_EN, 7, 0,
+		MSM89XX_PMIC_ANALOG_MICB_1_EN, 0, 0,
 		msm_anlg_cdc_codec_enable_micbias, SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMD),
 	SND_SOC_DAPM_MICBIAS_E("MIC BIAS External2",
@@ -3914,15 +3979,46 @@ EXPORT_SYMBOL(msm_anlg_cdc_update_int_spk_boost);
 
 static void msm_anlg_cdc_set_micb_v(struct snd_soc_codec *codec)
 {
-
 	struct sdm660_cdc_priv *sdm660_cdc = snd_soc_codec_get_drvdata(codec);
 	struct sdm660_cdc_pdata *pdata = sdm660_cdc->dev->platform_data;
 	u8 reg_val;
 
-	reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt1_mv, MICBIAS_MIN_VAL,
-			MICBIAS_STEP_SIZE);
-	dev_dbg(codec->dev, "cfilt1_mv %d reg_val %x\n",
-			(u32)pdata->micbias.cfilt1_mv, reg_val);
+	if (pdata->micbias.cfilt2_mv > 0) {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt2_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt2_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt2_mv, reg_val);
+	} else {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt1_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt1_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt1_mv, reg_val);
+	}
+
+	snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MICB_1_VAL,
+			0xF8, (reg_val << 3));
+}
+
+static void msm_anlg_cdc_set_micb2_v(struct snd_soc_codec *codec, u32 mv)
+{
+	struct sdm660_cdc_priv *sdm660_cdc = snd_soc_codec_get_drvdata(codec);
+	struct sdm660_cdc_pdata *pdata = sdm660_cdc->dev->platform_data;
+	u8 reg_val;
+
+	pdata->micbias.cfilt2_mv = mv;
+
+	if (pdata->micbias.cfilt2_mv > 0) {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt2_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt2_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt2_mv, reg_val);
+	} else {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt1_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt1_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt1_mv, reg_val);
+	}
+
 	snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MICB_1_VAL,
 			0xF8, (reg_val << 3));
 }
@@ -4569,6 +4665,29 @@ err:
 	return;
 }
 
+static bool chk_hw_va(void)
+{
+	int hw_platform, hw_major, hw_minor;
+
+	hw_platform = get_hw_version_platform();
+	hw_major = get_hw_version_major();
+	hw_minor = get_hw_version_minor();
+
+	printk(KERN_INFO "%s: hw_platform = %d, major <%d>, minor <%d>.\n",
+			__func__, hw_platform, hw_major, hw_minor);
+
+	if (HARDWARE_PLATFORM_SIRIUS == hw_platform) {
+		if ((hw_major == 1 && hw_minor < 2) || (hw_major == 0)) {
+			printk("%s: Hardware does support dbmd4.\n", __func__);
+			return true;
+		}
+	}
+
+	printk("%s: Hardware does NOT support dbmd4.\n", __func__);
+
+	return false;
+}
+
 static int msm_anlg_cdc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -4634,6 +4753,12 @@ static int msm_anlg_cdc_probe(struct platform_device *pdev)
 			"%s: irq initialization passed\n", __func__);
 	}
 	dev_set_drvdata(&pdev->dev, sdm660_cdc);
+
+	sdm660_cdc->micb1_always_on = chk_hw_va();
+	dev_info(&pdev->dev,
+		"%s: micb1_always_on = %d.\n", __func__,
+		sdm660_cdc->micb1_always_on);
+
 
 	ret = snd_soc_register_codec(&pdev->dev,
 				     &soc_codec_dev_sdm660_cdc,

@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -238,6 +239,14 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
 					__func__);
 			break;
 		}
+		if (mbhc->impedance_detect) {
+			mbhc->mbhc_cb->compute_impedance(mbhc,
+					&mbhc->zl, &mbhc->zr);
+			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
+				pr_debug("%s: Selfie stick detected\n", __func__);
+				break;
+			}
+		}
 	}
 	if (is_spl_hs) {
 		pr_debug("%s: Headset with threshold found\n",  __func__);
@@ -286,7 +295,7 @@ static void wcd_mbhc_update_fsm_source(struct wcd_mbhc *mbhc,
 	};
 }
 
-static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
+void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 			enum wcd_mbhc_plug_type plug_type)
 {
 
@@ -317,15 +326,16 @@ static void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,
 				wcd_enable_curr_micbias(mbhc,
 						WCD_MBHC_EN_PULLUP);
 			} else {
-				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 			}
 		} else if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
-			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 		} else {
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
 		}
 	}
 }
+EXPORT_SYMBOL(wcd_enable_mbhc_supply);
 
 static bool wcd_mbhc_check_for_spl_headset(struct wcd_mbhc *mbhc,
 					   int *spl_hs_cnt)
@@ -736,8 +746,18 @@ report:
 enable_supply:
 	if (mbhc->mbhc_cb->mbhc_micbias_control)
 		wcd_mbhc_update_fsm_source(mbhc, plug_type);
-	else
-		wcd_enable_mbhc_supply(mbhc, plug_type);
+	else {
+		if (mbhc->impedance_detect) {
+			mbhc->mbhc_cb->compute_impedance(mbhc,
+					&mbhc->zl, &mbhc->zr);
+			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
+				pr_debug("%s: Selfie stick device, need enable btn isrc ctrl", __func__);
+				wcd_enable_mbhc_supply(mbhc, MBHC_PLUG_TYPE_HEADSET);
+			} else
+				wcd_enable_mbhc_supply(mbhc, plug_type);
+		} else
+			wcd_enable_mbhc_supply(mbhc, plug_type);
+	}
 exit:
 	if (mbhc->mbhc_cb->mbhc_micbias_control &&
 	    !mbhc->micbias_enable)
