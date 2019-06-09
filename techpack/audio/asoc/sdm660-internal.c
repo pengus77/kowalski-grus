@@ -3657,6 +3657,10 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 				break;
 #endif
 			default:
+#ifdef CONFIG_SND_SOC_TAS2557
+				msm_mi2s_be_dai_links[0].codec_name = "tas2557.2-004c";
+				msm_mi2s_be_dai_links[0].codec_dai_name = "tas2557 ASI1";
+#endif
 				break;
 		}
 
