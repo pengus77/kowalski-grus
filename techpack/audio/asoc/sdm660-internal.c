@@ -22,6 +22,7 @@
 #include "codecs/sdm660_cdc/msm-analog-cdc.h"
 #include "codecs/msm_sdw/msm_sdw.h"
 #include <linux/pm_qos.h>
+#include <soc/qcom/socinfo.h>
 
 #define __CHIPSET__ "SDM660 "
 #define MSM_DAILINK_NAME(name) (__CHIPSET__#name)
@@ -30,6 +31,10 @@
 
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 3
+
+#ifdef CONFIG_SND_SOC_CS35L41
+#define CS35L41_CODEC_NAME "cs35l41.2-0040"
+#endif
 
 #define WSA8810_NAME_1 "wsa881x.20170211"
 #define WSA8810_NAME_2 "wsa881x.20170212"
@@ -1894,6 +1899,11 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 	struct snd_soc_codec *ana_cdc;
 	struct snd_soc_pcm_runtime *rtd;
 	int ret = 0;
+#ifdef CONFIG_SND_SOC_CS35L41
+	struct snd_soc_dai_link *dai_link;
+	struct snd_soc_codec *cs35l41_codec;
+	struct snd_soc_dapm_context * cs35l41_dapm;
+#endif
 
 	rtd = snd_soc_get_pcm_runtime(card, be_dl_name);
 	if (!rtd) {
@@ -1914,6 +1924,26 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 			"%s: msm_anlg_cdc_hs_detect failed\n", __func__);
 		kfree(mbhc_cfg_ptr->calibration);
 	}
+#ifdef CONFIG_SND_SOC_CS35L41
+	dai_link = rtd->dai_link;
+	if (dai_link && dai_link->codec_name) {
+		if (!strcmp(dai_link->codec_name, CS35L41_CODEC_NAME)) {
+			dev_info(card->dev, "%s: found codec[%s]\n", __func__, CS35L41_CODEC_NAME);
+			cs35l41_codec = rtd->codec;
+			cs35l41_dapm = snd_soc_codec_get_dapm(cs35l41_codec);
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Playback");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Capture");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "DSP1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "Main AMP");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPRX1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPRX2");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPTX1");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "ASPTX2");
+			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "SPK");
+			snd_soc_dapm_sync(cs35l41_dapm);
+		}
+	}
+#endif
 
 	return ret;
 }
@@ -3581,6 +3611,7 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dailink;
 	int len1;
+	int hw_platform = get_hw_version_platform();
 
 	if (snd_card_val == INT_SND_CARD)
 		card = &sdm660_card;
@@ -3617,6 +3648,19 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 
 	if (of_property_read_bool(dev->of_node,
 				  "qcom,mi2s-audio-intf")) {
+		dev_info(dev, "%s: hw_platform = %d.\n", __func__, hw_platform);
+		switch (hw_platform) {
+#ifdef CONFIG_SND_SOC_CS35L41
+			case HARDWARE_PLATFORM_GRUS:
+				msm_mi2s_be_dai_links[0].codec_name = CS35L41_CODEC_NAME;
+				msm_mi2s_be_dai_links[0].codec_dai_name = "cs35l41-pcm";
+				break;
+#endif
+			default:
+				break;
+		}
+
+		dev_info(dev, "%s: using %d \n", __func__, msm_mi2s_be_dai_links[0].codec_name);
 		memcpy(dailink + len1,
 		       msm_mi2s_be_dai_links,
 		       sizeof(msm_mi2s_be_dai_links));
