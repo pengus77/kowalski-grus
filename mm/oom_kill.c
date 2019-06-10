@@ -546,11 +546,14 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
 			tlb_finish_mmu(&tlb, vma->vm_start, vma->vm_end);
 		}
 	}
+	/* 
+	 * keep it silent - okitavera
 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
 			task_pid_nr(tsk), tsk->comm,
 			K(get_mm_counter(mm, MM_ANONPAGES)),
 			K(get_mm_counter(mm, MM_FILEPAGES)),
 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+	*/
 	up_read(&mm->mmap_sem);
 
 	trace_finish_task_reaping(tsk->pid);
