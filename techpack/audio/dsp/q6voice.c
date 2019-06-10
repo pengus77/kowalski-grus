@@ -141,6 +141,8 @@ static int voice_send_get_sound_focus_cmd(struct voice_data *v,
 static int voice_send_get_source_tracking_cmd(struct voice_data *v,
 			struct source_tracking_param *sourceTrackingData);
 
+static void voice_vote_powerstate_to_bms(struct voice_data *v, bool state);
+
 static void voice_itr_init(struct voice_session_itr *itr,
 			   u32 session_id)
 {
@@ -1950,6 +1952,47 @@ void voc_set_destroy_cvd_flag(bool is_destroy_cvd)
 EXPORT_SYMBOL(voc_set_destroy_cvd_flag);
 
 /**
+ * voc_set_vote_bms_flag -
+ *      set flag for BMS voting
+ *
+ * @is_destroy_cvd: bool value used to indicate
+ *                  to vote for BMS or not in voice call.
+ *
+ */
+void voc_set_vote_bms_flag(bool is_vote_bms)
+{
+	pr_debug("%s: flag value: %d\n", __func__, is_vote_bms);
+	common.is_vote_bms = is_vote_bms;
+}
+EXPORT_SYMBOL(voc_set_vote_bms_flag);
+
+static void voice_vote_powerstate_to_bms(struct voice_data *v, bool state)
+{
+	union power_supply_propval psp_val;
+
+	if (!v->psy)
+		v->psy = power_supply_get_by_name("bms");
+
+	psp_val.intval = VMBMS_VOICE_CALL_BIT;
+	if (v->psy && !(is_voip_session(v->session_id) ||
+			is_vowlan_session(v->session_id))) {
+		if (state) {
+			pr_debug("%s : Vote High power to BMS\n",
+				__func__);
+			power_supply_set_property(v->psy,
+					POWER_SUPPLY_PROP_HI_POWER, &psp_val);
+		} else {
+			pr_debug("%s: Vote low power to BMS\n",
+				__func__);
+			power_supply_set_property(v->psy,
+					POWER_SUPPLY_PROP_LOW_POWER, &psp_val);
+		}
+	} else {
+		pr_debug("%s: No OP", __func__);
+	}
+}
+
+/**
  * voc_alloc_cal_shared_memory -
  *       Alloc mem map table for calibration
  *
@@ -2421,6 +2464,10 @@ static int voice_send_start_voice_cmd(struct voice_data *v)
 		ret = adsp_err_get_lnx_err_code(
 				v->async_err);
 		goto fail;
+	}
+	if (common.is_vote_bms) {
+		/* vote high power to BMS during call start */
+		voice_vote_powerstate_to_bms(v, true);
 	}
 	return 0;
 fail:
@@ -6873,6 +6920,10 @@ int voc_end_voice_call(uint32_t session_id)
 
 		voice_destroy_mvm_cvs_session(v);
 		v->voc_state = VOC_RELEASE;
+		if (common.is_vote_bms) {
+			/* vote low power to BMS during call stop */
+			voice_vote_powerstate_to_bms(v, false);
+		}
 	} else {
 		pr_err("%s: Error: End voice called in state %d\n",
 			__func__, v->voc_state);
@@ -7376,7 +7427,7 @@ EXPORT_SYMBOL(voc_config_vocoder);
 
 static int32_t qdsp_mvm_callback(struct apr_client_data *data, void *priv)
 {
-	uint32_t *ptr = NULL;
+	uint32_t *ptr = NULL, min_payload_size = 0;
 	struct common_data *c = NULL;
 	struct voice_data *v = NULL;
 	struct vss_evt_voice_activity *voice_act_update = NULL;
@@ -7447,7 +7498,7 @@ static int32_t qdsp_mvm_callback(struct apr_client_data *data, void *priv)
 	}
 
 	if (data->opcode == APR_BASIC_RSP_RESULT) {
-		if (data->payload_size) {
+		if (data->payload_size >= sizeof(ptr[0]) * 2) {
 			ptr = data->payload;
 
 			pr_debug("%x %x\n", ptr[0], ptr[1]);
@@ -7517,7 +7568,13 @@ static int32_t qdsp_mvm_callback(struct apr_client_data *data, void *priv)
 	} else if (data->opcode == VSS_IMEMORY_RSP_MAP) {
 		pr_debug("%s, Revd VSS_IMEMORY_RSP_MAP response\n", __func__);
 
-		if (data->payload_size && data->token == VOIP_MEM_MAP_TOKEN) {
+		if (data->payload_size < sizeof(ptr[0])) {
+			pr_err("%s: payload has invalid size[%d]\n", __func__,
+			       data->payload_size);
+			return -EINVAL;
+		}
+
+		if (data->token == VOIP_MEM_MAP_TOKEN) {
 			ptr = data->payload;
 			if (ptr[0]) {
 				v->shmem_info.mem_handle = ptr[0];
@@ -7584,10 +7641,13 @@ static int32_t qdsp_mvm_callback(struct apr_client_data *data, void *priv)
 		pr_debug("%s: Received VSS_IVERSION_RSP_GET\n", __func__);
 
 		if (data->payload_size) {
+			min_payload_size = min_t(u32, (int)data->payload_size,
+					       CVD_VERSION_STRING_MAX_SIZE);
 			version_rsp =
 				(struct vss_iversion_rsp_get_t *)data->payload;
 			memcpy(common.cvd_version, version_rsp->version,
-			       CVD_VERSION_STRING_MAX_SIZE);
+			       min_payload_size);
+			common.cvd_version[min_payload_size - 1] = '\0';
 			pr_debug("%s: CVD Version = %s\n",
 				 __func__, common.cvd_version);
 
@@ -7788,6 +7848,11 @@ static int32_t qdsp_cvs_callback(struct apr_client_data *data, void *priv)
 
 		cvs_voc_pkt = v->shmem_info.sh_buf.buf[1].data;
 		if (cvs_voc_pkt != NULL &&  common.mvs_info.ul_cb != NULL) {
+			if (v->shmem_info.sh_buf.buf[1].size <
+			    ((3 * sizeof(uint32_t)) + cvs_voc_pkt[2])) {
+				pr_err("%s: invalid voc pkt size\n", __func__);
+				return -EINVAL;
+			}
 			/* cvs_voc_pkt[0] contains tx timestamp */
 			common.mvs_info.ul_cb((uint8_t *)&cvs_voc_pkt[3],
 					      cvs_voc_pkt[2],

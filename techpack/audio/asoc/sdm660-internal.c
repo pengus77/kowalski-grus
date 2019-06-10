@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -1949,7 +1949,9 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 }
 
 static struct snd_soc_ops msm_tdm_be_ops = {
-	.hw_params = msm_tdm_snd_hw_params
+	.startup = msm_tdm_snd_startup,
+	.shutdown = msm_tdm_snd_shutdown,
+	.hw_params = msm_tdm_snd_hw_params,
 };
 
 static struct snd_soc_ops msm_wcn_ops = {
