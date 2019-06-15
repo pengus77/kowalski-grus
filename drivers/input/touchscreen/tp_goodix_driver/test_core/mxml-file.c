@@ -129,9 +129,11 @@ mxmlSaveAllocString(mxml_node_t *node,	/* I - Node to write */
 		    mxml_save_cb_t cb)
 {				/* I - Whitespace callback or @code MXML_NO_CALLBACK@ */
 	int bytes;		/* Required bytes */
-	char buffer[2000];	/* Temporary buffer */
+	char *buffer;	/* Temporary buffer */
 	char *s;		/* Allocated string */
 
+	// allocate it to the heap
+	buffer = kmalloc(sizeof(char), 2000);
 	/*
 	 * Write the node to the temporary buffer...
 	 */
@@ -415,9 +417,9 @@ static int /* O  - Character value or EOF on error */ mxml_get_entity(mxml_node_
 
 	if (entity[0] == '#') {
 		if (entity[1] == 'x')
-			ch = (int)strtol(entity + 2, NULL, 16);
+			ch = simple_strtol(entity + 2, NULL, 16);
 		else
-			ch = (int)strtol(entity + 1, NULL, 10);
+			ch = simple_strtol(entity + 1, NULL, 10);
 	} else {
 		ch = mxmlEntityGetValue(entity);
 		if (ch < 0)
@@ -506,7 +508,7 @@ mxml_load_data(mxml_node_t *top,	/* I - Top node */
 			case MXML_INTEGER:
 				node =
 					mxmlNewInteger(parent,
-						(int)strtol(buffer, &bufptr,
+						simple_strtol(buffer, &bufptr,
 								0));
 				break;
 
