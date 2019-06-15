@@ -10,6 +10,8 @@
 #ifndef USER_TEST_TYPE_DEF_H
 #define USER_TEST_TYPE_DEF_H
 
+#include <asm-generic/int-ll64.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -107,43 +109,24 @@ extern "C" {
 	typedef signed short s16;
 	typedef void *ptr32;
 	typedef void const *cptr32;
-	/*//typedef unsigned long vu32;
-	//typedef unsigned char uint8_t;
-	//typedef char int8_t;
-	//typedef unsigned short uint16_t;
-	//typedef unsigned short int16_t;
-	//typedef unsigned int uint32_t;
-	*/
 #ifdef STM32F1XX
-/*//    typedef char int8_t;
-//      typedef unsigned short int16_t;
-*/
 	typedef unsigned int uint32_t;
 	typedef int int32_t;
-
 	typedef const char *cstr;
 #endif
 
 #elif ANDROID_CODE == 1 || QNX_CODE || LINUX_KERNEL == 1
-	typedef unsigned char u8;
-	typedef signed char s8;
 	typedef const unsigned char cu8;
-	typedef unsigned short u16;
 	typedef const unsigned short cu16;
-	typedef unsigned int u32;
 	typedef const unsigned int cu32;
-	typedef int s32;
 	typedef const int cs32;
-	typedef signed short s16;
 	typedef const signed short cs16;
 	typedef void *ptr32;
 	typedef void const *cptr32;
 	typedef unsigned long vu32;
 	typedef const unsigned long cvu32;
-
 	typedef const char *cstr;
 
-/*//      #define NULL 0*/
 #endif
 
 #ifdef __cplusplus
