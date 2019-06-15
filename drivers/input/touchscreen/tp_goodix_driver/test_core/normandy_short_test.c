@@ -46,13 +46,6 @@ extern s32 normandy_short_test(IN_OUT ptr32 p_data)
 	PST_SHORT_TEST_RES p_test_res = NULL;
 	PST_TEST_ITEM p_item = NULL;
 	PST_TP_DEV p_dev = NULL;
-	u16 short_test_flag = 5;
-NORMANDY_SHORT_TEST_START:
-	ret = 0;
-	p_param = NULL;
-	p_test_res = NULL;
-	p_item = NULL;
-	p_dev = NULL;
 	p_item = (PST_TEST_ITEM) p_data;
 
 	if (NULL == p_item) {
@@ -151,12 +144,6 @@ NORMANDY_SHORT_TEST_START:
 	short_test_channel_map(p_item, TX_RX_SHARED);
 	p_test_res->item_res_header.test_status = TEST_FINISH;
 NORMANDY_SHORT_TEST_END:
-	if ((p_test_res->item_res_header.test_item_err_code.
-			ptr_err_code_set[0] != 0) && short_test_flag) {
-		board_print_error("test_result retry short test");
-		short_test_flag--;
-		goto NORMANDY_SHORT_TEST_START;
-	}
 	return ret;
 }
 

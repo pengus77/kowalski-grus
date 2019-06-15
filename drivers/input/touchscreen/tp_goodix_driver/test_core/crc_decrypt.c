@@ -16,7 +16,7 @@ extern "C" {
 #include <linux/string.h>
 #include <linux/firmware.h>
 #include "../goodix_ts_core.h"
-const char default_order_name[] = "goodix_test_order.tporder";
+const char default_order_name[] = "goodix_gt9886_limit_f2.tporder";
 
 /*******************************************************************************
 * Function Name	: decrypt_reflect
