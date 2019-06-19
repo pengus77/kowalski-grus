@@ -331,7 +331,9 @@ struct sde_connector_evt {
  * @unset_bl_level: BL level that needs to be set later
  * @allow_bl_update: Flag to indicate if BL update is allowed currently or not
  * @bl_scale_ad: BL scale value for AD feature
- * last_cmd_tx_sts: status of the last command transfer
+ * @unset_bl_level: BL level that needs to be set later
+ * @allow_bl_update: Flag to indicate if BL update is allowed currently or not
+ * @last_cmd_tx_sts: status of the last command transfer
  */
 struct sde_connector {
 	struct drm_connector base;

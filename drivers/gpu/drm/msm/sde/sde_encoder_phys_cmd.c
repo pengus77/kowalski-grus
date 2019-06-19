@@ -348,21 +348,22 @@ static void _sde_encoder_phys_cmd_setup_irq_hw_idx(
 		struct sde_encoder_phys *phys_enc)
 {
 	struct sde_encoder_irq *irq;
-
 	struct sde_kms *sde_kms = phys_enc->sde_kms;
 	int ret = 0;
 
 	mutex_lock(&sde_kms->vblank_ctl_global_lock);
+
 	if (atomic_read(&phys_enc->vblank_refcount)) {
 		SDE_ERROR(
-			"vblank_refcount mismatch detected, try to reset %d\n",
-			atomic_read(&phys_enc->vblank_refcount));
+		"vblank_refcount mismatch detected, try to reset %d\n",
+				atomic_read(&phys_enc->vblank_refcount));
 		ret = sde_encoder_helper_unregister_irq(phys_enc,
-			INTR_IDX_RDPTR);
+				INTR_IDX_RDPTR);
 		if (ret)
 			SDE_ERROR(
-				"control vblank irq registration error %d\n",
+			"control vblank irq registration error %d\n",
 				ret);
+
 	}
 	atomic_set(&phys_enc->vblank_refcount, 0);
 
@@ -724,7 +725,7 @@ static int sde_encoder_phys_cmd_control_vblank_irq(
 		if (ret)
 			atomic_dec_return(&phys_enc->vblank_refcount);
 	} else if (!enable &&
-		atomic_dec_return(&phys_enc->vblank_refcount) == 0) {
+			atomic_dec_return(&phys_enc->vblank_refcount) == 0) {
 		ret = sde_encoder_helper_unregister_irq(phys_enc,
 				INTR_IDX_RDPTR);
 		if (ret)

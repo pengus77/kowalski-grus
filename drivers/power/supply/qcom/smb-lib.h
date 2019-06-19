@@ -78,6 +78,7 @@ enum print_reason {
 #define UNSTANDARD_QC2_VOTER            "UNSTANDARD_QC2_VOTER"
 #define JEITA_VOTER			"JEITA_VOTER"
 #define PL_HIGH_CAPACITY_VOTER		"PL_HIGH_CAPACITY_VOTER"
+#define FCC_STEPPER_VOTER		"FCC_STEPPER_VOTER"
 
 #define VCONN_MAX_ATTEMPTS	3
 #define OTG_MAX_ATTEMPTS	3
@@ -398,6 +399,7 @@ struct smb_charger {
 	bool			in_chg_lock;
 	bool                    check_vbus_once;
 	bool                    unstandard_hvdcp;
+	bool			fcc_stepper_enable;
 
 	/* workaround flag */
 	u32			wa_flags;
