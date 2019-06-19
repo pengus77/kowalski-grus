@@ -3878,7 +3878,7 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	temp = NULL;
-	while ((temp = of_get_next_child(node, temp)))
+	while ((temp = of_get_next_available_child(node, temp)))
 		num_leds++;
 
 	if (!num_leds)
@@ -3889,7 +3889,7 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 	if (!led_array)
 		return -ENOMEM;
 
-	for_each_child_of_node(node, temp) {
+	for_each_available_child_of_node(node, temp) {
 		led = &led_array[parsed_leds];
 		led->num_leds = num_leds;
 		led->regmap = dev_get_regmap(pdev->dev.parent, NULL);

@@ -1521,6 +1521,7 @@ mtp_function_unbind(struct usb_configuration *c, struct usb_function *f)
 	kfree(f->os_desc_table);
 	f->os_desc_n = 0;
 	fi_mtp->func_inst.f = NULL;
+	dev->cdev = NULL;
 }
 
 static int mtp_function_set_alt(struct usb_function *f,

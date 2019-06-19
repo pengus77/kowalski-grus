@@ -177,6 +177,8 @@ struct dsi_display {
 	struct list_head list;
 	bool is_active;
 	bool is_cont_splash_enabled;
+	bool is_prim_display;
+	bool is_first_boot;
 	struct mutex display_lock;
 	int disp_te_gpio;
 	bool is_te_irq_enabled;
@@ -585,6 +587,8 @@ void dsi_display_enable_event(struct dsi_display *display,
 		bool enable);
 
 int dsi_display_set_backlight(void *display, u32 bl_lvl);
+
+int dsi_panel_set_doze_backlight(struct dsi_display *display, u32 bl_lvl);
 
 /**
  * dsi_display_check_status() - check if panel is dead or alive

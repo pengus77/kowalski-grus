@@ -92,6 +92,11 @@ struct scm_desc {
 	/* private */
 	void *extra_arg_buf;
 	u64 x5;
+	/*
+	 * Various bits in the filed defined.
+	 * bit0 is no-retry.
+	 * bit1 is xyz*/
+	u32 flags;
 };
 
 #ifdef CONFIG_QCOM_SCM
@@ -99,6 +104,9 @@ extern int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 		void *resp_buf, size_t resp_len);
 
 extern int scm_call2(u32 cmd_id, struct scm_desc *desc);
+extern int scm_call2_noblock(u32 cmd_id, struct scm_desc *desc);
+
+extern int scm_call2_noretry(u32 cmd_id, struct scm_desc *desc);
 
 extern int scm_call2_noretry(u32 cmd_id, struct scm_desc *desc);
 

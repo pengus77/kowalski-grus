@@ -2357,6 +2357,12 @@ static int msm_geni_serial_probe(struct platform_device *pdev)
 	if ((line < 0) || (line >= GENI_UART_NR_PORTS))
 		return -ENXIO;
 	is_console = (drv->cons ? true : false);
+#ifdef CONFIG_SERIAL_MSM_GENI_CONSOLE_USER
+	/* Disable serial0 in user version */
+	if ((line == 0) && (is_console == 1)) {
+		return -ENODEV;
+	}
+#endif
 	dev_port = get_port_from_line(line, is_console);
 	if (IS_ERR_OR_NULL(dev_port)) {
 		ret = PTR_ERR(dev_port);
