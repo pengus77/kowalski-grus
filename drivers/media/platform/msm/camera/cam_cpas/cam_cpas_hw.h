@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,7 +24,7 @@
 #define CAM_CPAS_AXI_MIN_MNOC_AB_BW   (2048 * 1024)
 #define CAM_CPAS_AXI_MIN_MNOC_IB_BW   (2048 * 1024)
 #define CAM_CPAS_AXI_MIN_CAMNOC_AB_BW (2048 * 1024)
-#define CAM_CPAS_AXI_MIN_CAMNOC_IB_BW (3000000000UL)
+#define CAM_CPAS_AXI_MIN_CAMNOC_IB_BW (3000000000L)
 
 #define CAM_CPAS_GET_CLIENT_IDX(handle) (handle)
 #define CAM_CPAS_GET_CLIENT_HANDLE(indx) (indx)

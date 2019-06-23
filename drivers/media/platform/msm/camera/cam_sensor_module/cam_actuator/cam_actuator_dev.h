@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -111,7 +112,6 @@ struct intf_params {
  * @of_node: Node ptr
  */
 struct cam_actuator_ctrl_t {
-	char device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
 	struct i2c_driver *i2c_driver;
 	enum cci_i2c_master_t cci_i2c_master;
 	struct camera_io_master io_master_info;
@@ -125,6 +125,8 @@ struct cam_actuator_ctrl_t {
 	struct i2c_data_settings i2c_data;
 	struct cam_actuator_query_cap act_info;
 	struct intf_params bridge_intf;
+	char device_name[20];
+	struct platform_device *pdev;
 };
 
 #endif /* _CAM_ACTUATOR_DEV_H_ */
