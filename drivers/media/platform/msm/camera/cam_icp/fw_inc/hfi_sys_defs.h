@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -212,6 +213,9 @@
 #define HFI_DEBUG_MSG_PERF       0x00000020
 #define HFI_DEBUG_CFG_WFI        0x01000000
 #define HFI_DEBUG_CFG_ARM9WD     0x10000000
+
+#define HFI_DEBUG_MODE_QUEUE     0x00000001
+#define HFI_DEBUG_MODE_QDSS      0x00000002
 
 #define HFI_DEV_VERSION_MAX      0x5
 

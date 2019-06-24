@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -117,11 +118,9 @@ void cam_hfi_disable_cpu(void __iomem *icp_base);
 void cam_hfi_deinit(void __iomem *icp_base);
 /**
  * hfi_set_debug_level() - set debug level
- * @a5_dbg_type: 1 for debug_q & 2 for qdss
  * @lvl: FW debug message level
  */
-int hfi_set_debug_level(u64 a5_dbg_type, uint32_t lvl);
-
+int hfi_set_debug_level(uint32_t lvl);
 /**
  * hfi_set_fw_dump_level() - set firmware dump level
  * @lvl: level of firmware dump level

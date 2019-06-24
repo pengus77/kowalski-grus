@@ -381,16 +381,17 @@ int cam_soc_util_set_clk_flags(struct cam_hw_soc_info *soc_info,
 	 uint32_t clk_index, unsigned long flags);
 
 /**
- * cam_soc_util_set_src_clk_rate()
+ * cam_soc_util_set_clk_rate()
  *
- * @brief:              Set the rate on the source clock.
+ * @brief:              Set the rate on a given clock.
  *
- * @soc_info:           Device soc information
- * @clk_rate:           Clock rate associated with the src clk
+ * @clk:                Clock that needs to be set
+ * @clk_name:           Clocks name associated with clk
+ * @clk_rate:           Clocks rate associated with clk
  *
  * @return:             success or failure
  */
-int cam_soc_util_set_src_clk_rate(struct cam_hw_soc_info *soc_info,
+int cam_soc_util_set_clk_rate(struct clk *clk, const char *clk_name,
 	int32_t clk_rate);
 
 /**
