@@ -449,7 +449,7 @@
 
 &soc {
 	qcom,ion {
-		compatible = "qcom,msm-ion";
+		#compatible = "qcom,msm-ion";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
