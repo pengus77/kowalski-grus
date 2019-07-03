@@ -1356,7 +1356,7 @@ static void sdm660_tx_mute_update_callback(struct work_struct *work)
 #define SNDCTRL_MIC_MIN		-10
 #define SNDCTRL_MIC_MAX		20
 #define SNDCTRL_SPK_MIN		-10
-#define SNDCTRL_SPK_MAX		20
+#define SNDCTRL_SPK_MAX		10
 
 struct snd_soc_codec *sound_control_codec_ptr;
 
