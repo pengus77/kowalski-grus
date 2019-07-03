@@ -1351,6 +1351,13 @@ static void sdm660_tx_mute_update_callback(struct work_struct *work)
 }
 
 #ifdef CONFIG_SOUND_CONTROL
+#define SNDCTRL_HF_MIN		-40
+#define SNDCTRL_HF_MAX		20
+#define SNDCTRL_MIC_MIN		-10
+#define SNDCTRL_MIC_MAX		20
+#define SNDCTRL_SPK_MIN		-10
+#define SNDCTRL_SPK_MAX		20
+
 struct snd_soc_codec *sound_control_codec_ptr;
 
 static ssize_t headphone_gain_show(struct kobject *kobj,
@@ -1365,19 +1372,13 @@ static ssize_t headphone_gain_show(struct kobject *kobj,
 static ssize_t headphone_gain_store(struct kobject *kobj,
         struct kobj_attribute *attr, const char *buf, size_t count)
 {
-
     int input_l, input_r;
-
     sscanf(buf, "%d %d", &input_l, &input_r);
+    if (input_l >= SNDCTRL_HF_MIN || input_l <= SNDCTRL_HF_MAX)
+	    snd_soc_write(sound_control_codec_ptr, MSM89XX_CDC_CORE_RX1_VOL_CTL_B2_CTL, input_l);
 
-    if (input_l < -40 || input_l > 20)
-        input_l = 0;
-
-    if (input_r < -40 || input_r > 20)
-        input_r = 0;
-
-    snd_soc_write(sound_control_codec_ptr, MSM89XX_CDC_CORE_RX1_VOL_CTL_B2_CTL, input_l);
-    snd_soc_write(sound_control_codec_ptr, MSM89XX_CDC_CORE_RX2_VOL_CTL_B2_CTL, input_r);
+    if (input_r >= SNDCTRL_HF_MIN || input_r <= SNDCTRL_HF_MAX)
+	    snd_soc_write(sound_control_codec_ptr, MSM89XX_CDC_CORE_RX2_VOL_CTL_B2_CTL, input_r);
 
     return count;
 }
@@ -1389,19 +1390,19 @@ static struct kobj_attribute headphone_gain_attribute =
 
 static ssize_t mic_gain_show(struct kobject *kobj,
         struct kobj_attribute *attr, char *buf)
-        {
-            return snprintf(buf, PAGE_SIZE, "%d\n",
-                    snd_soc_read(sound_control_codec_ptr, MSM89XX_CDC_CORE_TX1_VOL_CTL_GAIN));
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		snd_soc_read(sound_control_codec_ptr, MSM89XX_CDC_CORE_TX1_VOL_CTL_GAIN));
 }
 static ssize_t mic_gain_store(struct kobject *kobj,
         struct kobj_attribute *attr, const char *buf, size_t count)
-        {
-            int input;
-            sscanf(buf, "%d", &input);
-            if (input < -10 || input > 20)
-                input = 0;
-            snd_soc_write(sound_control_codec_ptr, MSM89XX_CDC_CORE_TX1_VOL_CTL_GAIN, input);
-            return count;
+{
+	int input;
+	sscanf(buf, "%d", &input);
+	if (input >= SNDCTRL_MIC_MIN || input <= SNDCTRL_MIC_MAX)
+		snd_soc_write(sound_control_codec_ptr, MSM89XX_CDC_CORE_TX1_VOL_CTL_GAIN, input);
+
+	return count;
 }
 static struct kobj_attribute mic_gain_attribute =
         __ATTR(mic_gain, 0664,
@@ -1422,11 +1423,8 @@ static ssize_t speaker_gain_store(struct kobject *kobj,
 {
 	int input;
 	sscanf(buf, "%d", &input);
-
-	if (input < -10 || input > 20)
-		input = 0;
-
-	snd_soc_write(cs35l41_codec_ptr, CS35L41_AMP_DIG_VOL_CTRL, input * 100);
+	if (input >= SNDCTRL_SPK_MIN || input <= SNDCTRL_SPK_MAX)
+		snd_soc_write(cs35l41_codec_ptr, CS35L41_AMP_DIG_VOL_CTRL, input * 100);
 
 	return count;
 }
