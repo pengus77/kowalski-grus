@@ -206,9 +206,11 @@ static int cs35l41_halo_booted_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifndef CONFIG_SOUND_CONTROL
 static const DECLARE_TLV_DB_RANGE(dig_vol_tlv,
 		0, 0, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
 		1, 913, TLV_DB_SCALE_ITEM(-10200, 25, 0));
+#endif
 static DECLARE_TLV_DB_SCALE(amp_gain_tlv, 0, 1, 1);
 
 static const struct snd_kcontrol_new dre_ctrl =
@@ -448,8 +450,10 @@ static const struct snd_kcontrol_new dsp_rx2_mux =
 	SOC_DAPM_ENUM("DSPRX2 SRC", cs35l41_dsprx2_enum);
 
 static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
+#ifndef CONFIG_SOUND_CONTROL
 	SOC_SINGLE_SX_TLV("Digital PCM Volume", CS35L41_AMP_DIG_VOL_CTRL,
 		      3, 0x4CF, 0x391, dig_vol_tlv),
+#endif
 	SOC_SINGLE_TLV("AMP PCM Gain", CS35L41_AMP_GAIN_CTRL, 5, 0x14, 0,
 			amp_gain_tlv),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L41_SP_FRAME_TX_SLOT, 0,
@@ -1341,6 +1345,10 @@ static int cs35l41_boost_config(struct cs35l41_private *cs35l41,
 	return 0;
 }
 
+#ifdef CONFIG_SOUND_CONTROL
+extern struct snd_soc_codec *cs35l41_codec_ptr;
+#endif
+
 static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
@@ -1490,6 +1498,10 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_ignore_suspend(dapm, "TEMP");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP1 Preloader");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP1 Preload");
+
+#ifdef CONFIG_SOUND_CONTROL
+	cs35l41_codec_ptr = codec;
+#endif
 
 	return 0;
 }
