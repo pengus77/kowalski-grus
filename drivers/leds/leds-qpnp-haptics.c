@@ -101,7 +101,7 @@ extern int slst_gpio_base_id;
 #define HAP_VMAX_MAX_MV_STRONG  3596
 #define HAP_VMAX_MAX_MV_USER	500
 #define HAP_MIN_TIME_STRONG		100
-#define HAP_MIN_TIME_CALL		100
+#define HAP_MIN_TIME_CALL		1000
 
 #define HAP_ILIM_CFG_REG(chip)		(chip->base + 0x52)
 #define HAP_ILIM_SEL_MASK		BIT(0)
