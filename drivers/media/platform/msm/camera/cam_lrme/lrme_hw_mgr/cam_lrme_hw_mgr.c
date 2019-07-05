@@ -150,7 +150,7 @@ static int cam_lrme_mgr_util_prepare_io_buffer(int32_t iommu_hdl,
 	int rc = -EINVAL;
 	uint32_t num_in_buf, num_out_buf, i, j, plane;
 	struct cam_buf_io_cfg *io_cfg;
-	uint64_t io_addr[CAM_PACKET_MAX_PLANES];
+	dma_addr_t io_addr[CAM_PACKET_MAX_PLANES];
 	size_t size;
 
 	num_in_buf = 0;
@@ -396,13 +396,14 @@ static int cam_lrme_mgr_util_submit_req(void *priv, void *data)
 	work_data = (struct cam_lrme_mgr_work_data *)data;
 	hw_device = work_data->hw_device;
 
-	rc = cam_lrme_mgr_util_get_frame_req(&hw_device->
-		frame_pending_list_high, &frame_req, &hw_device->high_req_lock);
+	rc = cam_lrme_mgr_util_get_frame_req(
+		&hw_device->frame_pending_list_high, &frame_req,
+		&hw_device->high_req_lock);
 
 	if (!frame_req) {
-		rc = cam_lrme_mgr_util_get_frame_req(&hw_device->
-				frame_pending_list_normal, &frame_req,
-				&hw_device->normal_req_lock);
+		rc = cam_lrme_mgr_util_get_frame_req(
+			&hw_device->frame_pending_list_normal, &frame_req,
+			&hw_device->normal_req_lock);
 		if (frame_req)
 			req_prio = 1;
 	}
@@ -575,7 +576,7 @@ static int cam_lrme_mgr_get_caps(void *hw_mgr_priv, void *hw_get_caps_args)
 
 	if (sizeof(struct cam_lrme_query_cap_cmd) != args->size) {
 		CAM_ERR(CAM_LRME,
-			"sizeof(struct cam_query_cap_cmd) = %lu, args->size = %d",
+			"sizeof(struct cam_query_cap_cmd) = %zu, args->size = %d",
 			sizeof(struct cam_query_cap_cmd), args->size);
 		return -EFAULT;
 	}
@@ -596,7 +597,7 @@ static int cam_lrme_mgr_hw_acquire(void *hw_mgr_priv, void *hw_acquire_args)
 	struct cam_hw_acquire_args *args =
 		(struct cam_hw_acquire_args *)hw_acquire_args;
 	struct cam_lrme_acquire_args lrme_acquire_args;
-	uint64_t device_index;
+	uintptr_t device_index;
 
 	if (!hw_mgr_priv || !args) {
 		CAM_ERR(CAM_LRME,
@@ -617,7 +618,7 @@ static int cam_lrme_mgr_hw_acquire(void *hw_mgr_priv, void *hw_acquire_args)
 	CAM_DBG(CAM_LRME, "Get device id %llu", device_index);
 
 	if (device_index >= hw_mgr->device_count) {
-		CAM_ERR(CAM_LRME, "Get wrong device id %llu", device_index);
+		CAM_ERR(CAM_LRME, "Get wrong device id %lu", device_index);
 		return -EINVAL;
 	}
 
@@ -641,7 +642,7 @@ static int cam_lrme_mgr_hw_release(void *hw_mgr_priv, void *hw_release_args)
 		return -EINVAL;
 	}
 
-	device_index = CAM_LRME_DECODE_DEVICE_INDEX(args->ctxt_to_hw_map);
+	device_index = ((uintptr_t)args->ctxt_to_hw_map & 0xF);
 	if (device_index >= hw_mgr->device_count) {
 		CAM_ERR(CAM_LRME, "Invalid device index %llu", device_index);
 		return -EPERM;
