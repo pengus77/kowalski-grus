@@ -1417,8 +1417,6 @@ static ssize_t speaker_gain_show(struct kobject *kobj,
 	int dig_val, val;
 	dig_val = snd_soc_read(cs35l41_codec_ptr, CS35L41_AMP_DIG_VOL_CTRL);
 	val = dig_val / 100;
-	if (val < SNDCTRL_SPK_MIN || val > SNDCTRL_SPK_MAX)
-		val = 0;
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
