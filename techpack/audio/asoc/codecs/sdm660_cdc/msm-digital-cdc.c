@@ -33,9 +33,6 @@
 #include "msm-digital-cdc.h"
 #include "msm-cdc-common.h"
 #include "../../sdm660-common.h"
-#ifdef CONFIG_SOUND_CONTROL
-#include "../cs35l41/cs35l41.h"
-#endif
 
 #define DRV_NAME "msm_digital_codec"
 #define MCLK_RATE_9P6MHZ        9600000
@@ -1408,38 +1405,9 @@ static struct kobj_attribute mic_gain_attribute =
                 mic_gain_show,
                 mic_gain_store);
 
-struct snd_soc_codec *cs35l41_codec_ptr;
-
-static ssize_t speaker_gain_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-		snd_soc_read(cs35l41_codec_ptr, CS35L41_AMP_DIG_VOL_CTRL) / 100);
-}
-
-static ssize_t speaker_gain_store(struct kobject *kobj,
-		struct kobj_attribute *attr, const char *buf, size_t count)
-{
-	int input;
-	sscanf(buf, "%d", &input);
-
-	if (input < -10 || input > 20)
-		input = 0;
-
-	snd_soc_write(cs35l41_codec_ptr, CS35L41_AMP_DIG_VOL_CTRL, input * 100);
-
-	return count;
-}
-
-static struct kobj_attribute speaker_gain_attribute =
-	__ATTR(speaker_gain, 0664,
-		speaker_gain_show,
-		speaker_gain_store);
-
 static struct attribute *sound_control_attrs[] = {
         &headphone_gain_attribute.attr,
         &mic_gain_attribute.attr,
-        &speaker_gain_attribute.attr,
         NULL,
 };
 
