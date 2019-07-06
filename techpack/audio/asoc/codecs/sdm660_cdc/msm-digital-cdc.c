@@ -1414,11 +1414,8 @@ struct snd_soc_codec *cs35l41_codec_ptr;
 static ssize_t speaker_gain_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	int dig_val, val;
-	dig_val = snd_soc_read(cs35l41_codec_ptr, CS35L41_AMP_DIG_VOL_CTRL);
-	val = dig_val / 100;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", val);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		snd_soc_read(cs35l41_codec_ptr, CS35L41_AMP_DIG_VOL_CTRL) / 100);
 }
 
 static ssize_t speaker_gain_store(struct kobject *kobj,
