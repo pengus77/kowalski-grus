@@ -9,7 +9,7 @@
 KERNEL_DIR="/Volumes/mi9se/kowalski-grus"
 BUILD_DIR=$KERNEL_DIR/out
 
-export PATH=/usr/local/opt/coreutils/libexec/gnubin:/Volumes/mi9se/toolchains/gcc/bin:$PATH
+export PATH=/usr/local/opt/findutils/libexec/gnubin:/usr/local/bin:/usr/local/opt/coreutils/libexec/gnubin:/Volumes/mi9se/toolchains/gcc/bin:$PATH
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-linux-android-
 export DTC_EXT=/usr/local/bin/dtc
@@ -29,7 +29,7 @@ mke(){
 mke_dtimg(){
   DTOUT=$BUILD_DIR/arch/arm64/boot/dtbo.img
 
-  if [[ -n "$MKDT" ]];then
+  if [[ -n "DTPY" ]];then
     echo "Building overlay dt using $MKDT"
     python2.7 $DTPY \
       create $DTOUT \
