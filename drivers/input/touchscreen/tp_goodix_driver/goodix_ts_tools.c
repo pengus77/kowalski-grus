@@ -332,8 +332,6 @@ int sync_read_rawdata (unsigned int reg,
 
 	list_add_tail(&tools_data.list, &dev->head);
 
-	ts_info("add sync_read to list");
-
 	mutex_unlock(&dev->mutex);
 
 	/* wait queue will timeout after 1 seconds */
@@ -373,8 +371,6 @@ int goodix_tools_register(void)
 {
 
 	int ret = 0;
-
-	ts_info("register tools module");
 
 	/* Only the first time open device need to register module */
 
@@ -482,13 +478,11 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 			mutex_lock(&dev->mutex);
 			dev->ops_mode |= IRQ_FALG;
 			mutex_unlock(&dev->mutex);
-			ts_info("IRQ enabled");
 		} else if (arg == 0) {
 			goodix_ts_irq_enable(dev->ts_core, false);
 			mutex_lock(&dev->mutex);
 			dev->ops_mode &= ~IRQ_FALG;
 			mutex_unlock(&dev->mutex);
-			ts_info("IRQ disabled");
 		} else {
 			ts_info("Irq aready set with, arg = %ld", arg);
 		}
@@ -533,7 +527,6 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 				ts_err("Failed send config");
 				ret = -EAGAIN;
 			} else {
-				ts_info("Send config success");
 				ret = 0;
 			}
 		}
@@ -601,7 +594,6 @@ static int goodix_tools_open(struct inode *inode, struct file *filp)
 {
 	int ret = 0;
 	filp->private_data = goodix_tools_dev;
-	ts_info("tools open");
 	/* Only the first time open device need to register module */
 	ret = goodix_register_ext_module(&goodix_tools_dev->module);
 	if (ret) {
@@ -730,7 +722,6 @@ static void __exit goodix_tools_exit(void)
 {
 	misc_deregister(&goodix_tools_miscdev);
 	kfree(goodix_tools_dev);
-	ts_info("Goodix tools miscdev exit");
 }
 
 module_init(goodix_tools_init);

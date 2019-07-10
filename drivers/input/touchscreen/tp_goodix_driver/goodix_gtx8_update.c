@@ -305,7 +305,6 @@ static int goodix_check_update(struct goodix_ts_device *dev,
 		}
 	} /* else invalid firmware, update firmware */
 
-	ts_info("Firmware needs to be updated");
 	return 0;
 }
 
@@ -387,9 +386,6 @@ static int goodix_load_mask(struct goodix_ts_device *ts_dev)
 	if (r < 0) {
 		ts_err("Firmware image [%s] not available,errno:%d", mask_name, r);
 		return r;
-	} else {
-		ts_info("Firmware image [%s] is ready, size = %zu", mask_name,
-			mask_fw->size);
 	}
 
 	/* enable AHB access */
@@ -416,8 +412,6 @@ static int goodix_load_mask(struct goodix_ts_device *ts_dev)
 	while (total_size > 0) {
 		data_size = total_size > MAX_MASK_BUF_SIZE ?
 			MAX_MASK_BUF_SIZE : total_size;
-		ts_info("Flash firmware to %08x,size:%u bytes",
-			0xC000 + offset, data_size);
 
 		for (i = 0; i < 3; i++) {
 			r = goodix_reg_write_confirm(ts_dev, 0xC000,
@@ -455,7 +449,6 @@ static int goodix_load_mask(struct goodix_ts_device *ts_dev)
 		goto mask_exit;
 	}
 	ts_debug("Success diable AHB access, Set 0x2049-->0x00");
-	ts_info("Success loak mask");
 mask_exit:
 	release_firmware(mask_fw);
 	return r;
@@ -478,7 +471,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 
 	fw_isp = &fw_data->fw_info.subsys[0];
 
-	ts_info("Loading ISP start");
 	/* select bank0 */
 	reg_val[0] = 0x00;
 	r = goodix_reg_write(ts_dev, HW_REG_BANK_SELECT,
@@ -570,7 +562,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		usleep_range(5000, 5100);
 	}
 	if (reg_val[0] == 0xAA && reg_val[1] == 0xBB) {
-		ts_info("ISP working OK");
 		return 0;
 	} else {
 		ts_err("ISP not work,0x%x=0x%x, 0x%x=0x%x",
@@ -598,7 +589,6 @@ static int goodix_update_prepare(struct fw_update_ctrl *fwu_ctrl)
 
 	/*reset IC*/
 	fwu_ctrl->allow_reset = true;
-	ts_info("normandy firmware update, reset");
 	gpio_direction_output(ts_dev->board_data->reset_gpio, 0);
 	udelay(2000);
 	gpio_direction_output(ts_dev->board_data->reset_gpio, 1);
@@ -816,14 +806,6 @@ static int goodix_send_fw_packet(struct goodix_ts_device *dev, u8 type,
 			/* read twice to confirm the result */
 			r = goodix_reg_read(dev, HW_REG_FLASH_FLAG, reg_val, 2);
 			if (!r && reg_val[0] == ISP_FLASH_SUCCESS && reg_val[1] == ISP_FLASH_SUCCESS) {
-				/*r = goodix_read_back_check(dev, 0x8104,
-					len - 6, (char*)pkt + 4);
-				if (r) {
-					ts_err("Read back compare failed");
-				} else {
-					ts_info("Read back compare OK");
-				}*/
-				ts_info("Flash subsystem ok");
 				return 0;
 			}
 		}
@@ -1127,8 +1109,7 @@ err_parse_fw:
 	if (fwu_ctrl->ts_dev->hw_ops->send_config(fwu_ctrl->ts_dev,
 						  fwu_ctrl->ts_dev->normal_cfg))
 		ts_err("Failed send config");
-	else
-		ts_info("Send config success");
+
 	msleep(200);
 */
 	return r;
@@ -1295,7 +1276,6 @@ static ssize_t goodix_sysfs_update_result_show(
 	char *result = NULL;
 	struct fw_update_ctrl *fw_ctrl = module->priv_data;
 
-	ts_info("result show");
 	switch (fw_ctrl->status) {
 	case UPSTA_NOTWORK:
 		result = "notwork";

@@ -158,7 +158,6 @@ static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
 		}
 		ret = goodix_register_ext_module(&gsx_gesture->module);
 		if (!ret) {
-			ts_info("Gesture module registered!");
 			atomic_set(&gsx_gesture->registered, 1);
 		} else {
 			atomic_set(&gsx_gesture->registered, 0);
@@ -173,7 +172,6 @@ static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
 		ret = goodix_unregister_ext_module(&gsx_gesture->module);
 		if (!ret) {
 			atomic_set(&gsx_gesture->registered, 0);
-			ts_info("Gesture module unregistered success");
 		} else {
 			atomic_set(&gsx_gesture->registered, 1);
 			ts_info("Gesture module unregistered failed");
@@ -196,7 +194,6 @@ int goodix_gesture_enable(bool enable)
 		}
 		ret = goodix_register_ext_module(&gsx_gesture->module);
 		if (!ret) {
-			ts_info("Gesture module registered!");
 			atomic_set(&gsx_gesture->registered, 1);
 		} else {
 			atomic_set(&gsx_gesture->registered, 0);
@@ -226,7 +223,6 @@ int goodix_check_gesture_stat(bool enable)
 {
 	int tp_stat = atomic_read(&goodix_core_data->suspend_stat);
 	if (enable && (tp_stat == TP_GESTURE_DBCLK || tp_stat == TP_SLEEP)) {
-		ts_info("sync IC suspend stat base on suspend stat in tp driver");
 		goodix_ts_resume(goodix_core_data);
 		goodix_ts_suspend(goodix_core_data);
 	}
@@ -508,7 +504,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 	}
 
 	if (temp_data[2] == 0xcc && core_data->double_wakeup) {
-		/*ts_info("Gesture match success, resume IC");*/
 		input_report_key(core_data->input_dev, KEY_WAKEUP, 1);
 		input_sync(core_data->input_dev);
 		input_report_key(core_data->input_dev, KEY_WAKEUP, 0);
@@ -517,9 +512,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 
 	}
 	if (QUERYBIT(gsx_gesture->gesture_type, temp_data[2])) {
-		/* do resume routine */
-		/*ts_info("Gesture match success, resume IC");*/
-
 		goto gesture_ist_exit;
 	} else {
 		ts_info("Unsupported gesture:%x", temp_data[2]);
@@ -655,7 +647,6 @@ static int __init goodix_gsx_gesture_init(void)
 {
 	/* initialize core_data->ts_dev->gesture_cmd*/
 	int result;
-	ts_info("gesture module init");
 	gsx_gesture = kzalloc(sizeof(struct gesture_module), GFP_KERNEL);
 	if (!gsx_gesture)
 		result = -ENOMEM;
@@ -676,7 +667,6 @@ static int __init goodix_gsx_gesture_init(void)
 
 static void __exit goodix_gsx_gesture_exit(void)
 {
-	ts_info("gesture module exit");
 	if (gsx_gesture->kobj_initialized)
 		kobject_put(&gsx_gesture->module.kobj);
 	kfree(gsx_gesture);
