@@ -70,7 +70,7 @@ mke_dtimg(){
   DTOUT=$BUILD_DIR/arch/arm64/boot/dtbo.img
 
   if [[ -n "DTPY" ]];then
-    echo "Building overlay dt using $MKDT"
+    echo "Building overlay dt using $DTPY"
     python2.7 $DTPY \
       create $DTOUT \
       $(find $BUILD_DIR/arch/arm64/boot/dts/ -iname '*-overlay.dtbo' -print)
