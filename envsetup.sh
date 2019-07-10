@@ -13,6 +13,7 @@ KERNEL_DIR=""
 NEWPATH=""
 
 HOST=$(uname)
+NPROC=4
 
 if [ "$HOST" == "Darwin" ]
 then
@@ -31,15 +32,17 @@ then
 	NEWPATH=/usr/local/bin:$FINDUTILS_BIN:$COREUTILS_BIN:$GCC_BIN:$LLVM_DIR/bin:$PATH
 elif [ "$HOST" == "Linux" ]
 then
-	DEV_DIR="/media/ivan/external/mi9se"
-	KERNEL_DIR="$DEV_DIR/kowalski"
+	DEV_DIR="/home/ivan/mi9se"
+	KERNEL_DIR="$DEV_DIR/kowalski-grus"
 
-	DTC_EXT="/usr/local/bin/dtc"
-	DTPY="/usr/local/bin/mkdtboimg.py"
+	DTC_EXT="$DEV_DIR/helpers/dtc/dtc"
+	DTPY="$DEV_DIR/helpers/mkdtboimg.py"
 	
 	GCC_BIN="$DEV_DIR/toolchains/gcc/bin"
 	LLVM_DIR="$DEV_DIR/toolchains/clang"
 	LLVM_GOLD_PLUGIN="$LLVM_DIR/lib64/LLVMgold.so"
+
+	NPROC=$(nproc)
 
 	NEWPATH=$GCC_BIN:$LLVM_DIR/bin:$PATH
 fi
@@ -47,16 +50,15 @@ fi
 BUILD_DIR=$KERNEL_DIR/out
 
 export ARCH=arm64
-export CROSS_COMPILE=aarch64-linux-android-
+export CROSS_COMPILE=aarch64-linux-androidkernel-
 
 export DTC_EXT LLVM_GOLD_PLUGIN
 export PATH=$NEWPATH
 
 mke(){
   mkdir -p $BUILD_DIR
-  rm -f $(find $BUILD_DIR -name '*.o')
   make O=$BUILD_DIR kowalski_defconfig
-  make -j4 O=$BUILD_DIR CC=clang CLANG_TRIPLE=aarch64-linux-android-
+  make -j$NPROC O=$BUILD_DIR CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
 
   if [ $? -eq 0 ]
   then 
