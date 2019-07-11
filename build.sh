@@ -1,11 +1,5 @@
 #!/bin/bash
 
-((return 0 2>/dev/null) || [[ $ZSH_EVAL_CONTEXT =~ :file$ ]]) || {
-  echo "Please load the file instead."
-  echo "example: source envsetup.sh"
-  exit 1
-}
-
 DTPY=""
 DTC_EXT=""
 LLVM_GOLD_PLUGIN=""
@@ -19,6 +13,8 @@ if [ "$HOST" == "Darwin" ]
 then
 	DEV_DIR="/Volumes/mi9se"
 	KERNEL_DIR="$DEV_DIR/kowalski-grus"
+
+	rm -f $(find $KERNEL_DIR/out/techpack -name '*.o' -type f)
 
 	FINDUTILS_BIN="/usr/local/opt/findutils/libexec/gnubin"
 	COREUTILS_BIN="/usr/local/opt/coreutils/libexec/gnubin"
@@ -55,17 +51,6 @@ export CROSS_COMPILE=aarch64-linux-androidkernel-
 export DTC_EXT LLVM_GOLD_PLUGIN
 export PATH=$NEWPATH
 
-mke(){
-  mkdir -p $BUILD_DIR
-  make O=$BUILD_DIR kowalski_defconfig
-  make -j$NPROC O=$BUILD_DIR CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
-
-  if [ $? -eq 0 ]
-  then 
-    mke_dtimg
-  fi
-}
-
 mke_dtimg(){
   DTOUT=$BUILD_DIR/arch/arm64/boot/dtbo.img
 
@@ -77,4 +62,14 @@ mke_dtimg(){
     echo "Build done: $DTOUT"
   fi
 }
+
+mkdir -p $BUILD_DIR
+make O=$BUILD_DIR kowalski_defconfig
+make -j$NPROC O=$BUILD_DIR CC=clang CLANG_TRIPLE=aarch64-linux-gnu-
+
+if [ $? -eq 0 ]
+then 
+	mke_dtimg
+fi
+
 
