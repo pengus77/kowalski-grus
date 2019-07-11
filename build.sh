@@ -1,5 +1,8 @@
 #!/bin/bash
 
+LOCALVERSION=" $1"
+export LOCALVERSION
+
 DTPY=""
 DTC_EXT=""
 LLVM_GOLD_PLUGIN=""
