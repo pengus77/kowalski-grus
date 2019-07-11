@@ -28,7 +28,7 @@ then
 	NEWPATH=/usr/local/bin:$FINDUTILS_BIN:$COREUTILS_BIN:$GCC_BIN:$LLVM_DIR/bin:$PATH
 elif [ "$HOST" == "Linux" ]
 then
-	DEV_DIR="/home/ivan/mi9se"
+	DEV_DIR="/media/ivan/external/mi9se"
 	KERNEL_DIR="$DEV_DIR/kowalski-grus"
 
 	DTC_EXT="$DEV_DIR/helpers/dtc/dtc"
