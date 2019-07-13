@@ -71,8 +71,6 @@
 #include "xhci-trace.h"
 #include "xhci-mtk.h"
 extern void kick_usbpd_vbus_sm(void);
-extern unsigned int connected_usb_idVendor;
-extern unsigned int connected_usb_idProduct;
 
 /*
  * Returns zero if the TRB isn't in this segment, otherwise it returns the DMA
@@ -265,9 +263,6 @@ void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 
 static bool xhci_mod_cmd_timer(struct xhci_hcd *xhci, unsigned long delay)
 {
-	if ((0x2717 == connected_usb_idVendor)&&(0x3801 == connected_usb_idProduct)) {
-		delay = 500;
-	}
 	return mod_delayed_work(system_wq, &xhci->cmd_timer, delay);
 }
 
@@ -1312,13 +1307,6 @@ void xhci_handle_command_timeout(struct work_struct *work)
 		xhci->cmd_ring_state = CMD_RING_STATE_ABORTED;
 		xhci_dbg(xhci, "Command timeout\n");
 		ret = xhci_abort_cmd_ring(xhci, flags);
-		if ((ret == -1)&&(0x2717 == connected_usb_idVendor)&&(0x3801 == connected_usb_idProduct)) {
-			xhci_err(xhci, "Abort command ring failed reset usb device\n");
-			xhci_cleanup_command_queue(xhci);
-			spin_unlock_irqrestore(&xhci->lock, flags);
-			kick_usbpd_vbus_sm();
-			return;
-		}
 		if (unlikely(ret == -ESHUTDOWN)) {
 			xhci_err(xhci, "Abort command ring failed\n");
 			xhci_cleanup_command_queue(xhci);

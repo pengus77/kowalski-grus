@@ -45,10 +45,6 @@ static DEFINE_SPINLOCK(device_state_lock);
 static struct workqueue_struct *hub_wq;
 static void hub_event(struct work_struct *work);
 
-unsigned int connected_usb_idVendor = 0;
-unsigned int connected_usb_idProduct = 0;
-unsigned int connected_usb_devnum = 0xff;
-
 /* synchronize hub-port add/remove and peering operations */
 DEFINE_MUTEX(usb_port_peer_mutex);
 
@@ -2134,14 +2130,6 @@ void usb_disconnect(struct usb_device **pdev)
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
 
-	if(connected_usb_devnum == udev->devnum)
-	{
-		dev_info(&udev->dev, "xiaomi headset removed, devnum %d\n",udev->devnum);
-		connected_usb_idVendor = 0;
-		connected_usb_idProduct = 0;
-		connected_usb_devnum = 0xff;
-	}
-
 	/*
 	 * Ensure that the pm runtime code knows that the USB device
 	 * is in the process of being disconnected.
@@ -2468,14 +2456,6 @@ int usb_new_device(struct usb_device *udev)
 	/* export the usbdev device-node for libusb */
 	udev->dev.devt = MKDEV(USB_DEVICE_MAJOR,
 			(((udev->bus->busnum-1) * 128) + (udev->devnum-1)));
-
-	if((0x2717 == le16_to_cpu(udev->descriptor.idVendor))&&(0x3801 == le16_to_cpu(udev->descriptor.idProduct)))
-	{
-		connected_usb_idVendor = le16_to_cpu(udev->descriptor.idVendor);
-		connected_usb_idProduct = le16_to_cpu(udev->descriptor.idProduct);
-		connected_usb_devnum = udev->devnum;
-		dev_info(&udev->dev, "xiaomi headset identified, devnum %d\n",udev->devnum);
-	}
 
 	/* Tell the world! */
 	announce_device(udev);
