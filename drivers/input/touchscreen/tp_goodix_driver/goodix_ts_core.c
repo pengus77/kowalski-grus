@@ -41,7 +41,10 @@
 #include <linux/input/mt.h>
 #define INPUT_TYPE_B_PROTOCOL
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 #include "../xiaomi/xiaomi_touch.h"
+#endif
 
 #define INPUT_EVENT_START			0
 #define INPUT_EVENT_SENSITIVE_MODE_OFF		0
