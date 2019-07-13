@@ -7,6 +7,7 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/bitops.h>
 
 /**
  * int_sqrt - rough approximation to sqrt
