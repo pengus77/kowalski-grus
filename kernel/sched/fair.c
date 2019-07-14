@@ -135,7 +135,8 @@ unsigned int sysctl_sched_child_runs_first __read_mostly;
 unsigned int sysctl_sched_wakeup_granularity = 1000000UL;
 unsigned int normalized_sysctl_sched_wakeup_granularity = 1000000UL;
 
-const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
+/* raise to 5ms to keep a task running on the same cpu. Reduces context switches a bit. */
+const_debug unsigned int sysctl_sched_migration_cost = 5000000UL;
 
 /*
  * The exponential sliding  window over which load is averaged for shares
