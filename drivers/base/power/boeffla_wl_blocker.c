@@ -170,7 +170,7 @@ static ssize_t version_show(struct device *dev, struct device_attribute *attr, c
 
 // define objects
 static DEVICE_ATTR(wakelock_blocker, 0644, wakelock_blocker_show, wakelock_blocker_store);
-static DEVICE_ATTR(wakelock_blocker_default, 0644, wakelock_blocker_default_show, wakelock_blocker_default_store);
+static DEVICE_ATTR(wakelock_blocker_default, 0444, wakelock_blocker_default_show, wakelock_blocker_default_store);
 static DEVICE_ATTR(debug, 0664, debug_show, debug_store);
 static DEVICE_ATTR(version, 0664, version_show, NULL);
 
