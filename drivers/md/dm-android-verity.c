@@ -369,28 +369,7 @@ static int find_size(dev_t dev, u64 *device_size)
 
 static int verify_header(struct android_metadata_header *header)
 {
-	int retval = -EINVAL;
-
-	if (is_userdebug() && le32_to_cpu(header->magic_number) ==
-			VERITY_METADATA_MAGIC_DISABLE)
-		return VERITY_STATE_DISABLE;
-
-	if (!(le32_to_cpu(header->magic_number) ==
-			VERITY_METADATA_MAGIC_NUMBER) ||
-			(le32_to_cpu(header->magic_number) ==
-			VERITY_METADATA_MAGIC_DISABLE)) {
-		DMERR("Incorrect magic number");
-		return retval;
-	}
-
-	if (le32_to_cpu(header->protocol_version) !=
-			VERITY_METADATA_VERSION) {
-		DMERR("Unsupported version %u",
-			le32_to_cpu(header->protocol_version));
-		return retval;
-	}
-
-	return 0;
+	return VERITY_STATE_DISABLE;
 }
 
 static int extract_metadata(dev_t dev, struct fec_header *fec,
