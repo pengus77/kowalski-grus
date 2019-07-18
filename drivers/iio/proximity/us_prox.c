@@ -296,6 +296,30 @@ static int us_prox_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int us_prox_suspend(struct device *dev)
+{       
+        struct us_prox_data *data;
+	pr_info("%s going to sleep", __func__);
+        data = dev_get_drvdata(dev);
+        return us_proximity_teardown(data);
+}
+
+static int us_prox_resume(struct device *dev)
+{       
+        struct us_prox_data *data;
+	pr_info("%s resuming", __func__);
+        data = dev_get_drvdata(dev);
+        return us_proximity_iio_setup(data);
+
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static const struct dev_pm_ops us_prox_pm_ops = {
+        SET_SYSTEM_SLEEP_PM_OPS(us_prox_suspend, us_prox_resume)
+};
+
+
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "us_prox" },
 	{}
@@ -307,6 +331,7 @@ static struct platform_driver us_prox_driver = {
 	.driver		= {
 		.name		= "us_prox",
 		.of_match_table	= dt_match,
+		.pm		= &us_prox_pm_ops
 	},
 };
 
