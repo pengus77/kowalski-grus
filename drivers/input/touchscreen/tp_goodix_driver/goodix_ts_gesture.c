@@ -566,6 +566,7 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 	struct goodix_ext_module *module)
 {
 	int ret;
+	bool doze;
 	const struct goodix_ts_hw_ops *hw_ops = core_data->ts_dev->hw_ops;
 	struct goodix_ts_cmd *gesture_cmd = &gsx_gesture->cmd;
 	struct goodix_ts_device *dev = core_data->ts_dev;
@@ -579,20 +580,37 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 	if (!core_data->gesture_enabled)
 		return EVT_CONTINUE;
 
-	state_data[0] = GSX_GESTURE_CMD;
-	state_data[1] = 0x03;
-	state_data[2] = 0xF5;
-	ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-	ts_info("Set IC double wakeup mode on,FOD mode off;");
+	/* Always ignore FOD on AOD or in suspend */
+	if (core_data->fod_status) {
+		state_data[0] = GSX_GESTURE_CMD;
+		state_data[1] = 0x03;
+		state_data[2] = 0xF5;
+		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+		ts_info("Set IC double wakeup mode on, FOD mode off;");
+		/* This will be set to true in the future when we'll have
+		 * a working AoD in a decent rom. For now, sleep. */
+		doze = false;
+	} else {
+		state_data[0] = GSX_GESTURE_CMD;
+		state_data[1] = 0x02;
+		state_data[2] = 0xF6;
+		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+		ts_info("Set IC double wakeup mode off, FOD mode off;");
+		doze = false;
+	}
 
 	if (ret != 0) {
 		ts_err("Send doze command error");
 		return 0;
-	} else {
+	}
+
+	if (doze) {
 		ts_info("Set IC in doze mode");
 		atomic_set(&core_data->suspended, 1);
 		return EVT_CANCEL_SUSPEND;
 	}
+
+	return EVT_CONTINUE;
 }
 
 /**
