@@ -45,4 +45,12 @@ config SX9500
 	  To compile this driver as a module, choose M here: the
 	  module will be called sx9500.
 
+config US_PROXIMITY
+	tristate "xiaomi ultrasound proximity sensor"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IIO_BUFFER_CB
+	select IIO_KFIFO_BUF
+	select IIO_TRIGGER
+
 endmenu
