@@ -579,34 +579,11 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 	if (!core_data->gesture_enabled)
 		return EVT_CONTINUE;
 
-	if (core_data->double_wakeup && core_data->fod_status) {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x01;
-		state_data[2] = 0xF7;
-		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-		ts_info("Set IC double wakeup mode on,FOD mode on;");
-	} else if (core_data->double_wakeup && (!core_data->fod_status)) {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x03;
-		state_data[2] = 0xF5;
-		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-		ts_info("Set IC double wakeup mode on,FOD mode off;");
-	} else if (!core_data->double_wakeup && core_data->fod_status) {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x00;
-		state_data[2] = 0xF8;
-		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-		ts_info("Set IC double wakeup mode off,FOD mode on;");
-	} else if (!core_data->double_wakeup && (!core_data->fod_status)) {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x02;
-		state_data[2] = 0xF6;
-		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-		ts_info("Set IC double wakeup mode off,FOD mode off;");
-	} else {
-		ts_info("Get IC mode falied,core_data->double_wakeup=%d,core_data->fod_status=%d;",
-			core_data->double_wakeup, core_data->fod_status);
-	}
+	state_data[0] = GSX_GESTURE_CMD;
+	state_data[1] = 0x03;
+	state_data[2] = 0xF5;
+	ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+	ts_info("Set IC double wakeup mode on,FOD mode off;");
 
 	if (ret != 0) {
 		ts_err("Send doze command error");
