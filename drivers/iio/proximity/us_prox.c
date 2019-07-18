@@ -313,12 +313,11 @@ static int us_prox_resume(struct device *dev)
         return us_proximity_iio_setup(data);
 
 }
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops us_prox_pm_ops = {
         SET_SYSTEM_SLEEP_PM_OPS(us_prox_suspend, us_prox_resume)
 };
-
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct of_device_id dt_match[] = {
 	{ .compatible = "us_prox" },
@@ -331,7 +330,9 @@ static struct platform_driver us_prox_driver = {
 	.driver		= {
 		.name		= "us_prox",
 		.of_match_table	= dt_match,
+#ifdef CONFIG_PM_SLEEP
 		.pm		= &us_prox_pm_ops
+#endif /* CONFIG_PM_SLEEP */
 	},
 };
 
