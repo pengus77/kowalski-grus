@@ -28,6 +28,10 @@
 #include <asm/uaccess.h>
 #include <asm/fcntl.h>
 
+#ifdef CONFIG_KLAPSE
+#include <linux/klapse.h>
+#endif
+
 #include <drm/drm_notifier.h>
 
 #define DSI_READ_WRITE_PANEL_DEBUG 1
@@ -808,6 +812,10 @@ int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl)
 		pr_err("Backlight type(%d) not supported\n", bl->type);
 		rc = -ENOTSUPP;
 	}
+
+#ifdef CONFIG_KLAPSE
+	set_rgb_slider(bl_lvl);
+#endif
 
 	if (((panel->last_bl_lvl == 0) || (panel->skip_dimmingon == STATE_DIM_RESTORE)) && bl_lvl) {
 		if (panel->panel_on_dimming_delay)
