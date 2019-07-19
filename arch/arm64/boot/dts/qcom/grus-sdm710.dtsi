@@ -100,11 +100,6 @@
                         debounce-interval = <15>;
                 };
         };
-		xiaomi_touch {
-			compatible = "xiaomi-touch";
-			status = "ok";
-			touch,name = "xiaomi-touch";
-		};
 };
 
 &dsi_ss_fhd_ea8076_cmd {
