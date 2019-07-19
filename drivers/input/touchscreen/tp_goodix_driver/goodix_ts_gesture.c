@@ -581,7 +581,7 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 		return EVT_CONTINUE;
 
 	/* Always ignore FOD on AOD or in suspend */
-	if (core_data->fod_status) {
+	if (core_data->double_wakeup) {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x03;
 		state_data[2] = 0xF5;
