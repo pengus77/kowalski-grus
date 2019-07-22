@@ -586,16 +586,16 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 		state_data[1] = 0x03;
 		state_data[2] = 0xF5;
 		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+		/* Keep the wakelock on if people REALLY want DT2W with screen off */	
 		ts_info("Set IC double wakeup mode on, FOD mode off;");
-		/* This will be set to true in the future when we'll have
-		 * a working AoD in a decent rom. For now, sleep. */
-		doze = false;
+		doze = true;
 	} else {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x02;
 		state_data[2] = 0xF6;
 		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-		ts_info("Set IC double wakeup mode off, FOD mode off;");
+		/* Let it sleep like a baby and keep DT2W enabled with Notifications */	
+		ts_info("Set IC double wakeup mode partially on, FOD mode off;");
 		doze = false;
 	}
 
