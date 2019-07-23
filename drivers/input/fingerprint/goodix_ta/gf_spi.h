@@ -138,8 +138,6 @@ struct gf_dev {
 	struct notifier_block notifier;
 	char device_available;
 	char fb_black;
-	char wait_finger_down;
-	struct work_struct work;
 };
 
 int gf_parse_dts(struct gf_dev *gf_dev);
