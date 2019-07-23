@@ -5292,7 +5292,6 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		pr_debug("cmdline primary dsi: %s\n", display->name);
 		display->is_active = true;
 		display->is_first_boot = true;
-		display->is_prim_display = true;
 		dsi_display_parse_cmdline_topology(display, DSI_PRIMARY);
 		primary_np = pdev->dev.of_node;
 	}

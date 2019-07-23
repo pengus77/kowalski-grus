@@ -178,7 +178,6 @@ struct dsi_display {
 	struct list_head list;
 	bool is_active;
 	bool is_cont_splash_enabled;
-	bool is_prim_display;
 	bool is_first_boot;
 	struct mutex display_lock;
 	int disp_te_gpio;
