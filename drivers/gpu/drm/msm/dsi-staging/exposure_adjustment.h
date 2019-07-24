@@ -28,9 +28,8 @@
  */
 #define ELVSS_OFF_THRESHOLD        40
 #define EXPOSURE_ADJUSTMENT_MIN    255
+#define EXPOSURE_ADJUSTMENT_MAX    (EXPOSURE_ADJUSTMENT_MIN * 255)
 
-/* PCC coefficient when exposure is 255 */
-#define EXPOSURE_ADJUSTMENT_MAX    65025
 /* Scale for the PCC coefficient with elvss backlight range */
 #define PCC_BACKLIGHT_SCALE \
 (EXPOSURE_ADJUSTMENT_MAX - EXPOSURE_ADJUSTMENT_MIN) / ELVSS_OFF_THRESHOLD
@@ -39,8 +38,6 @@ void set_ea_elvss_off_treshold(u32 value);
 int get_ea_elvss_off_treshold(void);
 void set_ea_fb_min(u32 value);
 int get_ea_fb_min(void);
-void set_ea_fb_max(u32 value);
-int get_ea_fb_max(void);
 
 void ea_panel_mode_ctrl(struct dsi_panel *panel, bool enable);
 bool ea_panel_is_enabled(void);

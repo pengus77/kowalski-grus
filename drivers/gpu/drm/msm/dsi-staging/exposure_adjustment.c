@@ -44,18 +44,11 @@ int get_ea_elvss_off_treshold(void) {
 
 void set_ea_fb_min(u32 value) {
 	ea_fb_min = value;
+	ea_fb_max = value * 255;
 }
 
 int get_ea_fb_min(void) {
 	return ea_fb_min;
-}
-
-void set_ea_fb_max(u32 value) {
-	ea_fb_max = value;
-}
-
-int get_ea_fb_max(void) {
-	return ea_fb_max;
 }
 
 static int ea_panel_crtc_send_pcc(struct dsi_display *display,
@@ -125,16 +118,16 @@ static int ea_panel_send_pcc(u32 bl_lvl)
 		return -ENODEV;
 	}
 
-	if (bl_lvl < elvss_off_treshold)
+	if (bl_lvl < elvss_off_treshold) {
 		ea_coeff = bl_lvl * PCC_BACKLIGHT_SCALE + ea_fb_min;
-	else
-		ea_coeff = ea_fb_max;
+		r_data = ea_coeff;
+		g_data = ea_coeff;
+		b_data = ea_coeff;
 
-	r_data = ea_coeff;
-	g_data = ea_coeff;
-	b_data = ea_coeff;
+		return ea_panel_crtc_send_pcc(display, r_data, g_data, b_data);
+	}
 
-	return ea_panel_crtc_send_pcc(display, r_data, g_data, b_data);
+	return 0;
 }
 
 void ea_panel_mode_ctrl(struct dsi_panel *panel, bool enable)
