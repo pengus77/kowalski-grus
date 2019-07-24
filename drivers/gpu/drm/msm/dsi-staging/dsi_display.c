@@ -7155,7 +7155,7 @@ int dsi_display_unprepare(struct dsi_display *display)
 
 #ifdef CONFIG_EXPOSURE_ADJUSTMENT
 struct dsi_display *get_main_display(void) {
-		return primary_display;
+	return primary_display;
 }
 EXPORT_SYMBOL(get_main_display);
 #endif

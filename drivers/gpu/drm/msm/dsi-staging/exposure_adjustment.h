@@ -35,6 +35,13 @@
 #define PCC_BACKLIGHT_SCALE \
 (EXPOSURE_ADJUSTMENT_MAX - EXPOSURE_ADJUSTMENT_MIN) / ELVSS_OFF_THRESHOLD
 
+void set_ea_elvss_off_treshold(u32 value);
+int get_ea_elvss_off_treshold(void);
+void set_ea_fb_min(u32 value);
+int get_ea_fb_min(void);
+void set_ea_fb_max(u32 value);
+int get_ea_fb_max(void);
+
 void ea_panel_mode_ctrl(struct dsi_panel *panel, bool enable);
 bool ea_panel_is_enabled(void);
 u32 ea_panel_calc_backlight(u32 bl_lvl);

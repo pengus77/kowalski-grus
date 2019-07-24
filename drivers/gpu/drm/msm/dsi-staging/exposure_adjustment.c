@@ -30,6 +30,34 @@ static struct drm_msm_pcc pcc_blk = {0};
 static bool pcc_backlight_enable = true;
 static u32 last_level = ELVSS_OFF_THRESHOLD;
 
+static u32 elvss_off_treshold = ELVSS_OFF_THRESHOLD;
+static u32 ea_fb_min = EXPOSURE_ADJUSTMENT_MIN;
+static u32 ea_fb_max = EXPOSURE_ADJUSTMENT_MAX;
+
+void set_ea_elvss_off_treshold(u32 value) {
+	elvss_off_treshold = value;
+}
+
+int get_ea_elvss_off_treshold(void) {
+	return elvss_off_treshold;
+}
+
+void set_ea_fb_min(u32 value) {
+	ea_fb_min = value;
+}
+
+int get_ea_fb_min(void) {
+	return ea_fb_min;
+}
+
+void set_ea_fb_max(u32 value) {
+	ea_fb_max = value;
+}
+
+int get_ea_fb_max(void) {
+	return ea_fb_max;
+}
+
 static int ea_panel_crtc_send_pcc(struct dsi_display *display,
 			       u32 r_data, u32 g_data, u32 b_data)
 {
@@ -97,10 +125,10 @@ static int ea_panel_send_pcc(u32 bl_lvl)
 		return -ENODEV;
 	}
 
-	if (bl_lvl < ELVSS_OFF_THRESHOLD)
-		ea_coeff = bl_lvl * PCC_BACKLIGHT_SCALE + EXPOSURE_ADJUSTMENT_MIN;
+	if (bl_lvl < elvss_off_treshold)
+		ea_coeff = bl_lvl * PCC_BACKLIGHT_SCALE + ea_fb_min;
 	else
-		ea_coeff = EXPOSURE_ADJUSTMENT_MAX;
+		ea_coeff = ea_fb_max;
 
 	r_data = ea_coeff;
 	g_data = ea_coeff;
@@ -116,10 +144,10 @@ void ea_panel_mode_ctrl(struct dsi_panel *panel, bool enable)
 		pr_info("Recover backlight level = %d\n", last_level);
 		dsi_panel_set_backlight(panel, last_level);
 		if (!enable) {
-			ea_panel_send_pcc(ELVSS_OFF_THRESHOLD);
+			ea_panel_send_pcc(elvss_off_treshold);
 		}
 	} else if (last_level == 0 && !pcc_backlight_enable) {
-		ea_panel_send_pcc(ELVSS_OFF_THRESHOLD);
+		ea_panel_send_pcc(elvss_off_treshold);
 	}
 }
 
@@ -132,11 +160,11 @@ u32 ea_panel_calc_backlight(u32 bl_lvl)
 {
 	last_level = bl_lvl;
 
-	if (pcc_backlight_enable && bl_lvl != 0 && bl_lvl < ELVSS_OFF_THRESHOLD) {
+	if (pcc_backlight_enable && bl_lvl != 0 && bl_lvl < elvss_off_treshold) {
 		if (ea_panel_send_pcc(bl_lvl))
 			pr_err("ERROR: Failed to send PCC\n");
 
-		return ELVSS_OFF_THRESHOLD;
+		return elvss_off_treshold;
 	} else {
 		return bl_lvl;
 	}
