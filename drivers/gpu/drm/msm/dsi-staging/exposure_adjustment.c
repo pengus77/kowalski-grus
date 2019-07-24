@@ -27,7 +27,7 @@
 #include "exposure_adjustment.h"
 
 static struct drm_msm_pcc pcc_blk = {0};
-static bool pcc_backlight_enable = true;
+static bool pcc_backlight_enable = false;
 static u32 last_level = ELVSS_OFF_THRESHOLD;
 
 static u32 elvss_off_treshold = ELVSS_OFF_THRESHOLD;
