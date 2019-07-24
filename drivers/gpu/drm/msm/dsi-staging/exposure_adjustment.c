@@ -30,9 +30,9 @@ static struct drm_msm_pcc pcc_blk = {0};
 static bool pcc_backlight_enable = false;
 static u32 last_level = ELVSS_OFF_THRESHOLD;
 
-static u32 elvss_off_treshold = ELVSS_OFF_THRESHOLD;
-static u32 ea_fb_min = EXPOSURE_ADJUSTMENT_MIN;
-static u32 ea_fb_max = EXPOSURE_ADJUSTMENT_MAX;
+u32 elvss_off_treshold = ELVSS_OFF_THRESHOLD;
+u32 ea_fb_min = EXPOSURE_ADJUSTMENT_MIN;
+u32 ea_fb_max = EXPOSURE_ADJUSTMENT_MAX;
 
 void set_ea_elvss_off_treshold(u32 value) {
 	elvss_off_treshold = value;
