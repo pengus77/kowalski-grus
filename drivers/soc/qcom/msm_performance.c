@@ -64,6 +64,7 @@ struct highfreq_monitor_s {
 static struct highfreq_monitor_s highfreq_monitor;
 static struct work_struct highfreq_monitor_work;
 
+/*
 static int is_bcore(int cpu)
 {
 	return cpu >= (highfreq_monitor.frist_bigcore);
@@ -79,6 +80,7 @@ static int is_high_cpufreq(int cpu, unsigned int cpufreq)
 
 	return  cpufreq >= freqinfo->max_freq;
 }
+*/
 
 static void monitor_work_func(struct work_struct *work)
 {
