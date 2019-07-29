@@ -6672,6 +6672,10 @@ void msm_comm_put_vidc_buffer(struct msm_vidc_inst *inst,
 
 	print_vidc_buffer(VIDC_DBG, "dqbuf", inst, mbuf);
 	for (i = 0; i < mbuf->vvb.vb2_buf.num_planes; i++) {
+		if (msm_smem_unmap_dma_buf(inst, &mbuf->smem[i]))
+			print_vidc_buffer(VIDC_ERR,
+				"dqbuf: unmap failed.", inst, mbuf);
+
 		if (!(mbuf->vvb.flags & V4L2_QCOM_BUF_FLAG_READONLY)) {
 			/* rbr won't come for this buffer */
 			if (msm_smem_unmap_dma_buf(inst, &mbuf->smem[i]))
