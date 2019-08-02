@@ -29,7 +29,7 @@ typedef unsigned short col_type_t;
 /* Constants - Customize as needed */
 #define DEFAULT_ENABLE 0 /* 0 = off, 1 = time-based, 2 = brightness-based */
 
-#define MAX_SCALE 256 /* Maximum value of RGB possible */
+#define MAX_SCALE 255 /* Maximum value of RGB possible */
 
 #define MIN_SCALE 20 /* Minimum value of RGB recommended */
 
