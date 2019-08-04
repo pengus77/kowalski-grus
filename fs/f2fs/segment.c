@@ -2998,7 +2998,7 @@ static void read_compacted_summaries(struct f2fs_sb_info *sbi)
 		if (blk_off > ENTRIES_IN_SUM) {
 			f2fs_bug_on(sbi, 1);
 			f2fs_put_page(page, 1);
-			return -EFAULT;
+			return;
 		}
 		seg_i->next_segno = segno;
 		reset_curseg(sbi, i, 0);
