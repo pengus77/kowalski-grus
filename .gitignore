@@ -121,4 +121,4 @@ kernel/configs/android-*.cfg
 
 # build-dir
 out/
-build.sh
+*.sh
