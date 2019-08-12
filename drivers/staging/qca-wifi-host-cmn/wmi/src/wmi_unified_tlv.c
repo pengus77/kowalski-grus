@@ -10895,8 +10895,10 @@ QDF_STATUS send_log_supported_evt_cmd_tlv(wmi_unified_t wmi_handle,
 			__func__, num_of_diag_events_logs);
 
 	/* Free any previous allocation */
-	if (wmi_handle->events_logs_list)
+	if (wmi_handle->events_logs_list) {
 		qdf_mem_free(wmi_handle->events_logs_list);
+		wmi_handle->events_logs_list = NULL;
+	}
 
 	if (num_of_diag_events_logs >
 		(WMI_SVC_MSG_MAX_SIZE / sizeof(uint32_t))) {
@@ -12391,7 +12393,7 @@ QDF_STATUS send_set_arp_stats_req_cmd_tlv(wmi_unified_t wmi_handle,
 		goto error;
 	}
 
-	WMI_LOGD(FL("set arp stats flag=%d, vdev=%d"),
+	WMI_LOGI(FL("set arp stats flag=%d, vdev=%d"),
 		 req_buf->flag, req_buf->vdev_id);
 	return QDF_STATUS_SUCCESS;
 error:
