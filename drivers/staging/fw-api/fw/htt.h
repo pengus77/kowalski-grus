@@ -1770,6 +1770,7 @@ PREPACK struct htt_tx_msdu_desc_ext2_t {
 #define HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_M            0x0000FFFF
 #define HTT_TX_MSDU_EXT2_DESC_HOST_OPAQUE_COOKIE_S            0
 
+
 /* DWORD 0 */
 #define HTT_TX_MSDU_EXT2_DESC_FLAG_VALID_PWR_GET(_var) \
     (((_var) & HTT_TX_MSDU_EXT_DESC_FLAG_VALID_PWR_M) >> \
@@ -8694,6 +8695,41 @@ PREPACK struct htt_txq_group {
  * The following diagram shows the format of the TX completion indication sent
  * from the target to the host
  *
+ *         |31 30|29|28|27|26|25|24|23        16| 15 |14 11|10   8|7          0|
+ *         |-------------------------------------------------------------------|
+ * header: |rsvd |A4|A3|A2|TP|A1|A0|     num    | t_i| tid |status|  msg_type  |
+ *         |-------------------------------------------------------------------|
+ * payload:|            MSDU1 ID                |         MSDU0 ID             |
+ *         |-------------------------------------------------------------------|
+ *         :            MSDU3 ID                |         MSDU2 ID             :
+ *         |-------------------------------------------------------------------|
+ *         |               struct htt_tx_compl_ind_append_retries              |
+ *         |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
+ *         |               struct htt_tx_compl_ind_append_tx_tstamp            |
+ *         |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
+ *         |           MSDU1 ACK RSSI           |        MSDU0 ACK RSSI        |
+ *         |-------------------------------------------------------------------|
+ *         :           MSDU3 ACK RSSI           |        MSDU2 ACK RSSI        :
+ *         |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
+ *         |                          MSDU0 tx_tsf64_low                       |
+ *         |-------------------------------------------------------------------|
+ *         |                          MSDU0 tx_tsf64_high                      |
+ *         |-------------------------------------------------------------------|
+ *         |                          MSDU1 tx_tsf64_low                       |
+ *         |-------------------------------------------------------------------|
+ *         |                          MSDU1 tx_tsf64_high                      |
+ *         |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
+ *         |                            phy_timestamp                          |
+ *         |-------------------------------------------------------------------|
+ *         |                        rate specs (see below)                     |
+ *         |-------------------------------------------------------------------|
+ *         |               seqctrl              |          framectrl           |
+ *         |- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -|
+ * Where:
+ *     A0 = append (a.k.a. append0)
+ *     A1 = append1
+ *     TP = MSDU tx power presence
+ *     A2 = append2
  *     A3 = append3
  *     A4 = append4
  *
@@ -12104,6 +12140,7 @@ PREPACK struct htt_cfr_dump_compl_ind {
  * @tx_failed_msdus  : MSDUs dropped in FW after max retry
  * @tx_duration      : Tx duration for the PPDU (microsecond units)
  */
+
 
 /**
  * @brief HTT_T2H_MSG_TYPE_BKPRESSURE_EVENTID Message
