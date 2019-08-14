@@ -134,7 +134,7 @@ void ea_panel_mode_ctrl(struct dsi_panel *panel, bool enable)
 {
 	if (pcc_backlight_enable != enable) {
 		pcc_backlight_enable = enable;
-		pr_info("Recover backlight level = %d\n", last_level);
+		pr_debug("Recover backlight level = %d\n", last_level);
 		dsi_panel_set_backlight(panel, last_level);
 		if (!enable) {
 			ea_panel_send_pcc(elvss_off_treshold);

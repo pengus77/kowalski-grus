@@ -191,7 +191,7 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 
 	if (dev->state == DRM_BLANK_POWERDOWN) {
 		dev->state = DRM_BLANK_UNBLANK;
-		pr_info("%s power on from power off\n", __func__);
+		pr_debug("%s power on from power off\n", __func__);
 	}
 
 	event = dev->state;
@@ -220,7 +220,7 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 			drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
 			dev->fp_quickon = false;
 		}
-		pr_info("%s panel already on\n", __func__);
+		pr_debug("%s panel already on\n", __func__);
 		return;
 	}
 
@@ -292,7 +292,7 @@ int dsi_bridge_interface_enable(int timeout)
 		!atomic_read(&resume_pending),
 		msecs_to_jiffies(WAIT_RESUME_TIMEOUT));
 	if (!ret) {
-		pr_info("Primary fb resume timeout\n");
+		pr_debug("Primary fb resume timeout\n");
 		return -ETIMEDOUT;
 	}
 
@@ -416,7 +416,7 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 
 	if (dev->state == DRM_BLANK_UNBLANK) {
 		dev->state = DRM_BLANK_POWERDOWN;
-		pr_info("%s wrong doze state\n", __func__);
+		pr_debug("%s wrong doze state\n", __func__);
 	}
 
 	event = dev->state;

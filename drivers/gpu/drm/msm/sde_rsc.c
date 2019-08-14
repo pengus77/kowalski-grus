@@ -1412,7 +1412,7 @@ static int sde_rsc_probe(struct platform_device *pdev)
 	mutex_init(&rsc->client_lock);
 	init_waitqueue_head(&rsc->rsc_vsync_waitq);
 
-	pr_info("sde rsc index:%d probed successfully\n",
+	pr_debug("sde rsc index:%d probed successfully\n",
 				SDE_RSC_INDEX + counter);
 
 	rsc_prv_list[SDE_RSC_INDEX + counter] = rsc;

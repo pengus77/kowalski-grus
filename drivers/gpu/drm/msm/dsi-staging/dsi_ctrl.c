@@ -1739,7 +1739,7 @@ static int dsi_ctrl_dev_probe(struct platform_device *pdev)
 
 	dsi_ctrl->pdev = pdev;
 	platform_set_drvdata(pdev, dsi_ctrl);
-	pr_info("Probe successful for %s\n", dsi_ctrl->name);
+	pr_debug("Probe successful for %s\n", dsi_ctrl->name);
 
 	return 0;
 
@@ -2384,7 +2384,7 @@ static int _dsi_ctrl_setup_isr(struct dsi_ctrl *dsi_ctrl)
 			dsi_ctrl->irq_info.irq_num = irq_num;
 			disable_irq_nosync(irq_num);
 
-			pr_info("[DSI_%d] IRQ %d registered\n",
+			pr_debug("[DSI_%d] IRQ %d registered\n",
 					dsi_ctrl->cell_index, irq_num);
 		}
 	}

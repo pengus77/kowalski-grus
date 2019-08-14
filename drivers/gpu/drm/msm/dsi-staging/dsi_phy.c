@@ -404,7 +404,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	/** TODO: initialize debugfs */
 	dsi_phy->pdev = pdev;
 	platform_set_drvdata(pdev, dsi_phy);
-	pr_info("Probe successful for %s\n", dsi_phy->name);
+	pr_debug("Probe successful for %s\n", dsi_phy->name);
 	return 0;
 
 fail_supplies:

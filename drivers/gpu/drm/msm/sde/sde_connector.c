@@ -2085,7 +2085,7 @@ static irqreturn_t esd_err_irq_handle(int irq, void *data)
 
 	dsi_display = (struct dsi_display *)(c_conn->display);
 	if (!dsi_display->panel->panel_initialized) {
-		pr_info("%s: Panel is not initialized, skip it!\n", __func__);
+		pr_debug("%s: Panel is not initialized, skip it!\n", __func__);
 		return IRQ_HANDLED;
 	}
 
@@ -2262,7 +2262,7 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 				pr_err("%s: request irq %d failed\n", __func__, dsi_display->panel->esd_config.esd_err_irq);
 				dsi_display->panel->esd_config.esd_err_irq = 0;
 			} else {
-				pr_info("%s: Request esd irq %d succeed!\n", __func__, dsi_display->panel->esd_config.esd_err_irq);
+				pr_debug("%s: Request esd irq %d succeed!\n", __func__, dsi_display->panel->esd_config.esd_err_irq);
 			}
 		}
 	}

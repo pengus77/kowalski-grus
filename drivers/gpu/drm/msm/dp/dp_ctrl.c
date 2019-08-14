@@ -1027,7 +1027,7 @@ static int dp_ctrl_link_train(struct dp_ctrl_private *ctrl)
 	}
 
 	/* print success info as this is a result of user initiated action */
-	pr_info("link training #1 successful\n");
+	pr_debug("link training #1 successful\n");
 
 	ret = dp_ctrl_link_training_2(ctrl);
 	if (ret) {
@@ -1036,7 +1036,7 @@ static int dp_ctrl_link_train(struct dp_ctrl_private *ctrl)
 	}
 
 	/* print success info as this is a result of user initiated action */
-	pr_info("link training #2 successful\n");
+	pr_debug("link training #2 successful\n");
 
 end:
 	dp_ctrl_state_ctrl(ctrl, 0);
