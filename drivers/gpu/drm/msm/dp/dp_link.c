@@ -1093,11 +1093,11 @@ static int dp_link_process_phy_test_pattern_request(
 
 	pr_debug("start\n");
 
-	pr_info("Current: bw_code = 0x%x, lane count = 0x%x\n",
+	pr_debug("Current: bw_code = 0x%x, lane count = 0x%x\n",
 			link->dp_link.link_params.bw_code,
 			link->dp_link.link_params.lane_count);
 
-	pr_info("Requested: bw_code = 0x%x, lane count = 0x%x\n",
+	pr_debug("Requested: bw_code = 0x%x, lane count = 0x%x\n",
 			test_link_rate, test_lane_count);
 
 	link->dp_link.link_params.lane_count = link->request.test_lane_count;

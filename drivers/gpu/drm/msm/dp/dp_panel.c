@@ -636,20 +636,20 @@ static int dp_panel_init_panel_info(struct dp_panel *dp_panel)
 	 * print resolution info as this is a result
 	 * of user initiated action of cable connection
 	 */
-	pr_info("SET NEW RESOLUTION:\n");
-	pr_info("%dx%d@%dfps\n", pinfo->h_active,
+	pr_debug("SET NEW RESOLUTION:\n");
+	pr_debug("%dx%d@%dfps\n", pinfo->h_active,
 		pinfo->v_active, pinfo->refresh_rate);
-	pr_info("h_porches(back|front|width) = (%d|%d|%d)\n",
+	pr_debug("h_porches(back|front|width) = (%d|%d|%d)\n",
 			pinfo->h_back_porch,
 			pinfo->h_front_porch,
 			pinfo->h_sync_width);
-	pr_info("v_porches(back|front|width) = (%d|%d|%d)\n",
+	pr_debug("v_porches(back|front|width) = (%d|%d|%d)\n",
 			pinfo->v_back_porch,
 			pinfo->v_front_porch,
 			pinfo->v_sync_width);
-	pr_info("pixel clock (KHz)=(%d)\n", pinfo->pixel_clk_khz);
-	pr_info("bpp = %d\n", pinfo->bpp);
-	pr_info("active low (h|v)=(%d|%d)\n", pinfo->h_active_low,
+	pr_debug("pixel clock (KHz)=(%d)\n", pinfo->pixel_clk_khz);
+	pr_debug("bpp = %d\n", pinfo->bpp);
+	pr_debug("active low (h|v)=(%d|%d)\n", pinfo->h_active_low,
 		pinfo->v_active_low);
 end:
 	return rc;

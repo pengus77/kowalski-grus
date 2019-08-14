@@ -3183,7 +3183,7 @@ static int _sde_kms_get_splash_data(struct sde_splash_data *data)
 	data->splash_base = (unsigned long)r.start;
 	data->splash_size = (r.end - r.start) + 1;
 
-	pr_info("found continuous splash base address:%lx size:%x\n",
+	pr_debug("found continuous splash base address:%lx size:%x\n",
 						data->splash_base,
 						data->splash_size);
 	return ret;
@@ -3314,7 +3314,7 @@ static int sde_kms_hw_init(struct msm_kms *kms)
 
 	_sde_kms_core_hw_rev_init(sde_kms);
 
-	pr_info("sde hardware revision:0x%x\n", sde_kms->core_rev);
+	pr_debug("sde hardware revision:0x%x\n", sde_kms->core_rev);
 
 	sde_kms->catalog = sde_hw_catalog_init(dev, sde_kms->core_rev);
 	if (IS_ERR_OR_NULL(sde_kms->catalog)) {
