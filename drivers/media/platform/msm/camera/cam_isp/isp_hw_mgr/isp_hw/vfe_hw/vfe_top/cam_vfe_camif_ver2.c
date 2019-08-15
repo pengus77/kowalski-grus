@@ -1,5 +1,4 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -144,6 +143,9 @@ int cam_vfe_camif_ver2_acquire_resource(
 	camif_data->first_line  = acquire_data->vfe_in.in_port->line_start;
 	camif_data->last_line   = acquire_data->vfe_in.in_port->line_stop;
 
+	CAM_DBG(CAM_ISP, "hw id:%d pix_pattern:%d dsp_mode=%d",
+		camif_res->hw_intf->hw_idx,
+		camif_data->pix_pattern, camif_data->dsp_mode);
 	return rc;
 }
 
@@ -490,6 +492,7 @@ static int cam_vfe_camif_handle_irq_bottom_half(void *handler_priv,
 	uint32_t                              val;
 
 	if (!handler_priv || !evt_payload_priv) {
+		CAM_ERR(CAM_ISP, "Invalid params");
 		return ret;
 	}
 

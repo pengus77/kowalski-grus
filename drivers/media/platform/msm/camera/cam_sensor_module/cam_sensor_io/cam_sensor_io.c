@@ -1,5 +1,4 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -114,10 +113,12 @@ int32_t camera_io_dev_write(struct camera_io_master *io_master_info,
 
 	if (io_master_info->master_type == CCI_MASTER) {
 		int32_t ret;
+
 		atomic_set(&g_camera_io_write, 1);
 		ret = cam_cci_i2c_write_table(io_master_info,
 			write_setting);
 		atomic_set(&g_camera_io_write, 0);
+
 		return ret;
 	} else if (io_master_info->master_type == I2C_MASTER) {
 		return cam_qup_i2c_write_table(io_master_info,

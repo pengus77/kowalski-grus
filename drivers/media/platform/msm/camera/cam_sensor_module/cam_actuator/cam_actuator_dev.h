@@ -112,6 +112,7 @@ struct intf_params {
  * @of_node: Node ptr
  */
 struct cam_actuator_ctrl_t {
+	char device_name[CAM_CTX_DEV_NAME_MAX_LENGTH];
 	struct i2c_driver *i2c_driver;
 	enum cci_i2c_master_t cci_i2c_master;
 	struct camera_io_master io_master_info;
@@ -125,8 +126,9 @@ struct cam_actuator_ctrl_t {
 	struct i2c_data_settings i2c_data;
 	struct cam_actuator_query_cap act_info;
 	struct intf_params bridge_intf;
-	char device_name[20];
+#ifdef CONFIG_USE_BU64748
 	struct platform_device *pdev;
+#endif
 };
 
 #endif /* _CAM_ACTUATOR_DEV_H_ */

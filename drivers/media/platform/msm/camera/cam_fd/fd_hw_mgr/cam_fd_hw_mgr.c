@@ -30,7 +30,8 @@
 
 static struct cam_fd_hw_mgr g_fd_hw_mgr;
 
-static int cam_fd_mgr_util_packet_validate(struct cam_packet *packet)
+static int cam_fd_mgr_util_packet_validate(struct cam_packet *packet,
+	size_t remain_len)
 {
 	struct cam_cmd_buf_desc *cmd_desc = NULL;
 	int i, rc;
@@ -50,7 +51,7 @@ static int cam_fd_mgr_util_packet_validate(struct cam_packet *packet)
 		packet->patch_offset, packet->num_patches,
 		packet->kmd_cmd_buf_offset, packet->kmd_cmd_buf_index);
 
-	if (cam_packet_util_validate_packet(packet)) {
+	if (cam_packet_util_validate_packet(packet, remain_len)) {
 		CAM_ERR(CAM_FD, "invalid packet:%d %d %d %d %d",
 			packet->kmd_cmd_buf_index,
 			packet->num_cmd_buf, packet->cmd_buf_offset,
@@ -583,7 +584,7 @@ static int cam_fd_mgr_util_prepare_io_buf_info(int32_t iommu_hdl,
 				rc = cam_mem_get_io_buf(
 					io_cfg[i].mem_handle[plane],
 					iommu_hdl, &io_addr[plane], &size);
-				if ((rc) || (io_addr[plane] >> 32)) {
+				if (rc) {
 					CAM_ERR(CAM_FD,
 						"Invalid io buf %d %d %d %d",
 						io_cfg[i].direction,
@@ -599,7 +600,8 @@ static int cam_fd_mgr_util_prepare_io_buf_info(int32_t iommu_hdl,
 				rc = cam_mem_get_cpu_buf(
 					io_cfg[i].mem_handle[plane],
 					&cpu_addr[plane], &size);
-				if (rc) {
+				if (rc || ((io_addr[plane] & 0xFFFFFFFF)
+					!= io_addr[plane])) {
 					CAM_ERR(CAM_FD,
 						"Invalid cpu buf %d %d %d %d",
 						io_cfg[i].direction,
@@ -607,7 +609,13 @@ static int cam_fd_mgr_util_prepare_io_buf_info(int32_t iommu_hdl,
 						rc);
 					return rc;
 				}
-
+				if (io_cfg[i].offsets[plane] >= size) {
+					CAM_ERR(CAM_FD,
+						"Invalid cpu buf %d %d %d",
+						io_cfg[i].direction,
+						io_cfg[i].resource_type, plane);
+					return -EINVAL;
+				}
 				cpu_addr[plane] += io_cfg[i].offsets[plane];
 			}
 
@@ -1558,7 +1566,8 @@ static int cam_fd_mgr_hw_prepare_update(void *hw_mgr_priv,
 		goto error;
 	}
 
-	rc = cam_fd_mgr_util_packet_validate(prepare->packet);
+	rc = cam_fd_mgr_util_packet_validate(prepare->packet,
+		prepare->remain_len);
 	if (rc) {
 		CAM_ERR(CAM_FD, "Error in packet validation %d", rc);
 		goto error;
@@ -1862,7 +1871,7 @@ int cam_fd_hw_mgr_init(struct device_node *of_node,
 		g_fd_hw_mgr.cdm_iommu.secure);
 
 	/* Init hw mgr contexts and add to free list */
-	for (i = 0; i < CAM_CTX_MAX; i++) {
+	for (i = 0; i < CAM_FD_CTX_MAX; i++) {
 		hw_mgr_ctx = &g_fd_hw_mgr.ctx_pool[i];
 
 		memset(hw_mgr_ctx, 0x0, sizeof(*hw_mgr_ctx));
@@ -1886,7 +1895,7 @@ int cam_fd_hw_mgr_init(struct device_node *of_node,
 	}
 
 	rc = cam_req_mgr_workq_create("cam_fd_worker", CAM_FD_WORKQ_NUM_TASK,
-		&g_fd_hw_mgr.work, CRM_WORKQ_USAGE_IRQ);
+		&g_fd_hw_mgr.work, CRM_WORKQ_USAGE_IRQ, 0);
 	if (rc) {
 		CAM_ERR(CAM_FD, "Unable to create a worker, rc=%d", rc);
 		goto detach_smmu;

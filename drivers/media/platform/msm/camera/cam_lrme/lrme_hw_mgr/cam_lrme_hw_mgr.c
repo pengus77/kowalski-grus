@@ -83,7 +83,8 @@ static int cam_lrme_mgr_util_get_device(struct cam_lrme_hw_mgr *hw_mgr,
 	return 0;
 }
 
-static int cam_lrme_mgr_util_packet_validate(struct cam_packet *packet)
+static int cam_lrme_mgr_util_packet_validate(struct cam_packet *packet,
+	size_t remain_len)
 {
 	struct cam_cmd_buf_desc *cmd_desc = NULL;
 	int i, rc;
@@ -105,7 +106,7 @@ static int cam_lrme_mgr_util_packet_validate(struct cam_packet *packet)
 		packet->patch_offset, packet->num_patches,
 		packet->kmd_cmd_buf_offset, packet->kmd_cmd_buf_index);
 
-	if (cam_packet_util_validate_packet(packet)) {
+	if (cam_packet_util_validate_packet(packet, remain_len)) {
 		CAM_ERR(CAM_LRME, "invalid packet:%d %d %d %d %d",
 			packet->kmd_cmd_buf_index,
 			packet->num_cmd_buf, packet->cmd_buf_offset,
@@ -179,13 +180,13 @@ static int cam_lrme_mgr_util_prepare_io_buffer(int32_t iommu_hdl,
 				return -ENOMEM;
 			}
 
-			io_addr[plane] += io_cfg[i].offsets[plane];
-
-			if (io_addr[plane] >> 32) {
-				CAM_ERR(CAM_LRME, "Invalid io addr for %d %d",
-					plane, rc);
-				return -ENOMEM;
+			if ((size_t)io_cfg[i].offsets[plane] >= size) {
+				CAM_ERR(CAM_LRME, "Invalid plane offset: %zu",
+					(size_t)io_cfg[i].offsets[plane]);
+				return -EINVAL;
 			}
+
+			io_addr[plane] += io_cfg[i].offsets[plane];
 
 			CAM_DBG(CAM_LRME, "IO Address[%d][%d] : %llu",
 				io_cfg[i].direction, plane, io_addr[plane]);
@@ -642,7 +643,7 @@ static int cam_lrme_mgr_hw_release(void *hw_mgr_priv, void *hw_release_args)
 		return -EINVAL;
 	}
 
-	device_index = ((uintptr_t)args->ctxt_to_hw_map & 0xF);
+	device_index = CAM_LRME_DECODE_DEVICE_INDEX(args->ctxt_to_hw_map);
 	if (device_index >= hw_mgr->device_count) {
 		CAM_ERR(CAM_LRME, "Invalid device index %llu", device_index);
 		return -EPERM;
@@ -673,7 +674,7 @@ static int cam_lrme_mgr_hw_flush(void *hw_mgr_priv, void *hw_flush_args)
 	}
 
 	args = (struct cam_hw_flush_args *)hw_flush_args;
-	device_index = ((uint64_t)args->ctxt_to_hw_map & 0xF);
+	device_index = ((uintptr_t)args->ctxt_to_hw_map & 0xF);
 	if (device_index >= hw_mgr->device_count) {
 		CAM_ERR(CAM_LRME, "Invalid device index %d", device_index);
 		return -EPERM;
@@ -771,6 +772,12 @@ static int cam_lrme_mgr_hw_start(void *hw_mgr_priv, void *hw_start_args)
 		return -EINVAL;
 	}
 
+	rc = hw_device->hw_intf.hw_ops.process_cmd(
+			hw_device->hw_intf.hw_priv,
+			CAM_LRME_HW_CMD_DUMP_REGISTER,
+			&g_lrme_hw_mgr.debugfs_entry.dump_register,
+			sizeof(bool));
+
 	return rc;
 }
 
@@ -846,7 +853,7 @@ static int cam_lrme_mgr_hw_prepare_update(void *hw_mgr_priv,
 		goto error;
 	}
 
-	rc = cam_lrme_mgr_util_packet_validate(args->packet);
+	rc = cam_lrme_mgr_util_packet_validate(args->packet, args->remain_len);
 	if (rc) {
 		CAM_ERR(CAM_LRME, "Error in packet validation %d", rc);
 		goto error;
@@ -969,6 +976,35 @@ static int cam_lrme_mgr_hw_config(void *hw_mgr_priv,
 	return rc;
 }
 
+static int cam_lrme_mgr_create_debugfs_entry(void)
+{
+	int rc = 0;
+
+	g_lrme_hw_mgr.debugfs_entry.dentry =
+		debugfs_create_dir("camera_lrme", NULL);
+	if (!g_lrme_hw_mgr.debugfs_entry.dentry) {
+		CAM_ERR(CAM_LRME, "failed to create dentry");
+		return -ENOMEM;
+	}
+
+	if (!debugfs_create_bool("dump_register",
+		0644,
+		g_lrme_hw_mgr.debugfs_entry.dentry,
+		&g_lrme_hw_mgr.debugfs_entry.dump_register)) {
+		CAM_ERR(CAM_LRME, "failed to create dump register entry");
+		rc = -ENOMEM;
+		goto err;
+	}
+
+	return rc;
+
+err:
+	debugfs_remove_recursive(g_lrme_hw_mgr.debugfs_entry.dentry);
+	g_lrme_hw_mgr.debugfs_entry.dentry = NULL;
+	return rc;
+}
+
+
 int cam_lrme_mgr_register_device(
 	struct cam_hw_intf *lrme_hw_intf,
 	struct cam_iommu_handle *device_iommu,
@@ -995,7 +1031,8 @@ int cam_lrme_mgr_register_device(
 	CAM_DBG(CAM_LRME, "Create submit workq for %s", buf);
 	rc = cam_req_mgr_workq_create(buf,
 		CAM_LRME_WORKQ_NUM_TASK,
-		&hw_device->work, CRM_WORKQ_USAGE_NON_IRQ);
+		&hw_device->work, CRM_WORKQ_USAGE_NON_IRQ,
+		0);
 	if (rc) {
 		CAM_ERR(CAM_LRME,
 			"Unable to create a worker, rc=%d", rc);
@@ -1117,6 +1154,8 @@ int cam_lrme_hw_mgr_init(struct cam_hw_mgr_intf *hw_mgr_intf,
 	hw_mgr_intf->hw_flush = cam_lrme_mgr_hw_flush;
 
 	g_lrme_hw_mgr.event_cb = cam_lrme_dev_buf_done_cb;
+
+	cam_lrme_mgr_create_debugfs_entry();
 
 	CAM_DBG(CAM_LRME, "Hw mgr init done");
 	return rc;
