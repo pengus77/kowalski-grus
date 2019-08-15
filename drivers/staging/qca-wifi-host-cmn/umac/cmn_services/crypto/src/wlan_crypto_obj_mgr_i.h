@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -16,16 +16,29 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/**
- * @file cdp_txrx_lro.h
- * @brief Define the host data path Large Receive Offload API
- * functions
+ /**
+ * DOC: Public API intialization of crypto service with object manager
  */
-#ifndef _CDP_TXRX_LRO_H_
-#define _CDP_TXRX_LRO_H_
 
-void ol_register_offld_flush_cb(void (*offld_flush_cb)(void *data),
-				void *(offld_init_cb)(void));
-void ol_deregister_offld_flush_cb(void (*offld_deinit_cb)(void *data));
+#ifndef __WLAN_CRYPTO_OBJ_MGR_I_
+#define __WLAN_CRYPTO_OBJ_MGR_I_
 
-#endif /* _CDP_TXRX_LRO_H_ */
+
+static inline void *wlan_get_vdev_crypto_obj(struct wlan_objmgr_vdev *vdev)
+{
+	void *crypto_priv;
+	crypto_priv = wlan_objmgr_vdev_get_comp_private_obj(vdev,
+							WLAN_UMAC_COMP_CRYPTO);
+
+	return crypto_priv;
+}
+
+static inline void *wlan_get_peer_crypto_obj(struct wlan_objmgr_peer *peer)
+{
+	void *crypto_priv;
+	crypto_priv = wlan_objmgr_peer_get_comp_private_obj(peer,
+							WLAN_UMAC_COMP_CRYPTO);
+
+	return crypto_priv;
+}
+#endif /* end of __WLAN_CRYPTO_OBJ_MGR_I_*/

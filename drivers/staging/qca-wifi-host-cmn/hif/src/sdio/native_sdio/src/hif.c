@@ -152,9 +152,6 @@ MODULE_PARM_DESC(modstrength, "Adjust internal driver strength");
 
 #define dev_to_sdio_func(d)		container_of(d, struct sdio_func, dev)
 #define to_sdio_driver(d)		container_of(d, struct sdio_driver, drv)
-static int hif_device_inserted(struct sdio_func *func,
-			       const struct sdio_device_id *id);
-static void hif_device_removed(struct sdio_func *func);
 static struct hif_sdio_dev *add_hif_device(struct sdio_func *func);
 static struct hif_sdio_dev *get_hif_device(struct sdio_func *func);
 static void del_hif_device(struct hif_sdio_dev *device);
@@ -238,23 +235,6 @@ static const struct sdio_device_id ar6k_id_table[] = {
 #endif
 	{ /* null */ },
 };
-
-#ifndef CONFIG_CNSS_SDIO
-MODULE_DEVICE_TABLE(sdio, ar6k_id_table);
-
-static struct sdio_driver ar6k_driver = {
-	.name = "ar6k_wlan",
-	.id_table = ar6k_id_table,
-	.probe = hif_device_inserted,
-	.remove = hif_device_removed,
-};
-
-static const struct dev_pm_ops ar6k_device_pm_ops = {
-	.suspend = hif_device_suspend,
-	.resume = hif_device_resume,
-};
-
-#endif
 
 /* make sure we only unregister when registered. */
 static int registered;
@@ -641,7 +621,7 @@ hif_read_write(struct hif_sdio_dev *device,
 					 : "Synch"));
 			busrequest = hif_allocate_bus_request(device);
 			if (busrequest == NULL) {
-				AR_DEBUG_PRINTF(ATH_DEBUG_INFO,
+				AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
 					("no async bus requests available (%s, addr:0x%X, len:%d)\n",
 					 request & HIF_SDIO_READ ? "READ" :
 					 "WRITE", address, length));
@@ -741,6 +721,7 @@ static int async_task(void *param)
 		 * if possible, but holding the host blocks
 		 * card interrupts
 		 */
+		sdio_claim_host(device->func);
 		qdf_spin_lock_irqsave(&device->asynclock);
 		/* pull the request to work on */
 		while (device->asyncreq != NULL) {
@@ -996,8 +977,9 @@ static int sdio_enable4bits(struct hif_sdio_dev *device, int enable)
 					    enable ?
 					    SDIO_IRQ_MODE_ASYNC_4BIT_IRQ_AR6003
 					    : 0);
-		} else if (manufacturer_id == MANUFACTURER_ID_AR6320_BASE
-			   || manufacturer_id == MANUFACTURER_ID_QCA9377_BASE) {
+		} else if (manufacturer_id == MANUFACTURER_ID_AR6320_BASE ||
+			     manufacturer_id == MANUFACTURER_ID_QCA9377_BASE ||
+			     manufacturer_id == MANUFACTURER_ID_QCA9379_BASE) {
 			unsigned char data = 0;
 
 			setAsyncIRQ = 1;
@@ -1212,6 +1194,7 @@ static void set_extended_mbox_window_info(uint16_t manf_id,
 		break;
 	}
 	case MANUFACTURER_ID_QCA9377_BASE:
+	case MANUFACTURER_ID_QCA9379_BASE:
 		pinfo->mbox_prop[0].extended_address =
 			HIF_MBOX0_EXTENDED_BASE_ADDR_AR6320;
 		pinfo->mbox_prop[0].extended_size =
@@ -1618,6 +1601,21 @@ static void write_cccr(struct sdio_func *func)
 	}
 }
 
+#ifdef SDIO_BUS_WIDTH_8BIT
+static int hif_cmd52_write_byte_8bit(struct sdio_func *func)
+{
+	return func0_cmd52_write_byte(func->card, SDIO_CCCR_IF,
+			SDIO_BUS_CD_DISABLE | SDIO_BUS_WIDTH_8BIT);
+}
+#else
+static int hif_cmd52_write_byte_8bit(struct sdio_func *func)
+{
+	AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
+			("%s: 8BIT Bus Width not supported\n", __func__));
+	return QDF_STATUS_E_FAILURE;
+}
+#endif
+
 /**
  * hif_device_inserted() - hif-sdio driver probe handler
  * @func: pointer to sdio_func
@@ -1736,7 +1734,7 @@ static int hif_device_inserted(struct sdio_func *func,
 					AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 						("%s: CMD52 to set bus width failed: %d\n",
 						 __func__, ret));
-					goto del_hif_dev;
+					goto del_hif_dev;;
 				}
 				device->host->ios.bus_width =
 					MMC_BUS_WIDTH_1;
@@ -1767,12 +1765,7 @@ static int hif_device_inserted(struct sdio_func *func,
 			} else if (mmcbuswidth == 8
 				 && (device->host->
 				     caps & MMC_CAP_8_BIT_DATA)) {
-				ret =
-					func0_cmd52_write_byte(func->card,
-						       SDIO_CCCR_IF,
-						       SDIO_BUS_CD_DISABLE
-						       |
-						       SDIO_BUS_WIDTH_8BIT);
+				ret = hif_cmd52_write_byte_8bit(func);
 				if (ret) {
 					AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 					("%s: CMD52 to bus width failed: %d\n",
@@ -1826,7 +1819,6 @@ static int hif_device_inserted(struct sdio_func *func,
 	sema_init(&device->sem_async, 0);
 
 	ret = hif_enable_func(device, func);
-
 	if ((ret == QDF_STATUS_SUCCESS || ret == QDF_STATUS_E_PENDING))
 		return 0;
 	ret = QDF_STATUS_E_FAILURE;
@@ -2019,7 +2011,7 @@ static QDF_STATUS hif_disable_func(struct hif_sdio_dev *device,
 		 * driver to re-enumerate the slot
 		 */
 		AR_DEBUG_PRINTF(ATH_DEBUG_WARN,
-				("%s: reseting SDIO card",
+				("%s: resetting SDIO card",
 				__func__));
 
 		/* sdio_f0_writeb() cannot be used here, this allows access
@@ -2079,8 +2071,9 @@ static QDF_STATUS hif_enable_func(struct hif_sdio_dev *device,
 				func0_cmd52_write_byte(func->card,
 					CCCR_SDIO_IRQ_MODE_REG_AR6003,
 					SDIO_IRQ_MODE_ASYNC_4BIT_IRQ_AR6003);
-		} else if (manufacturer_id == MANUFACTURER_ID_AR6320_BASE
-			   || manufacturer_id == MANUFACTURER_ID_QCA9377_BASE) {
+		} else if (manufacturer_id == MANUFACTURER_ID_AR6320_BASE ||
+			   manufacturer_id == MANUFACTURER_ID_QCA9377_BASE ||
+			   manufacturer_id == MANUFACTURER_ID_QCA9379_BASE) {
 			unsigned char data = 0;
 
 			setAsyncIRQ = 1;
@@ -2751,7 +2744,6 @@ void hif_dump_cccr(struct hif_sdio_dev *hif_device)
 	AR_DEBUG_PRINTF(ATH_DEBUG_ERROR, ("\n"));
 }
 
-#ifdef CONFIG_CNSS_SDIO
 int hif_sdio_device_inserted(struct device *dev,
 					const struct sdio_device_id *id)
 {
@@ -2764,4 +2756,3 @@ void hif_sdio_device_removed(struct sdio_func *func)
 {
 	hif_device_removed(func);
 }
-#endif
