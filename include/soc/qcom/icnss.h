@@ -150,4 +150,5 @@ extern int icnss_thermal_register(struct device *dev, unsigned long max_state);
 extern void icnss_thermal_unregister(struct device *dev);
 extern int icnss_get_curr_therm_state(struct device *dev,
 					unsigned long *thermal_state);
+extern bool icnss_is_pdr(void);
 #endif /* _ICNSS_WLAN_H_ */
