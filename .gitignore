@@ -122,3 +122,6 @@ kernel/configs/android-*.cfg
 # build-dir
 out/
 *.sh
+
+net/wireguard/
+scripts/net/
