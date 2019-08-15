@@ -56,7 +56,6 @@
 #include "wlan_hdd_misc.h"
 #include <cds_utils.h>
 #include "pld_common.h"
-#include "wlan_hdd_regulatory.h"
 
 #include "wma.h"
 #ifdef WLAN_DEBUG
@@ -2898,13 +2897,7 @@ int hdd_softap_set_channel_change(struct net_device *dev, int target_channel,
 			return -EBUSY;
 		}
 	}
-	cds_ctx = cds_get_context(QDF_MODULE_ID_QDF);
-	if (!cds_ctx) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_FATAL,
-				"%s: Trying to open CDS without a PreOpen",
-				__func__);
-		return -EINVAL;
-	}
+
 	/*
 	 * Set the ch_switch_in_progress flag to mimic channel change
 	 * when a radar is found. This will enable synchronizing
@@ -2919,12 +2912,6 @@ int hdd_softap_set_channel_change(struct net_device *dev, int target_channel,
 		return -EBUSY;
 	}
 
-	status = qdf_event_reset(&cds_ctx->channel_switch_complete);
-
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		cds_err("clear event failed");
-		return -EINVAL;
-	}
 	/*
 	 * Do SAP concurrency check to cover channel switch case as following:
 	 * There is already existing SAP+GO combination but due to upper layer
@@ -3624,7 +3611,8 @@ static __iw_softap_setparam(struct net_device *dev,
 			hdd_err("Invalid system preference: %d", set_value);
 			return -EINVAL;
 		}
-		cds_set_cur_conc_system_pref(set_value);
+		/* hdd_ctx, hdd_ctx->config are already checked for null */
+		hdd_ctx->config->conc_system_pref = set_value;
 		break;
 	case QCSAP_PARAM_MAX_ASSOC:
 		if (WNI_CFG_ASSOC_STA_LIMIT_STAMIN > set_value) {

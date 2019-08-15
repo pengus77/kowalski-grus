@@ -200,6 +200,8 @@ QDF_STATUS wlansap_pre_start_bss_acs_scan_callback(tHalHandle hal_handle,
 		sap_ctx->sap_status = eSAP_STATUS_SUCCESS;
 		goto close_session;
 	}
+	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
+		FL("CSR scan_status = eCSR_SCAN_SUCCESS (%d)"), scan_status);
 	/*
 	* Now do
 	* 1. Get scan results
@@ -247,6 +249,8 @@ QDF_STATUS wlansap_pre_start_bss_acs_scan_callback(tHalHandle hal_handle,
 		sap_ctx->acs_cfg->pri_ch = oper_channel;
 		sap_ctx->channel = oper_channel;
 	}
+	sap_config_acs_result(hal_handle, sap_ctx,
+			sap_ctx->acs_cfg->ht_sec_ch);
 
 	QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 		  FL("Channel selected = %d"), sap_ctx->channel);
@@ -899,19 +903,6 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 			goto EXIT;
 		}
 
-		if (sta_sap_scc_on_dfs_chan) {
-			QDF_TRACE(QDF_MODULE_ID_SAP,
-					QDF_TRACE_LEVEL_INFO_HIGH,
-					FL("Ignore the Radar indication"));
-			break;
-		}
-		if (sap_ctx->sapsMachine != eSAP_STARTED &&
-		    sap_ctx->sapsMachine != eSAP_DFS_CAC_WAIT) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
-				  FL("Ignore Radar event in sap state %d"),
-				  sap_ctx->sapsMachine);
-			break;
-		}
 		if (sap_ctx->is_pre_cac_on) {
 			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
 				  FL("sapdfs: Radar detect on pre cac:%d"),
@@ -932,14 +923,6 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_MED,
 			  FL("sapdfs: Indicate eSAP_DFS_RADAR_DETECT to HDD"));
-
-		if (!csr_roam_info) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("Invalid CSR Roam Info"));
-			wlansap_context_put(sap_ctx);
-			return -QDF_STATUS_E_INVAL;
-		}
-
 		sap_signal_hdd_event(sap_ctx, NULL, eSAP_DFS_RADAR_DETECT,
 				     (void *) eSAP_STATUS_SUCCESS);
 		mac_ctx->sap.SapDfsInfo.target_channel =
@@ -1009,12 +992,6 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 				FL("Received set channel Indication"));
 		break;
-	case eCSR_ROAM_UPDATE_SCAN_RESULT:
-		sap_signal_hdd_event(sap_ctx, csr_roam_info,
-				     eSAP_UPDATE_SCAN_RESULT,
-				     (void *) eSAP_STATUS_SUCCESS);
-		break;
-
 	default:
 		break;
 	}
@@ -1036,14 +1013,6 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_ASSOCIATION_CNF (%d)"),
 			  roam_result);
-
-		if (!csr_roam_info) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("Invalid CSR Roam Info"));
-			qdf_ret_status = QDF_STATUS_E_INVAL;
-			break;
-		}
-
 		sap_ctx->nStaWPARSnReqIeLength = csr_roam_info->rsnIELen;
 		if (sap_ctx->nStaWPARSnReqIeLength)
 			qdf_mem_copy(sap_ctx->pStaWpaRsnReqIE,
@@ -1131,14 +1100,6 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("CSR roam_result = eCSR_ROAM_RESULT_INFRA_STARTED (%d)"),
 			  roam_result);
-
-		if (!csr_roam_info) {
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
-				  FL("Invalid CSR Roam Info"));
-			qdf_ret_status = QDF_STATUS_E_INVAL;
-			break;
-		}
-
 		/*
 		 * In the current implementation, hostapd is not aware that
 		 * drive will support DFS. Hence, driver should inform
@@ -1225,7 +1186,7 @@ wlansap_roam_callback(void *ctx, struct csr_roam_info *csr_roam_info,
 		if (sta_sap_scc_on_dfs_chan)
 			break;
 		wlansap_roam_process_dfs_radar_found(mac_ctx, sap_ctx,
-					&qdf_ret_status);
+						&qdf_ret_status);
 		break;
 	case eCSR_ROAM_RESULT_DFS_CHANSW_UPDATE_SUCCESS:
 		wlansap_roam_process_dfs_chansw_update(hal, sap_ctx,

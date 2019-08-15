@@ -152,13 +152,6 @@
 #define IEEE80211_AMSDU_FLAG    0x02
 #endif
 
-/* Enable flag to print TSO specific prints in datapath */
-#ifdef TSO_DEBUG_LOG_ENABLE
-#define TSO_DEBUG(args ...) printk(args)
-#else
-#define TSO_DEBUG(args ...)
-#endif
-
 /**
  * struct mon_rx_status - This will have monitor mode rx_status extracted from
  * htt_rx_desc used later to update radiotap information.
@@ -724,13 +717,11 @@ qdf_nbuf_unmap_nbytes_single(
 }
 #endif /* NBUF_MAP_UNMAP_DEBUG */
 
-#ifndef REMOVE_INIT_DEBUG_CODE
 static inline void
 qdf_nbuf_sync_for_cpu(qdf_device_t osdev, qdf_nbuf_t buf, qdf_dma_dir_t dir)
 {
 	__qdf_nbuf_sync_for_cpu(osdev, buf, dir);
 }
-#endif
 
 static inline int qdf_nbuf_get_num_frags(qdf_nbuf_t buf)
 {
@@ -2183,211 +2174,6 @@ bool qdf_nbuf_data_is_arp_req(qdf_nbuf_t buf)
  * This func. checks whether it is a ARP response or not.
  *
  * Return: true if it is a ARP response or FALSE if not
- */
-static inline
-bool qdf_nbuf_data_is_arp_rsp(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_arp_rsp(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_get_arp_src_ip() - get ARP packet source IP gateway.
- * @buf:  buffer
- *
- * Return: ARP packet source IP value.
- */
-static inline
-uint32_t qdf_nbuf_get_arp_src_ip(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_get_arp_src_ip(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_get_arp_tgt_ip() - get ARP packet target IP gateway.
- * @buf:  buffer
- *
- * Return: ARP packet target IP value.
- */
-static inline
-uint32_t qdf_nbuf_get_arp_tgt_ip(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_get_arp_tgt_ip(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_get_dns_domain_name() - get dns domain name of required length
- * @buf: buffer
- * @len: length to copy
- *
- * Return: dns domain name
- */
-static inline
-uint8_t *qdf_nbuf_get_dns_domain_name(qdf_nbuf_t buf, uint32_t len)
-{
-	return __qdf_nbuf_get_dns_domain_name(qdf_nbuf_data(buf), len);
-}
-
-/**
- * qdf_nbuf_data_is_dns_query() - check if skb data is a dns query
- * @buf: buffer
- *
- * Return: true if packet is dns query packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_dns_query(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_dns_query(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_dns_response() - check if skb data is a dns response
- * @buf:  buffer
- *
- * Return: true if packet is dns response packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_dns_response(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_dns_response(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_tcp_syn() - check if skb data is a tcp syn
- * @buf:  buffer
- *
- * Return: true if packet is tcp syn packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_tcp_syn(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_tcp_syn(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_tcp_syn_ack() - check if skb data is a tcp syn ack
- * @buf:  buffer
- *
- * Return: true if packet is tcp syn ack packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_tcp_syn_ack(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_tcp_syn_ack(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_tcp_ack() - check if skb data is a tcp ack
- * @buf:  buffer
- *
- * Return: true if packet is tcp ack packet.
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_tcp_ack(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_tcp_ack(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_get_tcp_src_port() - get tcp src port
- * @buf:  buffer
- *
- * Return: tcp source port value.
- */
-static inline
-uint16_t qdf_nbuf_data_get_tcp_src_port(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_get_tcp_src_port(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_get_tcp_dst_port() - get tcp dst port
- * @buf:  buffer
- *
- * Return: tcp destination port value.
- */
-static inline
-uint16_t qdf_nbuf_data_get_tcp_dst_port(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_get_tcp_dst_port(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_icmpv4_req() - check if ICMPv4 packet is request.
- * @buf:  buffer
- *
- * This func. checks whether it is a ICMPv4 request or not.
- *
- * Return: true if it is a ICMPv4 request or fALSE if not
- */
-static inline
-bool qdf_nbuf_data_is_icmpv4_req(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_icmpv4_req(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_icmpv4_rsp() - check if ICMPv4 packet is res
- * @buf:  buffer
- *
- * Return: true if packet is icmpv4 response
- *	   false otherwise.
- */
-static inline
-bool qdf_nbuf_data_is_icmpv4_rsp(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_icmpv4_rsp(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_get_icmpv4_src_ip() - get icmpv4 src IP
- * @buf:  buffer
- *
- * Return: icmpv4 packet source IP value.
- */
-static inline
-uint32_t qdf_nbuf_get_icmpv4_src_ip(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_get_icmpv4_src_ip(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_get_icmpv4_tgt_ip() - get icmpv4 target IP
- * @buf:  buffer
- *
- * Return: icmpv4 packet target IP value.
- */
-static inline
-uint32_t qdf_nbuf_get_icmpv4_tgt_ip(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_get_icmpv4_tgt_ip(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_arp_req() - check if ARP packet is request.
- * @buf:  buffer
- *
- * This func. checks whether it is a ARP request or not.
- *
- * Return: true if it is a ARP request or fALSE if not
- */
-static inline
-bool qdf_nbuf_data_is_arp_req(qdf_nbuf_t buf)
-{
-	return __qdf_nbuf_data_is_arp_req(qdf_nbuf_data(buf));
-}
-
-/**
- * qdf_nbuf_data_is_arp_rsp() - check if ARP packet is response.
- * @buf:  buffer
- *
- * This func. checks whether it is a ARP response or not.
- *
- * Return: true if it is a ARP response or fALSE if not
  */
 static inline
 bool qdf_nbuf_data_is_arp_rsp(qdf_nbuf_t buf)

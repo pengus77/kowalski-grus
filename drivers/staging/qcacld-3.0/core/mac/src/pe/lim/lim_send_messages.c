@@ -240,22 +240,6 @@ QDF_STATUS lim_send_switch_chnl_params(tpAniSirGlobal pMac,
 	else if (cds_is_10_mhz_enabled())
 		pChnlParams->ch_width = CH_WIDTH_10MHZ;
 
-	/*
-	 * Do this operation only for STA, as 2G RX LDPC
-	 * feature may be supported, for rest of the persona
-	 * let RX LDPC comes from default setting
-	 */
-	if (QDF_STA_MODE == pSessionEntry->pePersona) {
-		is_current_hwmode_dbs = wma_is_current_hwmode_dbs();
-		pChnlParams->rx_ldpc =
-			lim_get_rx_ldpc(pMac, cds_get_channel_enum(chnlNumber),
-					is_current_hwmode_dbs);
-		if (CDS_IS_CHANNEL_24GHZ(chnlNumber))
-			pChnlParams->rx_ldpc = pChnlParams->rx_ldpc &&
-				pMac->roam.configParam.rx_ldpc_support_for_2g;
-		pe_debug("Rx LDPC param pChnlParams->rx_ldpc[%d]",
-			pChnlParams->rx_ldpc);
-	}
 	/* we need to defer the message until we
 	 * get the response back from WMA
 	 */
@@ -558,9 +542,12 @@ QDF_STATUS lim_send_mode_update(tpAniSirGlobal pMac,
 	msgQ.bodyval = 0;
 	pe_debug("Sending WMA_UPDATE_OP_MODE, op_mode %d, sta_id %d",
 			pVhtOpMode->opMode, pVhtOpMode->staId);
-	MTRACE(mac_trace_msg_tx(pMac, 
-		(NULL == psessionEntry) ? NO_SESSION : psessionEntry->peSessionId,
-		msgQ.type));
+	if (NULL == psessionEntry)
+		MTRACE(mac_trace_msg_tx(pMac, NO_SESSION, msgQ.type));
+	else
+		MTRACE(mac_trace_msg_tx(pMac,
+					psessionEntry->peSessionId,
+					msgQ.type));
 	retCode = wma_post_ctrl_msg(pMac, &msgQ);
 	if (QDF_STATUS_SUCCESS != retCode) {
 		qdf_mem_free(pVhtOpMode);

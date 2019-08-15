@@ -91,10 +91,6 @@ static inline int hdd_napi_apply_throughput_policy(void *hdd_ctx,
 {
 	return 0;
 }
-static inline int hdd_napi_serialize(int is_on)
-{
-	return 0;
-};
 
 static inline int hdd_napi_serialize(int is_on)
 {

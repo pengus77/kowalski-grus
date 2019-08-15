@@ -136,7 +136,6 @@ typedef enum {
 	 * result of various conditions
 	 */
 	eSAP_STA_DISASSOC_EVENT,
-
 	/* Event sent when user called wlansap_set_key_sta */
 	eSAP_STA_SET_KEY_EVENT,
 	/* Event sent whenever there is MIC failure detected */

@@ -441,7 +441,6 @@ typedef enum {
 	 */
 	eCSR_ROAM_TDLS_STATUS_UPDATE,
 	eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND,
-	eCSR_ROAM_TDLS_SET_STATE_DISABLE,
 
 	/* Disaconnect all the clients */
 	eCSR_ROAM_DISCONNECT_ALL_P2P_CLIENTS,
@@ -1225,10 +1224,6 @@ typedef struct tagCsrConfigParam {
 	bool enable5gEBT;
 	bool enableSelfRecovery;
 	uint32_t f_sta_miracast_mcc_rest_time_val;
-	uint32_t sta_scan_burst_duration;
-	uint32_t p2p_scan_burst_duration;
-	uint32_t go_scan_burst_duration;
-	uint32_t ap_scan_burst_duration;
 #ifdef FEATURE_AP_MCC_CH_AVOIDANCE
 	bool sap_channel_avoidance;
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
@@ -1435,7 +1430,6 @@ struct csr_roam_info {
 	union {
 		struct ndi_create_rsp ndi_create_params;
 		struct ndi_delete_rsp ndi_delete_params;
-		struct ndp_sch_update_event sch_update_params;
 	} ndp;
 #endif
 	tDot11fIEHTCaps ht_caps;

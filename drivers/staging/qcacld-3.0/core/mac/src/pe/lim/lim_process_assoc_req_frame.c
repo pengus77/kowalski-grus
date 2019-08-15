@@ -992,11 +992,6 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 		pe_debug("Assoc req addIEPresent: %d addIE length: %d",
 			 assoc_req->addIEPresent, assoc_req->addIE.length);
 
-	if (wps_ie) {
-		pe_debug("Assoc req WSE IE is present");
-		return true;
-	}
-
 	/* when wps_ie is present, RSN/WPA IE is ignored */
 	if (wps_ie == NULL) {
 		/* check whether RSN IE is present */
@@ -1008,7 +1003,6 @@ static bool lim_chk_n_process_wpa_rsn_ie(tpAniSirGlobal mac_ctx,
 	} else {
 		pe_debug("Assoc req WSE IE is present");
 	}
-
 	return true;
 }
 
@@ -1204,7 +1198,6 @@ static bool lim_process_assoc_req_sta_ctx(tpAniSirGlobal mac_ctx,
 			eLIM_MLM_AUTHENTICATED_STATE)) {
 			/* STA has triggered pre-auth again */
 			*auth_type = sta_pre_auth_ctx->authType;
-			sta_ds->prev_auth_seq_no = sta_pre_auth_ctx->seq_num;
 			lim_delete_pre_auth_node(mac_ctx, hdr->sa);
 		} else {
 			*auth_type = sta_ds->mlmStaContext.authType;
@@ -1292,8 +1285,6 @@ static bool lim_chk_wmm(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
  * @peer_idx: peer index
  * @qos_mode: qos mode
  * @pmf_connection: flag indicating pmf connection
- * @force_1x1: Flag to check if the HT capable STA needs to be downgraded to 1x1
- * nss.
  *
  * Updates ds dph entry
  *
@@ -1304,8 +1295,7 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 			      uint8_t sub_type, tpDphHashNode sta_ds,
 			      tAniAuthType auth_type,
 			      bool *assoc_req_copied, uint16_t peer_idx,
-			      tHalBitVal qos_mode, bool pmf_connection,
-			      bool force_1x1)
+			      tHalBitVal qos_mode, bool pmf_connection)
 {
 	tHalBitVal wme_mode, wsm_mode;
 	uint8_t *ht_cap_ie = NULL;
@@ -1355,9 +1345,6 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 	sta_ds->qos.addts = assoc_req->addtsReq;
 	sta_ds->qos.capability = assoc_req->qosCapability;
 	sta_ds->versionPresent = 0;
-	sta_ds->prev_assoc_seq_no = (((hdr->seqControl.seqNumHi <<
-					HIGH_SEQ_NUM_OFFSET) |
-					hdr->seqControl.seqNumLo));
 	/*
 	 * short slot and short preamble should be updated before doing
 	 * limaddsta
@@ -1370,7 +1357,6 @@ static bool lim_update_sta_ds(tpAniSirGlobal mac_ctx, tpSirMacMgmtHdr hdr,
 	sta_ds->valid = 0;
 	sta_ds->mlmStaContext.authType = auth_type;
 	sta_ds->staType = STA_ENTRY_PEER;
-	sta_ds->mlmStaContext.force_1x1 = force_1x1;
 
 	/*
 	 * TODO: If listen interval is more than certain limit, reject the
@@ -1894,10 +1880,11 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	}
 
 	/*
-	 * If a STA is already present in DPH and the host receives an assoc
-	 * request with the same sequence number , do not process it, as the
-	 * previous assoc has already been processed and the response will be
-	 * retried by the firmware if the peer hasnt received the response yet
+	 * If a STA is already present in DPH and it is initiating a Assoc
+	 * re-transmit, do not process it. This can happen when first Assoc Req
+	 * frame is received but ACK lost at STA side. The ACK for this dropped
+	 * Assoc Req frame should be sent by HW. Host simply does not process it
+	 * once the entry for the STA is already present in DPH.
 	 */
 	sta_ds = dph_lookup_hash_entry(mac_ctx, hdr->sa, &assoc_id,
 				&session->dph.dphHashTable);
@@ -2109,25 +2096,6 @@ void lim_process_assoc_req_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 		 (LIM_ASSOC == sub_type) ? "Assoc" : "ReAssoc",
 		 MAC_ADDR_ARRAY(hdr->sa));
 
-	if (session->pePersona == QDF_P2P_GO_MODE) {
-		/*
-		 * WAR: In P2P GO mode, if the P2P client device
-		 * is only HT capable and not VHT capable, but the P2P
-		 * GO device is VHT capable and advertises 2x2 NSS with
-		 * HT capablity client device, which results in IOT
-		 * issues.
-		 * When GO is operating in DBS mode, GO beacons
-		 * advertise 2x2 capability but include OMN IE to
-		 * indicate current operating mode of 1x1. But here
-		 * peer device is only HT capable and will not
-		 * understand OMN IE.
-		 */
-		force_1x1 = lim_p2p_check_oui_and_force_1x1(
-					mac_ctx,
-					frm_body + LIM_ASSOC_REQ_IE_OFFSET,
-					frame_len - LIM_ASSOC_REQ_IE_OFFSET);
-	}
-
 	/*
 	 * AID for this association will be same as the peer Index used in DPH
 	 * table. Assign unused/least recently used peer Index from perStaDs.
@@ -2171,7 +2139,7 @@ sendIndToSme:
 	if (false == lim_update_sta_ds(mac_ctx, hdr, session, assoc_req,
 				sub_type, sta_ds, auth_type,
 				&assoc_req_copied, peer_idx, qos_mode,
-				pmf_connection, force_1x1))
+				pmf_connection))
 		goto error;
 
 

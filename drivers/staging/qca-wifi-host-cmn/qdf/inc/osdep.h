@@ -128,7 +128,7 @@ struct _NIC_DEV;
  * different argument types for timer function in different OS.
  */
 #define os_timer_func(_fn) \
-	void _fn(unsigned long timer_arg)
+	void _fn(void *timer_arg)
 
 #define OS_GET_TIMER_ARG(_arg, _type) \
 	((_arg) = (_type)(timer_arg))

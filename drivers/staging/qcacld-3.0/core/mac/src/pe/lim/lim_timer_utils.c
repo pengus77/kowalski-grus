@@ -808,21 +808,6 @@ void lim_deactivate_and_change_timer(tpAniSirGlobal pMac, uint32_t timerId)
 
 		break;
 
-	case eLIM_AUTH_SAE_TIMER:
-		if (tx_timer_deactivate
-		   (&pMac->lim.limTimers.sae_auth_timer)
-		    != TX_SUCCESS)
-			pe_err("Unable to deactivate SAE auth timer");
-
-		/* Change timer to reactivate it in future */
-		val = SYS_MS_TO_TICKS(LIM_AUTH_SAE_TIMER_MS);
-
-		if (tx_timer_change(&pMac->lim.limTimers.sae_auth_timer,
-				    val, 0) != TX_SUCCESS)
-			pe_err("unable to change SAE auth timer");
-
-		break;
-
 	default:
 		/* Invalid timerId. Log error */
 		break;

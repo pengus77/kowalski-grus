@@ -70,7 +70,7 @@ lim_process_beacon_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	mac_hdr = WMA_GET_RX_MAC_HEADER(rx_pkt_info);
 	pe_debug("Received Beacon frame with length: %d from",
 		WMA_GET_RX_MPDU_LEN(rx_pkt_info));
-		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOGD);
+		lim_print_mac_addr(mac_ctx, mac_hdr->sa, LOG2);
 
 	/* Expect Beacon in any state as Scan is independent of LIM state */
 	bcn_ptr = qdf_mem_malloc(sizeof(*bcn_ptr));

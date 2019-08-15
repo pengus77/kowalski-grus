@@ -21,8 +21,6 @@
 #include "wlan_hdd_cfg.h"
 #include "wlan_hdd_main.h"
 
-#include "wlan_hdd_cfg.h"
-
 /**
  * enum hdd_tsf_get_state - status of get tsf action
  * @TSF_RETURN:                   get tsf

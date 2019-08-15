@@ -350,17 +350,6 @@ QDF_STATUS sme_update_roam_params(tHalHandle hHal, uint8_t session_id,
 QDF_STATUS sme_update_config(tHalHandle hHal,
 		tpSmeConfigParams pSmeConfigParams);
 
-/**
- * sme_destroy_config() - destroy the config params allocated dynamically
- * @hal: handle returned by mac_open
- *
- * This function is used to de-allocate the memory for config params
- * which are allocated using sme_update_config() function
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS sme_destroy_config(tHalHandle hal);
-
 QDF_STATUS sme_set11dinfo(tHalHandle hHal, tpSmeConfigParams pSmeConfigParams);
 QDF_STATUS sme_get_soft_ap_domain(tHalHandle hHal,
 		v_REGDOMAIN_t *domainIdSoftAp);
@@ -672,18 +661,6 @@ QDF_STATUS sme_oem_get_capability(tHalHandle hHal,
 QDF_STATUS sme_change_mcc_beacon_interval(uint8_t sessionId);
 QDF_STATUS sme_set_host_offload(tHalHandle hHal, uint8_t sessionId,
 		tpSirHostOffloadReq pRequest);
-
-/**
- * sme_conf_hw_filter_mode() - configure the given mode for the given session
- * @hal: internal hal handle
- * @session_id: the Id of the session to configure the hw filter for
- * @mode_bitmap: the hw filter mode to configure
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS sme_conf_hw_filter_mode(tHalHandle hal, uint8_t session_id,
-				   uint8_t mode_bitmap, bool filter_enable);
-
 QDF_STATUS sme_set_keep_alive(tHalHandle hHal, uint8_t sessionId,
 		tpSirKeepAliveReq pRequest);
 QDF_STATUS sme_get_operation_channel(tHalHandle hHal, uint32_t *pChannel,
@@ -1445,10 +1422,7 @@ QDF_STATUS sme_create_mon_session(tHalHandle hal_handle, uint8_t *bssid);
 QDF_STATUS sme_set_adaptive_dwelltime_config(tHalHandle hal,
 			struct adaptive_dwelltime_params *dwelltime_params);
 
-void sme_set_vdev_ies_per_band(uint8_t vdev_id,
-			       uint8_t is_hw_mode_dbs);
-bool sme_check_enable_rx_ldpc_sta_ini_item(void);
-QDF_STATUS sme_issue_same_ap_reassoc_cmd(uint8_t session_id);
+void sme_set_vdev_ies_per_band(tHalHandle hal, uint8_t vdev_id);
 void sme_set_pdev_ht_vht_ies(tHalHandle hHal, bool enable2x2);
 
 void sme_update_vdev_type_nss(tHalHandle hal, uint8_t max_supp_nss,
@@ -1688,7 +1662,6 @@ QDF_STATUS sme_set_nud_debug_stats_cb(tHalHandle hal,
  * sme_set_chan_info_callback() - Register chan info callback
  * @hal - MAC global handle
  * @callback_routine - callback routine from HDD
- * @context - callback context
  *
  * This API is invoked by HDD to register its callback to mac
  *

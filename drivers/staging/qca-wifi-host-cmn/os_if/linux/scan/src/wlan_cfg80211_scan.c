@@ -41,6 +41,7 @@
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 #include "host_diag_core_event.h"
 #endif
+#define MAX_CHANNEL (NUM_24GHZ_CHANNELS + NUM_5GHZ_CHANNELS)
 
 static const
 struct nla_policy scan_policy[QCA_WLAN_VENDOR_ATTR_SCAN_MAX + 1] = {
@@ -451,7 +452,7 @@ int wlan_cfg80211_sched_scan_start(struct wlan_objmgr_pdev *pdev,
 
 	enable_dfs_pno_chnl_scan = ucfg_scan_is_dfs_chnl_scan_enabled(psoc);
 	if (request->n_channels) {
-		char *chl = qdf_mem_malloc((request->n_channels * 5) + 1);
+		char *chl = qdf_mem_malloc(MAX_CHANNEL * 5 + 1);
 		int len = 0;
 		bool ap_or_go_present = wlan_cfg80211_is_ap_go_present(psoc);
 
@@ -1449,7 +1450,7 @@ int wlan_cfg80211_scan(struct wlan_objmgr_pdev *pdev,
 		qdf_set_macaddr_broadcast(&req->scan_req.bssid_list[0]);
 
 	if (request->n_channels) {
-		char *chl = qdf_mem_malloc((request->n_channels * 5) + 1);
+		char *chl = qdf_mem_malloc(MAX_CHANNEL * 5 + 1);
 		int len = 0;
 #ifdef WLAN_POLICY_MGR_ENABLE
 		bool ap_or_go_present =

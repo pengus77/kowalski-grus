@@ -228,23 +228,16 @@ typedef struct {
 } qdf_resource_t;
 
 /**
- * enum qdf_driver_type - Indicate the driver type and based on this
- * do appropriate initialization.
- *
- * @QDF_DRIVER_TYPE_PRODUCTION: Driver used in the production
- * @QDF_DRIVER_TYPE_MFG: Driver used in the Factory
- * @QDF_DRIVER_TYPE_INVALID: Invalid and unrecognized type
- *
+ * typedef qdf_dma_dir_t - DMA directions
+ * @QDF_DMA_BIDIRECTIONAL: bidirectional data
+ * @QDF_DMA_TO_DEVICE: data going from device to memory
+ * @QDF_DMA_FROM_DEVICE: data going from memory to device
  */
-enum qdf_driver_type {
-	QDF_DRIVER_TYPE_PRODUCTION = 0,
-	QDF_DRIVER_TYPE_MFG = 1,
-	QDF_DRIVER_TYPE_INVALID = 0x7FFFFFFF
-};
-
-#define QDF_DMA_BIDIRECTIONAL __QDF_DMA_BIDIRECTIONAL
-#define QDF_DMA_TO_DEVICE __QDF_DMA_TO_DEVICE
-#define QDF_DMA_FROM_DEVICE __QDF_DMA_FROM_DEVICE
+typedef enum {
+	QDF_DMA_BIDIRECTIONAL = __QDF_DMA_BIDIRECTIONAL,
+	QDF_DMA_TO_DEVICE = __QDF_DMA_TO_DEVICE,
+	QDF_DMA_FROM_DEVICE = __QDF_DMA_FROM_DEVICE,
+} qdf_dma_dir_t;
 
 /**
  * enum qdf_driver_type - Indicate the driver type and based on this
@@ -611,40 +604,6 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 		    char *str_format, va_list val);
 
 #ifdef CONFIG_MCL
-/**
- * qdf_trace_msg()- logging API
- * @module: Module identifier. A member of the QDF_MODULE_ID enumeration that
- *	    identifies the module issuing the trace message.
- * @level: Trace level. A member of the QDF_TRACE_LEVEL enumeration indicating
- *	   the severity of the condition causing the trace message to be issued.
- *	   More severe conditions are more likely to be logged.
- * @str_format: Format string. The message to be logged. This format string
- *	       contains printf-like replacement parameters, which follow this
- *	       parameter in the variable argument list.
- *
- * Users wishing to add tracing information to their code should use
- * QDF_TRACE.  QDF_TRACE() will compile into a call to qdf_trace_msg() when
- * tracing is enabled.
- *
- * Return: nothing
- *
- * implemented in qdf_trace.c
- */
-void __printf(3, 4) qdf_trace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		   char *str_format, ...);
-
-/**
- * qdf_vtrace_msg() - the va_list version of qdf_trace_msg
- * @module: the calling module's Id
- * @level: the logging level to log using
- * @str_format: the log format string
- * @val: the va_list containing the values to format according to str_format
- *
- * Return: None
- */
-void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		    char *str_format, va_list val);
-
 #define qdf_print(args...) \
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR, ## args)
 
@@ -695,7 +654,6 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 
 #define qdf_vprint    __qdf_vprint
 #define qdf_snprint   __qdf_snprint
-#define qdf_kstrtoint	__qdf_kstrtoint
 
 #define qdf_kstrtoint __qdf_kstrtoint
 
@@ -710,7 +668,6 @@ void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
 #define QDF_SAP_MASK (1 << QDF_SAP_MODE)
 #define QDF_P2P_CLIENT_MASK (1 << QDF_P2P_CLIENT_MODE)
 #define QDF_P2P_GO_MASK (1 << QDF_P2P_GO_MODE)
-#define QDF_MONITOR_MASK (1 << QDF_MONITOR_MODE)
 
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 

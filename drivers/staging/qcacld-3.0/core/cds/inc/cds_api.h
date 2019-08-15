@@ -20,11 +20,11 @@
 #define __CDS_API_H
 
 /**
-* DOC:  cds_api.h
-*
-* Connectivity driver services public API
-*
-*/
+ * DOC:  cds_api.h
+ *
+ * Connectivity driver services public API
+ *
+ */
 
 #include <qdf_types.h>
 #include <qdf_status.h>
@@ -46,9 +46,9 @@
 #include <cdp_txrx_handle.h>
 
 /* Amount of time to wait for WMA to perform an asynchronous activity.
-* This value should be larger than the timeout used by WMI to wait for
-* a response from target
-*/
+ * This value should be larger than the timeout used by WMI to wait for
+ * a response from target
+ */
 #define CDS_WMA_TIMEOUT  (15000)
 
 /**
@@ -139,33 +139,33 @@ enum cds_fw_state cds_get_fw_state(void);
  */
 static inline bool cds_is_driver_loading(void)
 {
-enum cds_driver_state state = cds_get_driver_state();
+	enum cds_driver_state state = cds_get_driver_state();
 
-return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADING);
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADING);
 }
 
 /**
-* cds_is_driver_unloading() - Is driver unload in progress
-*
-* Return: true if driver is unloading and false otherwise.
-*/
+ * cds_is_driver_unloading() - Is driver unload in progress
+ *
+ * Return: true if driver is unloading and false otherwise.
+ */
 static inline bool cds_is_driver_unloading(void)
 {
-enum cds_driver_state state = cds_get_driver_state();
+	enum cds_driver_state state = cds_get_driver_state();
 
-return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_UNLOADING);
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_UNLOADING);
 }
 
 /**
-* cds_is_driver_recovering() - Is recovery in progress
-*
-* Return: true if recovery in progress  and false otherwise.
-*/
+ * cds_is_driver_recovering() - Is recovery in progress
+ *
+ * Return: true if recovery in progress  and false otherwise.
+ */
 static inline bool cds_is_driver_recovering(void)
 {
-enum cds_driver_state state = cds_get_driver_state();
+	enum cds_driver_state state = cds_get_driver_state();
 
-return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_RECOVERING);
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_RECOVERING);
 }
 
 /**
@@ -187,64 +187,10 @@ static inline bool cds_is_driver_in_bad_state(void)
  */
 static inline bool cds_is_load_or_unload_in_progress(void)
 {
-enum cds_driver_state state = cds_get_driver_state();
-
-return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADING) ||
-	__CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_UNLOADING);
-}
-
-/**
-* cds_is_module_stop_in_progress() - Is module stopping
-*
-* Return: true if module stop is in progress.
-*/
-static inline bool cds_is_module_stop_in_progress(void)
-{
-enum cds_driver_state state = cds_get_driver_state();
-
-return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_MODULE_STOPPING);
-}
-
-/**
-* cds_is_module_state_transitioning() - Is module state transitioning
-*
-* Return: true if module stop is in progress.
-*/
-static inline int cds_is_module_state_transitioning(void)
-{
-if (cds_is_load_or_unload_in_progress() || cds_is_driver_recovering() ||
-	cds_is_module_stop_in_progress()) {
-	pr_info("%s: Load/Unload %d or recovery %d or module_stop %d is in progress",
-		__func__, cds_is_load_or_unload_in_progress(),
-			cds_is_driver_recovering(),
-			cds_is_module_stop_in_progress());
-	return true;
-} else {
-	return false;
-}
-}
-
-
-/**
-* cds_is_fw_down() - Is FW down or not
-*
-* Return: true if FW is down and false otherwise.
-*/
-static inline bool cds_is_fw_down(void)
-{
-	return pld_is_fw_down();
-}
-
-/**
-* cds_is_target_ready() - Is target is in ready state
-*
-* Return: true if target is in ready state and false otherwise.
-*/
-static inline bool cds_is_target_ready(void)
-{
 	enum cds_driver_state state = cds_get_driver_state();
 
-	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_FW_READY);
+	return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADING) ||
+		__CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_UNLOADING);
 }
 
 /**
@@ -279,10 +225,10 @@ static inline bool cds_is_target_ready(void)
  */
 static inline void cds_set_recovery_in_progress(uint8_t value)
 {
-if (value)
-	cds_set_driver_state(CDS_DRIVER_STATE_RECOVERING);
-else
-	cds_clear_driver_state(CDS_DRIVER_STATE_RECOVERING);
+	if (value)
+		cds_set_driver_state(CDS_DRIVER_STATE_RECOVERING);
+	else
+		cds_clear_driver_state(CDS_DRIVER_STATE_RECOVERING);
 }
 
 /**
@@ -321,65 +267,38 @@ static inline void cds_set_target_ready(uint8_t value)
  */
 static inline void cds_set_load_in_progress(uint8_t value)
 {
-if (value)
-	cds_set_driver_state(CDS_DRIVER_STATE_LOADING);
-else
-	cds_clear_driver_state(CDS_DRIVER_STATE_LOADING);
+	if (value)
+		cds_set_driver_state(CDS_DRIVER_STATE_LOADING);
+	else
+		cds_clear_driver_state(CDS_DRIVER_STATE_LOADING);
 }
 
 /**
-* cds_set_driver_loaded() - Set load completed
-* @value: value to set
-*
-* Return: none
-*/
+ * cds_set_driver_loaded() - Set load completed
+ * @value: value to set
+ *
+ * Return: none
+ */
 static inline void cds_set_driver_loaded(uint8_t value)
 {
-if (value)
-	cds_set_driver_state(CDS_DRIVER_STATE_LOADED);
-else
-	cds_clear_driver_state(CDS_DRIVER_STATE_LOADED);
+	if (value)
+		cds_set_driver_state(CDS_DRIVER_STATE_LOADED);
+	else
+		cds_clear_driver_state(CDS_DRIVER_STATE_LOADED);
 }
 
 /**
-* cds_set_unload_in_progress() - Set unload in progress
-* @value: value to set
-*
-* Return: none
-*/
+ * cds_set_unload_in_progress() - Set unload in progress
+ * @value: value to set
+ *
+ * Return: none
+ */
 static inline void cds_set_unload_in_progress(uint8_t value)
 {
-if (value)
-	cds_set_driver_state(CDS_DRIVER_STATE_UNLOADING);
-else
-	cds_clear_driver_state(CDS_DRIVER_STATE_UNLOADING);
-}
-
-/**
-* cds_set_module_stop_in_progress() - Setting module stop in progress
-*
-* @value: value to set
-*
-* Return: none
-*/
-static inline void cds_set_module_stop_in_progress(bool value)
-{
-if (value)
-	cds_set_driver_state(CDS_DRIVER_STATE_MODULE_STOPPING);
-else
-	cds_clear_driver_state(CDS_DRIVER_STATE_MODULE_STOPPING);
-}
-
-/**
-* cds_is_driver_loaded() - Is driver loaded
-*
-* Return: true if driver is loaded or false otherwise.
-*/
-static inline bool cds_is_driver_loaded(void)
-{
-enum cds_driver_state state = cds_get_driver_state();
-
-return __CDS_IS_DRIVER_STATE(state, CDS_DRIVER_STATE_LOADED);
+	if (value)
+		cds_set_driver_state(CDS_DRIVER_STATE_UNLOADING);
+	else
+		cds_clear_driver_state(CDS_DRIVER_STATE_UNLOADING);
 }
 
 /**
@@ -526,13 +445,13 @@ enum wifi_driver_log_level cds_get_ring_log_level(uint32_t ring_id);
 void cds_set_multicast_logging(uint8_t value);
 uint8_t cds_is_multicast_logging(void);
 QDF_STATUS cds_set_log_completion(uint32_t is_fatal,
-	uint32_t type,
-	uint32_t sub_type,
-	bool recovery_needed);
+		uint32_t type,
+		uint32_t sub_type,
+		bool recovery_needed);
 void cds_get_and_reset_log_completion(uint32_t *is_fatal,
-	uint32_t *type,
-	uint32_t *sub_type,
-	bool *recovery_needed);
+		uint32_t *type,
+		uint32_t *sub_type,
+		bool *recovery_needed);
 bool cds_is_log_report_in_progress(void);
 bool cds_is_fatal_event_enabled(void);
 
@@ -557,19 +476,19 @@ void cds_wlan_flush_host_logs_for_fatal(void);
 
 void cds_init_log_completion(void);
 QDF_STATUS cds_flush_logs(uint32_t is_fatal,
-	uint32_t indicator,
-	uint32_t reason_code,
-	bool dump_mac_trace,
-	bool recovery_needed);
+		uint32_t indicator,
+		uint32_t reason_code,
+		bool dump_mac_trace,
+		bool recovery_needed);
 void cds_logging_set_fw_flush_complete(void);
 void cds_svc_fw_shutdown_ind(struct device *dev);
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 void cds_tdls_tx_rx_mgmt_event(uint8_t event_id, uint8_t tx_rx,
-		uint8_t type, uint8_t sub_type, uint8_t *peer_mac);
+			uint8_t type, uint8_t sub_type, uint8_t *peer_mac);
 #else
 static inline
 void cds_tdls_tx_rx_mgmt_event(uint8_t event_id, uint8_t tx_rx,
-		uint8_t type, uint8_t sub_type, uint8_t *peer_mac)
+			uint8_t type, uint8_t sub_type, uint8_t *peer_mac)
 
 {
 }

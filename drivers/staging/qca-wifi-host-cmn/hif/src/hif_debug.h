@@ -43,10 +43,6 @@
 #define HIF_DBG(args ...) \
 	QDF_TRACE(QDF_MODULE_ID_HIF, QDF_TRACE_LEVEL_DEBUG, ## args)
 
-#define HIF_ERROR_RL(rate, args...) \
-		QDF_TRACE_RATE_LIMITED(rate, QDF_MODULE_ID_HIF, \
-				       QDF_TRACE_LEVEL_ERROR, ## args)
-
 #define HIF_ENTER(fmt, ...) QDF_TRACE(QDF_MODULE_ID_HIF, QDF_TRACE_LEVEL_INFO, \
 		"Enter: %s "fmt, __func__, ## __VA_ARGS__)
 

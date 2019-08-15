@@ -503,7 +503,6 @@ int hdd_ndi_open(char *iface_name)
 		hdd_err("hdd_ctx null");
 		return -EINVAL;
 	}
-	req.ndp_rsp = nla_get_u32(tb[QCA_WLAN_VENDOR_ATTR_NDP_RESPONSE_CODE]);
 
 	if (hdd_ctx->config->is_ndi_mac_randomized) {
 		if (hdd_get_random_nan_mac_addr(hdd_ctx, &random_ndi_mac)) {

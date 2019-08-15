@@ -180,7 +180,7 @@ QDF_STATUS sch_send_beacon_req(tpAniSirGlobal pMac, uint8_t *beaconPayload,
 	else
 		pe_debug("Successfully posted WMA_SEND_BEACON_REQ to HAL");
 
-	return status;
+	return retCode;
 }
 
 static uint32_t lim_remove_p2p_ie_from_add_ie(tpAniSirGlobal pMac,

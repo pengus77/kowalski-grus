@@ -35,7 +35,11 @@
 #include "wmi_unified.h"
 #include "wni_cfg.h"
 #include "cfg_api.h"
-#include "target_if_def_config.h"
+#if defined(CONFIG_HL_SUPPORT)
+#include "wlan_tgt_def_config_hl.h"
+#else
+#include "wlan_tgt_def_config.h"
+#endif
 #include "qdf_nbuf.h"
 #include "qdf_types.h"
 #include "qdf_mem.h"
@@ -943,40 +947,6 @@ static int32_t wma_set_priv_cfg(tp_wma_handle wma_handle,
 	}
 		break;
 
-	case WMA_VDEV_TXRX_GET_IPA_UC_SHARING_STATS_CMDID:
-	{
-		ol_txrx_pdev_handle pdev;
-		uint8_t reset_stats = privcmd->param_value;
-
-		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-		if (!pdev) {
-			WMA_LOGE("pdev NULL for uc stat");
-			return -EINVAL;
-		}
-		ol_txrx_ipa_uc_get_share_stats(pdev, reset_stats);
-	}
-		break;
-
-	case WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID:
-	{
-		ol_txrx_pdev_handle pdev;
-		uint64_t quota_bytes = privcmd->param_sec_value;
-
-		quota_bytes <<= 32;
-		quota_bytes |= privcmd->param_value;
-
-		WMA_LOGE("%s: quota_bytes=%llu",
-			 "WMA_VDEV_TXRX_SET_IPA_UC_QUOTA_CMDID",
-			 quota_bytes);
-		pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-		if (!pdev) {
-			WMA_LOGE("pdev NULL for uc stat");
-			return -EINVAL;
-		}
-		ol_txrx_ipa_uc_set_quota(pdev, quota_bytes);
-	}
-		break;
-
 	default:
 		WMA_LOGE("Invalid wma config command id:%d", privcmd->param_id);
 		ret = -EINVAL;
@@ -1622,11 +1592,6 @@ static void wma_process_cli_set_cmd(tp_wma_handle wma,
 				WMA_LOGE("Current band is not 5G");
 			}
 			break;
-		case WMI_PDEV_PARAM_ENA_ANT_DIV:
-		case WMI_PDEV_PARAM_FORCE_CHAIN_ANT:
-		case WMI_PDEV_PARAM_ANT_DIV_SELFTEST:
-		case WMI_PDEV_PARAM_ANT_DIV_SELFTEST_INTVL:
-			break;
 		default:
 			WMA_LOGD("Invalid wma_cli_set pdev command/Not yet implemented 0x%x",
 				 privcmd->param_id);
@@ -1795,12 +1760,6 @@ static int wma_process_fw_event_mc_thread_ctx(void *ctx, void *ev)
 	if (wma && wma_event_is_critical(event_id))
 		qdf_atomic_inc(&wma->critical_events_in_flight);
 
-	wma = cds_get_context(QDF_MODULE_ID_WMA);
-	event_id = WMI_GET_FIELD(qdf_nbuf_data(params_buf->evt_buf),
-				 WMI_CMD_HDR, COMMANDID);
-	if (wma && wma_event_is_critical(event_id))
-		qdf_atomic_inc(&wma->critical_events_in_flight);
-
 	cds_msg.type = WMA_PROCESS_FW_EVENT;
 	cds_msg.bodyptr = params_buf;
 	cds_msg.bodyval = 0;
@@ -1817,6 +1776,7 @@ static int wma_process_fw_event_mc_thread_ctx(void *ctx, void *ev)
 		return -EFAULT;
 	}
 	return 0;
+
 }
 
 /**
@@ -2332,6 +2292,7 @@ static void wma_register_debug_callback(void)
  * wma_register_tx_ops_handler() - register tx_ops of southbound
  * @tx_ops:  tx_ops pointer in southbound
  *
+ * Return: 0 on success, errno on failure
  */
 static QDF_STATUS
 wma_register_tx_ops_handler(struct wlan_lmac_if_tx_ops *tx_ops)
@@ -4308,23 +4269,6 @@ fail:
 
 }
 
-
-void wma_send_msg(tp_wma_handle wma_handle, uint16_t msg_type,
-			 void *body_ptr, uint32_t body_val)
-{
-	wma_send_msg_by_priority(wma_handle, msg_type,
-				body_ptr, body_val, LOW_PRIORITY);
-}
-
-void wma_send_msg_high_priority(tp_wma_handle wma_handle, uint16_t msg_type,
-			 void *body_ptr, uint32_t body_val)
-{
-	wma_send_msg_by_priority(wma_handle, msg_type,
-				body_ptr, body_val, HIGH_PRIORITY);
-}
-
-
-
 /**
  * wma_send_time_stamp_sync_cmd() - timer callback send timestamp to
  * firmware to sync with host.
@@ -4579,11 +4523,6 @@ QDF_STATUS wma_start(void)
 		WMA_LOGE("Failed to register get_temperature event cb");
 		qdf_status = QDF_STATUS_E_FAILURE;
 		goto end;
-	}
-	if (param_buf->fixed_param->num_vdev_mac_entries >=
-						MAX_VDEV_SUPPORTED) {
-		WMA_LOGE("num_vdev_mac_entries crossed max value");
-		goto fail;
 	}
 
 	status = wmi_unified_register_event_handler(wmi_handle,
@@ -6619,15 +6558,6 @@ static void wma_set_hw_mode_params(t_wma_handle *wma_handle,
 		sbs_mode);
 }
 
-static void wma_update_sar_version(tp_wma_handle wma_handle,
-				   struct wma_tgt_cfg *cfg)
-{
-	struct extended_caps *phy_caps;
-
-	phy_caps = &wma_handle->phy_caps;
-	cfg->sar_version = phy_caps->sar_capability.active_version;
-}
-
 /**
  * wma_update_hw_mode_list() - updates hw_mode_list
  * @wma_handle: pointer to wma global structure
@@ -6935,12 +6865,6 @@ int wma_rx_ready_event(void *handle, uint8_t *cmd_param_info,
 	if (ret)
 		return ret;
 	WMA_LOGD("Exit");
-
-	if (WMI_SERVICE_IS_ENABLED(wma_handle->wmi_service_bitmap,
-				   WMI_SERVICE_8SS_TX_BFEE))
-		wma_handle->tx_bfee_8ss_enabled = true;
-	else
-		wma_handle->tx_bfee_8ss_enabled = false;
 
 	return 0;
 }
@@ -7254,18 +7178,6 @@ static void wma_enable_specific_fw_logs(tp_wma_handle wma_handle,
 			(start_log->ring_id == RING_ID_FIRMWARE_DEBUG))) {
 		WMA_LOGD("%s: Not connectivity or fw debug ring: %d",
 				__func__, start_log->ring_id);
-		return;
-	}
-	if (NULL == param_buf->hal_reg_caps) {
-		WMA_LOGE("%s: Invalid hal_reg_caps", __func__);
-		return;
-	}
-
-	if ((param_buf->soc_hw_mode_caps->num_hw_modes > MAX_NUM_HW_MODE) ||
-	    (param_buf->soc_hw_mode_caps->num_hw_modes >
-	    param_buf->num_hw_mode_caps)) {
-		WMA_LOGE("Invalid num_hw_modes %u received from firmware",
-			 param_buf->soc_hw_mode_caps->num_hw_modes);
 		return;
 	}
 
@@ -8028,8 +7940,8 @@ static QDF_STATUS wma_roam_scan_send_hlp(tp_wma_handle wma_handle,
 {
 	return QDF_STATUS_SUCCESS;
 }
+#endif
 
-#if defined(WLAN_FEATURE_FILS_SK)
 /**
  * wma_process_set_limit_off_chan() - set limit off chanel parameters
  * @wma_handle: pointer to wma handle
@@ -8072,7 +7984,6 @@ static QDF_STATUS wma_process_limit_off_chan(tp_wma_handle wma_handle,
 static QDF_STATUS wma_process_obss_color_collision_req(tp_wma_handle wma_handle,
 		struct wmi_obss_color_collision_cfg_param *cfg)
 {
-	struct hlp_params *params;
 	QDF_STATUS status;
 
 	if (cfg->vdev_id >= wma_handle->max_bssid) {
@@ -8125,7 +8036,6 @@ static void wma_send_obss_detection_cfg(tp_wma_handle wma_handle,
 
 	return;
 }
-#endif
 
 /**
  * wma_mc_process_msg() - process wma messages and call appropriate function.

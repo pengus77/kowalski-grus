@@ -738,45 +738,6 @@ close:
 	return QDF_STATUS_E_FAILURE;
 }
 
-static QDF_STATUS cds_pktlog_enable(void *pdev_txrx_ctx, void *scn)
-{
-	int errno;
-
-	switch (cds_get_conparam()) {
-	case QDF_GLOBAL_FTM_MODE:
-	case QDF_GLOBAL_EPPING_MODE:
-		return QDF_STATUS_SUCCESS;
-	default:
-		break;
-	}
-
-	htt_pkt_log_init(pdev_txrx_ctx, scn);
-
-	errno = pktlog_htc_attach();
-	if (errno)
-		goto pktlog_deinit;
-
-	return QDF_STATUS_SUCCESS;
-
-pktlog_deinit:
-	htt_pktlogmod_exit(pdev_txrx_ctx, scn);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-static void cds_pktlog_disable(void *pdev_txrx_ctx, void *scn)
-{
-	switch (cds_get_conparam()) {
-	case QDF_GLOBAL_FTM_MODE:
-	case QDF_GLOBAL_EPPING_MODE:
-		return;
-	default:
-		break;
-	}
-
-	htt_pktlogmod_exit(pdev_txrx_ctx, scn);
-}
-
 /**
  * cds_pre_enable() - pre enable cds
  *
@@ -1144,9 +1105,6 @@ QDF_STATUS cds_close(struct wlan_objmgr_psoc *psoc)
 		cds_err("Failed to close wma_wmi_work");
 		QDF_ASSERT(0);
 	}
-
-	hdd_lro_destroy();
-	hdd_gro_destroy();
 
 	if (gp_cds_context->htc_ctx) {
 		htc_destroy(gp_cds_context->htc_ctx);
@@ -1541,9 +1499,6 @@ QDF_STATUS cds_set_context(QDF_MODULE_ID module_id, void *context)
 		break;
 	case QDF_MODULE_ID_HIF:
 		p_cds_context->hif_context = context;
-		break;
-	case QDF_MODULE_ID_HDD:
-		p_cds_context->pHDDContext = context;
 		break;
 	default:
 		cds_err("Module ID %i does not have its context managed by CDS",
@@ -2121,16 +2076,6 @@ uint8_t cds_is_multicast_logging(void)
 	return cds_multicast_logging;
 }
 
-static void cds_reset_log_completion(p_cds_contextType p_cds_context)
-{
-	/* reset */
-	p_cds_context->log_complete.indicator = WLAN_LOG_INDICATOR_UNUSED;
-	p_cds_context->log_complete.is_fatal = WLAN_LOG_TYPE_NON_FATAL;
-	p_cds_context->log_complete.is_report_in_progress = false;
-	p_cds_context->log_complete.reason_code = WLAN_LOG_REASON_CODE_UNUSED;
-	p_cds_context->log_complete.recovery_needed = false;
-
-}
 /*
  * cds_init_log_completion() - Initialize log param structure
  *
@@ -2222,9 +2167,14 @@ void cds_get_and_reset_log_completion(uint32_t *is_fatal,
 	*indicator = p_cds_context->log_complete.indicator;
 	*reason_code = p_cds_context->log_complete.reason_code;
 	*recovery_needed = p_cds_context->log_complete.recovery_needed;
-	cds_reset_log_completion(p_cds_context);
-	qdf_spinlock_release(&p_cds_context->bug_report_lock);
 
+	/* reset */
+	p_cds_context->log_complete.indicator = WLAN_LOG_INDICATOR_UNUSED;
+	p_cds_context->log_complete.is_fatal = WLAN_LOG_TYPE_NON_FATAL;
+	p_cds_context->log_complete.is_report_in_progress = false;
+	p_cds_context->log_complete.reason_code = WLAN_LOG_REASON_CODE_UNUSED;
+	p_cds_context->log_complete.recovery_needed = false;
+	qdf_spinlock_release(&p_cds_context->bug_report_lock);
 }
 
 /**

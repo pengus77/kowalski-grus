@@ -115,7 +115,6 @@ static ssize_t __hdd_driver_memdump_read(struct file *file, char __user *buf,
 
 	mutex_lock(&hdd_ctx->memdump_lock);
 	if (*pos < 0) {
-		mutex_unlock(&hdd_ctx->memdump_lock);
 		hdd_err("Invalid start offset for memdump read");
 		mutex_unlock(&hdd_ctx->memdump_lock);
 		return -EINVAL;
@@ -132,7 +131,6 @@ static ssize_t __hdd_driver_memdump_read(struct file *file, char __user *buf,
 			hdd_ctx->driver_dump_mem =
 				qdf_mem_malloc(DRIVER_MEM_DUMP_SIZE);
 			if (!hdd_ctx->driver_dump_mem) {
-				mutex_unlock(&hdd_ctx->memdump_lock);
 				hdd_err("qdf_mem_malloc failed");
 				mutex_unlock(&hdd_ctx->memdump_lock);
 				return -ENOMEM;
@@ -162,7 +160,6 @@ static ssize_t __hdd_driver_memdump_read(struct file *file, char __user *buf,
 
 	if (copy_to_user(buf, hdd_ctx->driver_dump_mem + *pos,
 					no_of_bytes_read)) {
-		mutex_unlock(&hdd_ctx->memdump_lock);
 		hdd_err("copy to user space failed");
 		mutex_unlock(&hdd_ctx->memdump_lock);
 		return -EFAULT;

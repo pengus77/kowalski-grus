@@ -149,46 +149,6 @@ typedef struct _cds_sched_context {
 	/* high throughput required */
 	bool high_throughput_required;
 #endif
-	/* MON thread lock */
-	spinlock_t ol_mon_thread_lock;
-
-	/* OL MON thread handle */
-	struct task_struct *ol_mon_thread;
-
-	/* Handle of Event for MON thread to signal startup */
-	struct completion ol_mon_start_event;
-
-	/* Completion object to suspend OL MON thread */
-	struct completion ol_suspend_mon_event;
-
-	/* Completion objext to resume OL MON thread */
-	struct completion ol_resume_mon_event;
-
-	/* Completion object for OL MON thread shutdown */
-	struct completion ol_mon_shutdown;
-
-	/* Waitq for OL MON thread */
-	wait_queue_head_t ol_mon_wait_queue;
-
-	unsigned long ol_mon_event_flag;
-
-	/* MON buffer queue */
-	struct list_head ol_mon_thread_queue;
-
-	/* Spinlock to synchronize between tasklet and thread */
-	spinlock_t ol_mon_queue_lock;
-
-	/* MON queue length */
-	unsigned int ol_mon_queue_len;
-
-	/* Lock to synchronize free buffer queue access */
-	spinlock_t cds_ol_mon_pkt_freeq_lock;
-
-	/* Free message queue for OL MON processing */
-	struct list_head cds_ol_mon_pkt_freeq;
-
-	/* MON thread affinity cpu */
-	unsigned long mon_thread_cpu;
 } cds_sched_context, *p_cds_sched_context;
 
 /**
@@ -267,8 +227,6 @@ struct cds_context {
 	qdf_workqueue_t *cds_recovery_wq;
 	enum qdf_hang_reason recovery_reason;
 };
-
-extern struct _cds_sched_context *gp_cds_sched_context;
 
 /*---------------------------------------------------------------------------
    Function declarations and documenation
@@ -440,79 +398,6 @@ static inline int cds_sched_handle_throughput_req(
 
 #endif
 
-/**
- * cds_drop_monpkt() - API to drop pending mon packets
- * @pschedcontext: Pointer to the global CDS Sched Context
- *
- * This api drops all the pending packets in the queue.
- *
- * Return: none
- */
-void cds_drop_monpkt(p_cds_sched_context pschedcontext);
-
-/**
- * cds_indicate_monpkt() - API to Indicate rx data packet
- * @pschedcontext: pointer to  CDS Sched Context
- * @pkt: CDS OL MON pkt pointer containing to mon data message buffer
- *
- * Return: none
- */
-void cds_indicate_monpkt(p_cds_sched_context pschedcontext,
-			 struct cds_ol_mon_pkt *pkt);
-
-/**
- * cds_wakeup_mon_thread() - wakeup mon thread
- * @Arg: Pointer to the global CDS Sched Context
- *
- * This api wake up cds_ol_mon_thread() to process pkt
- *
- * Return: none
- */
-void cds_wakeup_mon_thread(p_cds_sched_context pschedcontext);
-
-/**
- * cds_close_mon_thread() - close the Tlshim MON thread
- * @p_cds_context: Pointer to the global CDS Context
- *
- * This api closes the Tlshim MON thread:
- *
- * Return: qdf status
- */
-QDF_STATUS cds_close_mon_thread(void *p_cds_context);
-
-/**
- * cds_alloc_ol_mon_pkt() - API to return next available cds message
- * @pSchedContext: Pointer to the global CDS Sched Context
- *
- * This api returns next available cds message buffer used for mon data
- * processing
- *
- * Return: Pointer to cds message buffer
- */
-struct cds_ol_mon_pkt *cds_alloc_ol_mon_pkt(p_cds_sched_context pschedcontext);
-
-/**
- * cds_free_ol_mon_pkt() - api to release cds message to the freeq
- * This api returns the cds message used for mon data to the free queue
- * @pSchedContext: Pointer to the global CDS Sched Context
- * @pkt: CDS message buffer to be returned to free queue.
- *
- * Return: none
- */
-void cds_free_ol_mon_pkt(p_cds_sched_context pschedcontext,
-			 struct cds_ol_mon_pkt *pkt);
-
-/**
- * cds_free_ol_mon_pkt_freeq() - free cds buffer free queue
- * @pSchedContext - pointer to the global CDS Sched Context
- *
- * This API does mem free of the buffers available in free cds buffer
- * queue which is used for mon Data processing.
- *
- * Return: none
- */
-void cds_free_ol_mon_pkt_freeq(p_cds_sched_context pschedcontext);
-
 /*---------------------------------------------------------------------------
 
    \brief cds_sched_open() - initialize the CDS Scheduler
@@ -624,24 +509,6 @@ QDF_STATUS cds_shutdown_notifier_register(void (*cb)(void *priv), void *priv);
  * Return: None
  */
 void cds_shutdown_notifier_purge(void);
-/**
- * cds_shutdown_notifier_call() - Call shutdown notifier call back
- *
- * Call registered shutdown notifier call back to indicate about remove or
- * shutdown.
- */
-void cds_shutdown_notifier_call(void);
-
-/**
- * cds_remove_timer_from_sys_msg() - Flush timer message from sys msg queue
- * @timer_cookie: Unique cookie of the timer message to be flushed
- *
- * Find the timer message in the sys msg queue for the unique cookie
- * and flush the message from the queue.
- *
- * Return: None
- */
-void cds_remove_timer_from_sys_msg(uint32_t timer_cookie);
 
 /**
  * cds_shutdown_notifier_call() - Call shutdown notifier call back

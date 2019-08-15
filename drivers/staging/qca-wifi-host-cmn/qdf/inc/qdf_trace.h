@@ -129,8 +129,6 @@ typedef int (qdf_abstract_print)(void *priv, const char *fmt, ...);
 #endif
 #define NO_SESSION 0xFF
 
-#define NO_SESSION 0xFF
-
 /**
  * typedef struct qdf_trace_record_s - keep trace record
  * @qtime: qtimer ticks
@@ -357,7 +355,7 @@ struct qdf_dp_trace_data_buf {
  * @pid : process id which stored the data in this record
  */
 struct qdf_dp_trace_record_s {
-	u64 time;
+	uint64_t time;
 	uint8_t code;
 	uint8_t data[QDF_DP_TRACE_RECORD_SIZE];
 	uint8_t size;
@@ -898,33 +896,6 @@ void qdf_dp_trace_disable_live_mode(void)
 }
 
 static inline
-uint32_t qdf_dpt_get_curr_pos_debugfs(qdf_debugfs_file_t file,
-				      enum qdf_dpt_debugfs_state state)
-{
-}
-
-static inline
-QDF_STATUS qdf_dpt_dump_stats_debugfs(qdf_debugfs_file_t file,
-				      uint32_t curr_pos)
-{
-}
-
-static inline
-void qdf_dpt_set_value_debugfs(uint8_t proto_bitmap, uint8_t no_of_record,
-			    uint8_t verbosity)
-{
-}
-
-static inline void qdf_dp_trace_dump_stats(void)
-{
-}
-
-static inline
-void qdf_dp_trace_disable_live_mode(void)
-{
-}
-
-static inline
 void qdf_dp_trace_enable_live_mode(void)
 {
 }
@@ -1165,11 +1136,11 @@ struct category_name_info {
  * Return: nothing
  *
  */
-void qdf_trace_msg_cmn(unsigned int idx,
+static inline void qdf_trace_msg_cmn(unsigned int idx,
 			QDF_MODULE_ID category,
 			QDF_TRACE_LEVEL verbose,
 			const char *str_format,
-			va_list val);
+			va_list val) {}
 
 /**
  * struct qdf_print_ctrl: QDF Print Control structure
@@ -1281,8 +1252,10 @@ QDF_STATUS qdf_print_set_category_verbose(unsigned int idx,
  *
  * Return : Verbose enabled(true) or disabled(false) or invalid input (false)
  */
-bool qdf_print_is_category_enabled(unsigned int idx,
-				   QDF_MODULE_ID category);
+static inline bool qdf_print_is_category_enabled(unsigned int idx,
+				   QDF_MODULE_ID category) {
+	return false;
+}
 
 /**
  * qdf_print_is_verbose_enabled() - Get verbose information of a category for
@@ -1294,9 +1267,11 @@ bool qdf_print_is_category_enabled(unsigned int idx,
  *
  * Return : Verbose enabled(true) or disabled(false) or invalid input (false)
  */
-bool qdf_print_is_verbose_enabled(unsigned int idx,
+static inline bool qdf_print_is_verbose_enabled(unsigned int idx,
 				  QDF_MODULE_ID category,
-				  QDF_TRACE_LEVEL verbose);
+				  QDF_TRACE_LEVEL verbose) {
+	return false;
+}
 
 /**
  * qdf_print_clean_node_flag() - Clean up node flag for print control object
@@ -1346,17 +1321,6 @@ void qdf_logging_init(void);
  * Return : void
  */
 void qdf_logging_exit(void);
-
-#define QDF_SYMBOL_LEN __QDF_SYMBOL_LEN
-
-/**
- * qdf_sprint_symbol() - prints the name of a symbol into a string buffer
- * @buffer: the string buffer to print into
- * @addr: address of the symbol to lookup and print
- *
- * Return: number of characters printed
- */
-int qdf_sprint_symbol(char *buffer, void *addr);
 
 #define QDF_SYMBOL_LEN __QDF_SYMBOL_LEN
 

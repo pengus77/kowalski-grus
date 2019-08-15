@@ -73,21 +73,6 @@ static int __wlan_hdd_cfg80211_nan_request(struct wiphy *wiphy,
 		return -EPERM;
 	}
 
-	/*
-	 * Note: NAN commands in DBS hw_mode are not supported.
-	 *
-	 * When STA + SAP is operating in DBS mode and if the SAP is stopped,
-	 * then after 10 seconds dbs opportunistic timer handler is invoked
-	 * to move hw_mode to single mac.
-	 *
-	 * Meanwhile in this 10 seconds window, if there is NAN enable request,
-	 * then firmware rejects it, since hw_mode is in DBS.
-	 *
-	 * Therefore, when NAN request is issued try to change hw_mode to
-	 * single MAC.
-	 */
-	cds_check_and_stop_opportunistic_timer();
-
 	nan_req.request_data_len = data_len;
 	nan_req.request_data = data;
 

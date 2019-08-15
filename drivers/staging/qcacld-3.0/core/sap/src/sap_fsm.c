@@ -599,8 +599,6 @@ void sap_dfs_set_current_channel(void *ctx)
 bool sap_dfs_is_w53_invalid(tHalHandle hHal, uint8_t channelID)
 {
 	tpAniSirGlobal pMac;
-	uint64_t time_elapsed_since_last_radar;
-	uint64_t time_when_radar_found;
 
 	pMac = PMAC_STRUCT(hHal);
 	if (NULL == pMac) {
@@ -692,67 +690,6 @@ bool sap_check_in_avoid_ch_list(struct sap_context *sap_ctx, uint8_t channel)
 	return false;
 }
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-
-/**
- * sap_ch_params_to_bonding_channels() - get bonding channels from channel param
- * @ch_params: channel params ( bw, pri and sec channel info)
- * @channels: bonded channel list
- *
- * Return: Number of sub channels
- */
-static uint8_t sap_ch_params_to_bonding_channels(
-		struct ch_params_s *ch_params,
-		uint8_t *channels)
-{
-	uint8_t center_chan = ch_params->center_freq_seg0;
-	uint8_t nchannels = 0;
-
-	switch (ch_params->ch_width) {
-	case CH_WIDTH_160MHZ:
-		nchannels = 8;
-		center_chan = ch_params->center_freq_seg1;
-		channels[0] = center_chan - 14;
-		channels[1] = center_chan - 10;
-		channels[2] = center_chan - 6;
-		channels[3] = center_chan - 2;
-		channels[4] = center_chan + 2;
-		channels[5] = center_chan + 6;
-		channels[6] = center_chan + 10;
-		channels[7] = center_chan + 14;
-		break;
-	case CH_WIDTH_80P80MHZ:
-		nchannels = 8;
-		channels[0] = center_chan - 6;
-		channels[1] = center_chan - 2;
-		channels[2] = center_chan + 2;
-		channels[3] = center_chan + 6;
-
-		center_chan = ch_params->center_freq_seg1;
-		channels[4] = center_chan - 6;
-		channels[5] = center_chan - 2;
-		channels[6] = center_chan + 2;
-		channels[7] = center_chan + 6;
-		break;
-	case CH_WIDTH_80MHZ:
-		nchannels = 4;
-		channels[0] = center_chan - 6;
-		channels[1] = center_chan - 2;
-		channels[2] = center_chan + 2;
-		channels[3] = center_chan + 6;
-		break;
-	case CH_WIDTH_40MHZ:
-		nchannels = 2;
-		channels[0] = center_chan - 2;
-		channels[1] = center_chan + 2;
-		break;
-	default:
-		nchannels = 1;
-		channels[0] = center_chan;
-		break;
-	}
-
-	return nchannels;
-}
 
 /**
  * sap_dfs_is_channel_in_nol_list() - given bonded channel is available
@@ -1046,30 +983,9 @@ sap_validate_chan(struct sap_context *sap_context,
 			     (!wlan_reg_is_dfs_ch(mac_ctx->pdev, con_ch) ||
 			      sta_sap_scc_on_dfs_chan)) {
 				QDF_TRACE(QDF_MODULE_ID_SAP,
-					QDF_TRACE_LEVEL_WARN,
-					FL("SAP can't start (no MCC)"));
-				return QDF_STATUS_E_ABORTED;
-			}
-			QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_DEBUG,
-				  FL("After check concurrency: con_ch:%d"),
-				con_ch);
-			sta_sap_scc_on_dfs_chan =
-				cds_is_sta_sap_scc_allowed_on_dfs_channel();
-
-			if (con_ch &&
-			    (cds_is_safe_channel(con_ch) ||
-			     (!cds_is_safe_channel(con_ch) &&
-			      hdd_ctx->config->sta_sap_scc_on_lte_coex_chan)
-			    ) &&
-			    (!CDS_IS_DFS_CH(con_ch) ||
-			     (CDS_IS_DFS_CH(con_ch) &&
-			      sta_sap_scc_on_dfs_chan))) {
-
-				QDF_TRACE(QDF_MODULE_ID_SAP,
-						QDF_TRACE_LEVEL_ERROR,
-						"%s: Override ch %d to %d due to CC Intf",
-						__func__, sap_context->channel,
-						con_ch);
+					QDF_TRACE_LEVEL_ERROR,
+					"%s: Override ch %d to %d due to CC Intf",
+					__func__, sap_context->channel, con_ch);
 				sap_context->channel = con_ch;
 				wlan_reg_set_channel_params(mac_ctx->pdev,
 						sap_context->channel, 0,
@@ -2600,7 +2516,6 @@ static QDF_STATUS sap_fsm_state_starting(struct sap_context *sap_ctx,
 			  FL("is_dfs %d"), is_dfs);
 		if (is_dfs) {
 			sap_dfs_info = &mac_ctx->sap.SapDfsInfo;
-
 			if ((false == sap_dfs_info->ignore_cac) &&
 			    (eSAP_DFS_DO_NOT_SKIP_CAC ==
 			    sap_dfs_info->cac_state) &&
@@ -3317,7 +3232,6 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 	uint8_t loop_count;
 	uint8_t *list;
 	uint8_t ch_count;
-	uint8_t new_chan_count = 0;
 	uint8_t start_ch_num, band_start_ch;
 	uint8_t end_ch_num, band_end_ch;
 	uint32_t en_lte_coex;
@@ -3337,7 +3251,6 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 		return QDF_STATUS_E_FAULT;
 	}
 
-	mac_ctx = PMAC_STRUCT(hal);
 	start_ch_num = sap_ctx->acs_cfg->start_ch;
 	end_ch_num = sap_ctx->acs_cfg->end_ch;
 	ch_width = sap_ctx->acs_cfg->ch_width;
@@ -3449,47 +3362,6 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 				continue;
 		}
 
-		/*
-		 * Skip the channels which are not in ACS config from user
-		 * space
-		 */
-		if (SAP_CHANNEL_NOT_SELECTED ==
-			sap_channel_in_acs_channel_list(
-				CDS_CHANNEL_NUM(loop_count),
-				sap_ctx, &spect_info_obj))
-			continue;
-		/* Dont scan DFS channels in case of MCC disallowed
-		 * As it can result in SAP starting on DFS channel
-		 * resulting  MCC on DFS channel
-		 * Also if the dfs master mode in not enabled, exclude the
-		 * dfs channels, as the user doesnt want the SAP bringup on
-		 * dfs channel.
-		 */
-		if (CDS_IS_DFS_CH(CDS_CHANNEL_NUM(loop_count)) &&
-		   (cds_disallow_mcc(CDS_CHANNEL_NUM(loop_count)) ||
-		    !sap_ctx->acs_cfg->dfs_master_enable))
-			continue;
-
-		/*
-		 * If we have any 5Ghz channel in the channel list
-		 * and bw is 40/80/160 Mhz then we don't want SAP to
-		 * come up in 2.4Ghz as for 40Mhz, 2.4Ghz channel is
-		 * not preferred and 80/160Mhz is not allowed for 2.4Ghz
-		 * band. So, don't even scan on 2.4Ghz channels if bw is
-		 * 40/80/160Mhz and channel list has any 5Ghz channel.
-		 */
-		if (end_ch_num >= CDS_CHANNEL_NUM(CHAN_ENUM_36) &&
-		    ((ch_width == CH_WIDTH_40MHZ) ||
-		     (ch_width == CH_WIDTH_80MHZ) ||
-		     (ch_width == CH_WIDTH_80P80MHZ) ||
-		     (ch_width == CH_WIDTH_160MHZ))) {
-			if (CDS_CHANNEL_NUM(loop_count) >=
-			    CDS_CHANNEL_NUM(CHAN_ENUM_1) &&
-			    CDS_CHANNEL_NUM(loop_count) <=
-			    CDS_CHANNEL_NUM(CHAN_ENUM_14))
-				continue;
-		}
-
 #ifdef FEATURE_WLAN_CH_AVOID
 		for (i = 0; i < NUM_CHANNELS; i++) {
 			if (safe_channels[i].channelNumber ==
@@ -3540,19 +3412,6 @@ static QDF_STATUS sap_get_channel_list(struct sap_context *sap_ctx,
 		}
 #endif
 	}
-
-	for (i = 0; i < ch_count; i++) {
-		if (cds_is_etsi13_regdmn_srd_chan(cds_chan_to_freq(list[i]))) {
-			if (!sap_ctx->enable_etsi_srd_chan_support)
-				continue;
-		}
-
-		list[new_chan_count] = list[i];
-		new_chan_count++;
-	}
-
-	ch_count = new_chan_count;
-
 	if (0 == ch_count) {
 		QDF_TRACE(QDF_MODULE_ID_SAP, QDF_TRACE_LEVEL_ERROR,
 		    FL("No active channels present for the current region"));

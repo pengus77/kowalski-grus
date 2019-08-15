@@ -53,7 +53,6 @@ void wlan_hdd_unregister_driver(void);
 
 /**
  * wlan_hdd_bus_suspend() - suspend the wlan bus
- * @state: power management state
  *
  * This function is called by the platform driver to suspend the
  * wlan bus

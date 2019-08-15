@@ -48,25 +48,5 @@ QDF_STATUS hdd_update_smps_antenna_mode(struct hdd_context *hdd_ctx, int mode);
 int hdd_set_antenna_mode(struct hdd_adapter *adapter,
 			  struct hdd_context *hdd_ctx, int mode);
 
-/**
- * hdd_update_smps_antenna_mode() - set smps and antenna mode
- * @hdd_ctx: Pointer to hdd context
- * @mode: antenna mode
- *
- * This function will set smps and antenna mode.
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS hdd_update_smps_antenna_mode(hdd_context_t *hdd_ctx, int mode);
-
-/**
- * hdd_set_antenna_mode() - SET ANTENNA MODE command handler
- * @adapter: Pointer to network adapter
- * @hdd_ctx: Pointer to hdd context
- * @mode: new anteena mode
- */
-int hdd_set_antenna_mode(hdd_adapter_t *adapter,
-				  hdd_context_t *hdd_ctx, int mode);
-
 #endif /* end #if !defined(WLAN_HDD_IOCTL_H) */
 

@@ -433,18 +433,4 @@ QDF_STATUS csr_invoke_neighbor_report_request(uint8_t session_id,
 				struct sRrmNeighborReq *neighbor_report_req,
 				bool send_resp_to_host);
 
-/**
- * csr_invoke_neighbor_report_request - Send neighbor report invoke command to
- *					WMA
- * @mac_ctx: MAC context
- * @session_id: session id
- *
- * API called from IW to invoke neighbor report request to WMA then to FW
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS csr_invoke_neighbor_report_request(uint8_t session_id,
-				struct sRrmNeighborReq *neighbor_report_req,
-				bool send_resp_to_host);
-
 #endif /* CSR_NEIGHBOR_ROAM_H */

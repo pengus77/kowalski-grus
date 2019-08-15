@@ -206,7 +206,6 @@ int hif_napi_create(struct hif_opaque_softc   *hif_ctx,
 		NAPI_DEBUG("adding napi=%pK to netdev=%pK (poll=%pK, bdgt=%d)",
 			   &(napii->napi), &(napii->netdev), poll, budget);
 		netif_napi_add(&(napii->netdev), &(napii->napi), poll, budget);
-		napii->offld_ctx = NULL;
 
 		NAPI_DEBUG("after napi_add");
 		NAPI_DEBUG("napi=0x%pK, netdev=0x%pK",
@@ -432,122 +431,6 @@ void *hif_napi_get_lro_info(struct hif_opaque_softc *hif_hdl, int napi_id)
 	return 0;
 }
 #endif
-
-/**
- * hif_napi_offld_flush_cb_register() - init and register flush callback
- * @hif_hdl: pointer to hif context
- * @offld_flush_handler: register Rx offload flush callback
- * @offld_init_handler: Callback for initializing Rx offfload
- *
- * Init and register flush callback for LRO or GRO Rx offload features
- *
- * Return: positive value on success and 0 on failure
- */
-int hif_napi_offld_flush_cb_register(struct hif_opaque_softc *hif_hdl,
-				   void (offld_flush_handler)(void *),
-				   void *(offld_init_handler)(void))
-{
-	int rc = 0;
-	int i;
-	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
-	void *data = NULL;
-	struct qca_napi_data *napid;
-	struct qca_napi_info *napii;
-
-	QDF_ASSERT(scn != NULL);
-
-	napid = hif_napi_get_all(hif_hdl);
-	if (scn != NULL) {
-		for (i = 0; i < scn->ce_count; i++) {
-			napii = napid->napis[i];
-			if (napii) {
-				data = offld_init_handler();
-				if (data == NULL) {
-					HIF_ERROR("%s: Failed to init offld for CE %d",
-						  __func__, i);
-					continue;
-				}
-				napii->offld_flush_cb = offld_flush_handler;
-				napii->offld_ctx = data;
-				HIF_DBG("Registering offld for ce_id %d NAPI callback for %d flush_cb %pK, offld_data %pK\n",
-					i, napii->id, napii->offld_flush_cb,
-					napii->offld_ctx);
-				rc++;
-			}
-		}
-	} else {
-		HIF_ERROR("%s: hif_state NULL!", __func__);
-	}
-	return rc;
-}
-
-struct qca_napi_info *hif_get_napi(int napi_id, void *napi_d)
-{
-	struct qca_napi_data *napid = napi_d;
-	int id = NAPI_ID2PIPE(napi_id);
-
-	return napid->napis[id];
-}
-
-/**
- * hif_napi_lro_flush_cb_deregister() - Degregister and free LRO.
- * @hif: pointer to hif context
- * @lro_deinit_cb: LRO deinit callback
- *
- * Return: NONE
- */
-void hif_napi_lro_flush_cb_deregister(struct hif_opaque_softc *hif_hdl,
-				     void (lro_deinit_cb)(void *))
-{
-	int i;
-	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
-	struct qca_napi_data *napid;
-	struct qca_napi_info *napii;
-
-	QDF_ASSERT(scn != NULL);
-
-	napid = hif_napi_get_all(hif_hdl);
-	if (scn != NULL) {
-		for (i = 0; i < scn->ce_count; i++) {
-			napii = napid->napis[i];
-			if (napii) {
-				HIF_DBG("deRegistering LRO for ce_id %d NAPI callback for %d flush_cb %pK, lro_data %pK\n",
-					i, napii->id, napii->offld_flush_cb,
-					napii->offld_ctx);
-				napii->offld_flush_cb = NULL;
-				lro_deinit_cb(napii->offld_ctx);
-				napii->offld_ctx = NULL;
-			}
-		}
-	} else {
-		HIF_ERROR("%s: hif_state NULL!", __func__);
-	}
-}
-
-/**
- * hif_napi_get_lro_info() - returns the address LRO data for napi_id
- * @hif: pointer to hif context
- * @napi_id: napi instance
- *
- * Description:
- *    Returns the address of the LRO structure
- *
- * Return:
- *  <addr>: address of the LRO structure
- */
-void *hif_napi_get_lro_info(struct hif_opaque_softc *hif_hdl, int napi_id)
-{
-	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
-	struct qca_napi_data *napid;
-	struct qca_napi_info *napii;
-
-	napid = &(scn->napi_data);
-	napii = napid->napis[NAPI_ID2PIPE(napi_id)];
-
-	if (napii)
-		return napii->offld_ctx;
-	return 0;
-}
 
 /**
  *
@@ -954,51 +837,6 @@ static void hif_napi_offld_flush_cb(struct qca_napi_info *napi_info)
 {
 }
 #endif
-
-/**
- * hif_napi_correct_cpu() - correct the interrupt affinity for napi if needed
- * @napi_info: pointer to qca_napi_info for the napi instance
- *
- * Return: true  => interrupt already on correct cpu, no correction needed
- *         false => interrupt on wrong cpu, correction done for cpu affinity
- *                   of the interrupt
- */
-static inline
-bool hif_napi_correct_cpu(struct qca_napi_info *napi_info)
-{
-	bool right_cpu = true;
-	int rc = 0;
-	cpumask_t cpumask;
-	int cpu;
-	struct qca_napi_data *napid;
-
-	napid = hif_napi_get_all(GET_HIF_OPAQUE_HDL(napi_info->hif_ctx));
-
-	if (napid->flags & QCA_NAPI_FEATURE_CPU_CORRECTION) {
-
-		cpu = qdf_get_cpu();
-		if (unlikely((hif_napi_cpu_blacklist(napid,
-						BLACKLIST_QUERY) > 0) &&
-						(cpu != napi_info->cpu))) {
-			right_cpu = false;
-
-			NAPI_DEBUG("interrupt on wrong CPU, correcting");
-			cpumask.bits[0] = (0x01 << napi_info->cpu);
-
-			irq_modify_status(napi_info->irq, IRQ_NO_BALANCING, 0);
-			rc = irq_set_affinity_hint(napi_info->irq,
-						   &cpumask);
-			irq_modify_status(napi_info->irq, 0, IRQ_NO_BALANCING);
-
-			if (rc)
-				HIF_ERROR("error setting irq affinity hint: %d",
-					  rc);
-			else
-				napi_info->stats[cpu].cpu_corrected++;
-		}
-	}
-	return right_cpu;
-}
 
 /**
  * hif_napi_poll() - NAPI poll routine

@@ -292,21 +292,25 @@ void qdf_snprintf(char *str_buffer, unsigned int size, char *str_format, ...)
 }
 qdf_export_symbol(qdf_snprintf);
 
-#ifdef MULTI_IF_NAME
-static const char *qdf_trace_wlan_modname(void)
-{
-	return MULTI_IF_NAME;
-}
-#else
-static const char *qdf_trace_wlan_modname(void)
-{
-	return "wlan";
-}
-#endif
-
 #ifdef QDF_ENABLE_TRACING
-void qdf_vtrace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
-		   char *str_format, va_list val)
+
+/**
+ * qdf_trace_msg() - externally called trace function
+ * @module: Module identifier a member of the QDF_MODULE_ID
+ * enumeration that identifies the module issuing the trace message.
+ * @level: Trace level a member of the QDF_TRACE_LEVEL enumeration
+ * indicating the severity of the condition causing the trace message
+ * to be issued. More severe conditions are more likely to be logged.
+ * @str_format: Format string in which the message to be logged. This format
+ * string contains printf-like replacement parameters, which follow
+ * this parameter in the variable argument list.
+ *
+ * Checks the level of severity and accordingly prints the trace messages
+ *
+ * Return: None
+ */
+void qdf_trace_msg(QDF_MODULE_ID module, QDF_TRACE_LEVEL level,
+		   char *str_format, ...)
 {
 	va_list val;
 
@@ -1011,7 +1015,7 @@ qdf_export_symbol(qdf_dp_trace_set_track);
  * @inbuf:     buffer which contains data to be displayed
  * @inbuf_len: defines the size of the data to be displayed
  *
- * Return: QDF_STATUS
+ * Return: None
  */
 static void
 dump_dp_hex_trace(char *prepend_str, uint8_t *inbuf, uint8_t inbuf_len)
@@ -1447,104 +1451,6 @@ static void qdf_dp_add_record(enum QDF_DP_TRACE_ID code, uint8_t pdev_id,
 					QDF_TRACE_DEFAULT_PDEV_ID, info);
 }
 
-/**
- * qdf_log_icmpv6_pkt() - log ICMPv6 packet
- * @session_id: vdev_id
- * @skb: skb pointer
- * @dir: direction
- *
- * Return: true/false
- */
-static bool qdf_log_icmpv6_pkt(uint8_t session_id, struct sk_buff *skb,
-			    enum qdf_proto_dir dir)
-{
-	enum qdf_proto_subtype subtype;
-
-	if ((qdf_dp_get_proto_bitmap() & QDF_NBUF_PKT_TRAC_TYPE_ICMPv6) &&
-		((dir == QDF_TX && QDF_NBUF_CB_PACKET_TYPE_ICMPv6 ==
-			QDF_NBUF_CB_GET_PACKET_TYPE(skb)) ||
-		 (dir == QDF_RX && qdf_nbuf_is_icmpv6_pkt(skb) == true))) {
-
-		subtype = qdf_nbuf_get_icmpv6_subtype(skb);
-		DPTRACE(qdf_dp_trace_proto_pkt(
-			QDF_DP_TRACE_ICMPv6_PACKET_RECORD,
-			session_id, (skb->data + QDF_NBUF_SRC_MAC_OFFSET),
-			(skb->data + QDF_NBUF_DEST_MAC_OFFSET),
-			QDF_PROTO_TYPE_ICMPv6, subtype, dir, true));
-		if (dir == QDF_TX)
-			QDF_NBUF_CB_TX_DP_TRACE(skb) = 1;
-		else if (dir == QDF_RX)
-			QDF_NBUF_CB_RX_DP_TRACE(skb) = 1;
-
-		QDF_NBUF_CB_DP_TRACE_PRINT(skb) = false;
-
-		switch (subtype) {
-		case QDF_PROTO_ICMPV6_REQ:
-			g_qdf_dp_trace_data.icmpv6_req++;
-			break;
-		case QDF_PROTO_ICMPV6_RES:
-			g_qdf_dp_trace_data.icmpv6_resp++;
-			break;
-		case QDF_PROTO_ICMPV6_RS:
-			g_qdf_dp_trace_data.icmpv6_rs++;
-			break;
-		case QDF_PROTO_ICMPV6_RA:
-			g_qdf_dp_trace_data.icmpv6_ra++;
-			break;
-		case QDF_PROTO_ICMPV6_NS:
-			g_qdf_dp_trace_data.icmpv6_ns++;
-			break;
-		case QDF_PROTO_ICMPV6_NA:
-			g_qdf_dp_trace_data.icmpv6_na++;
-			break;
-		default:
-			break;
-		}
-		return true;
-	}
-
-	return false;
-}
-
-/**
- * qdf_log_icmp_pkt() - log ICMP packet
- * @session_id: vdev_id
- * @skb: skb pointer
- * @dir: direction
- *
- * Return: true/false
- */
-static bool qdf_log_icmp_pkt(uint8_t session_id, struct sk_buff *skb,
-			      enum qdf_proto_dir dir)
-{
-	enum qdf_proto_subtype subtype;
-
-	if ((qdf_dp_get_proto_bitmap() & QDF_NBUF_PKT_TRAC_TYPE_ICMP) &&
-		((dir == QDF_TX && QDF_NBUF_CB_PACKET_TYPE_ICMP ==
-			QDF_NBUF_CB_GET_PACKET_TYPE(skb)) ||
-		 (dir == QDF_RX && qdf_nbuf_is_icmp_pkt(skb) == true))) {
-
-		subtype = qdf_nbuf_get_icmp_subtype(skb);
-		DPTRACE(qdf_dp_trace_proto_pkt(QDF_DP_TRACE_ICMP_PACKET_RECORD,
-			session_id, (skb->data + QDF_NBUF_SRC_MAC_OFFSET),
-			(skb->data + QDF_NBUF_DEST_MAC_OFFSET),
-			QDF_PROTO_TYPE_ICMP, subtype, dir, false));
-		if (dir == QDF_TX)
-			QDF_NBUF_CB_TX_DP_TRACE(skb) = 1;
-		else if (dir == QDF_RX)
-			QDF_NBUF_CB_RX_DP_TRACE(skb) = 1;
-
-		QDF_NBUF_CB_DP_TRACE_PRINT(skb) = false;
-
-		if (subtype == QDF_PROTO_ICMP_REQ)
-			g_qdf_dp_trace_data.icmp_req++;
-		else
-			g_qdf_dp_trace_data.icmp_resp++;
-
-		return true;
-	}
-	return false;
-}
 
 /**
  * qdf_log_icmpv6_pkt() - log ICMPv6 packet
@@ -1970,7 +1876,7 @@ void qdf_dp_display_proto_pkt_always(struct qdf_dp_trace_record_s *record,
 {
 	int loc;
 	char prepend_str[QDF_DP_TRACE_PREPEND_STR_SIZE];
-	struct qdf_dp_trace_proto_buf *buf =
+	struct qdf_dp_trace_proto_buf *buf __maybe_unused =
 		(struct qdf_dp_trace_proto_buf *)record->data;
 
 	qdf_mem_zero(prepend_str, sizeof(prepend_str));
@@ -2942,6 +2848,7 @@ static inline void print_to_console(char *str_buffer)
 }
 #endif
 
+#if 0
 #ifdef MULTI_IF_NAME
 static const char *qdf_trace_wlan_modname(void)
 {
@@ -3025,6 +2932,7 @@ void qdf_trace_msg_cmn(unsigned int idx,
 	}
 }
 qdf_export_symbol(qdf_trace_msg_cmn);
+#endif
 
 QDF_STATUS qdf_print_setup(void)
 {
@@ -3447,6 +3355,7 @@ QDF_STATUS qdf_print_set_category_verbose(unsigned int idx,
 }
 qdf_export_symbol(qdf_print_set_category_verbose);
 
+#if 0
 bool qdf_print_is_category_enabled(unsigned int idx, QDF_MODULE_ID category)
 {
 	QDF_TRACE_LEVEL verbose_mask;
@@ -3518,6 +3427,7 @@ bool qdf_print_is_verbose_enabled(unsigned int idx, QDF_MODULE_ID category,
 	return verbose_enabled;
 }
 qdf_export_symbol(qdf_print_is_verbose_enabled);
+#endif
 
 #ifdef DBG_LVL_MAC_FILTERING
 

@@ -107,20 +107,4 @@ void cfg_cleanup(tpAniSirGlobal pMac);
 
 const char *cfg_get_string(uint16_t cfg_id);
 
-/**
- * wlan_cfg_get_ie_ptr() - to get IE ptr corresponding
- *             to a particular eid
- * @p_ie: ptr to complete IE of beacon/probe response
- * @length: complete IE length
- * @eid: IE id
- * @size_of_len_field: ONE_BYTE/TWO_BYTE
- *
- * This function is called to get IE ptr corresponding
- * to a particular eid
- *
- * @Return: ptr to IE
- */
-uint8_t *wlan_cfg_get_ie_ptr(uint8_t *p_ie, int length, uint8_t eid,
-			     enum size_of_len_field size_of_len_field);
-
 #endif /* __CFGAPI_H */

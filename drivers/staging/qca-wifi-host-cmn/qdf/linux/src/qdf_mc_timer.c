@@ -134,7 +134,6 @@ void qdf_timer_module_init(void)
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "Initializing the QDF MC timer module");
 	qdf_mutex_create(&persistent_timer_count_lock);
-	qdf_spinlock_create(&qdf_mc_timer_cookie_lock);
 }
 qdf_export_symbol(qdf_timer_module_init);
 
@@ -707,10 +706,6 @@ QDF_STATUS qdf_mc_timer_start(qdf_mc_timer_t *timer, uint32_t expiration_time)
 
 	qdf_spin_unlock_irqrestore(&timer->platform_info.spinlock);
 
-	qdf_spin_lock_irqsave(&qdf_mc_timer_cookie_lock);
-	timer->cookie = g_qdf_mc_timer_cookie++;
-	qdf_spin_unlock_irqrestore(&qdf_mc_timer_cookie_lock);
-
 	return QDF_STATUS_SUCCESS;
 }
 qdf_export_symbol(qdf_mc_timer_start);
@@ -755,8 +750,6 @@ QDF_STATUS qdf_mc_timer_stop(qdf_mc_timer_t *timer)
 		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 			  "%s: Cannot stop timer in state = %d",
 			  __func__, timer->state);
-		qdf_remove_timer_from_sys_msg(timer->cookie);
-
 		return QDF_STATUS_SUCCESS;
 	}
 
@@ -885,24 +878,6 @@ void qdf_timer_module_deinit(void)
 	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
 		  "De-Initializing the QDF MC timer module");
 	qdf_mutex_destroy(&persistent_timer_count_lock);
-	qdf_spinlock_destroy(&qdf_mc_timer_cookie_lock);
-}
-qdf_export_symbol(qdf_timer_module_deinit);
-
-void qdf_get_time_of_the_day_in_hr_min_sec_usec(char *tbuf, int len)
-{
-	struct timeval tv;
-	struct rtc_time tm;
-	unsigned long local_time;
-
-	/* Format the Log time R#: [hr:min:sec.microsec] */
-	do_gettimeofday(&tv);
-	/* Convert rtc to local time */
-	local_time = (u32)(tv.tv_sec - (sys_tz.tz_minuteswest * 60));
-	rtc_time_to_tm(local_time, &tm);
-	scnprintf(tbuf, len,
-		"[%02d:%02d:%02d.%06lu]",
-		tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec);
 }
 qdf_export_symbol(qdf_timer_module_deinit);
 

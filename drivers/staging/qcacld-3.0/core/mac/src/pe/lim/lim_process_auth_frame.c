@@ -374,11 +374,8 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 		 * modify the state of the existing association until the
 		 * SA-Query procedure determines that the original SA is
 		 * invalid.
-		 * If the Auth sequence number is same as the previous auth seq
-		 * number, dont send a deauth as the auth packet is just the
-		 * duplicate of previous auth.
 		 */
-		if (isConnected && sta_ds_ptr->prev_auth_seq_no != curr_seq_num
+		if (isConnected
 #ifdef WLAN_FEATURE_11W
 			&& !sta_ds_ptr->rmfEnabled
 #endif
@@ -400,12 +397,12 @@ static void lim_process_auth_frame_type1(tpAniSirGlobal mac_ctx,
 	auth_node = lim_search_pre_auth_list(mac_ctx, mac_hdr->sa);
 	if (auth_node) {
 		/* Pre-auth context exists for the STA */
-		if (auth_node->seq_num == curr_seq_num) {
+		if (!(mac_hdr->fc.retry == 0 ||
+					auth_node->seq_num != curr_seq_num)) {
 			/*
-			 * If a STA is already present in authnode and the host receives an auth
-			 * request with the same sequence number , do not process it, as the
-			 * previous auth has already been processed and the response will be
-			 * retried by the firmware if the peer hasnt received the response yet
+			 * This can happen when first authentication frame is
+			 * received but ACK lost at STA side, in this case 2nd
+			 * auth frame is already in transmission queue
 			 */
 			pe_warn("STA is initiating Auth after ACK lost");
 			return;
@@ -1162,23 +1159,6 @@ lim_process_auth_frame(tpAniSirGlobal mac_ctx, uint8_t *rx_pkt_info,
 	    mac_hdr->fc.retry) {
 		pe_debug("auth frame, seq num: %d is already processed, drop it",
 			 curr_seq_num);
-		return;
-	}
-
-	/* save seq number in pe_session */
-	pe_session->prev_auth_seq_num = curr_seq_num;
-
-	/*
-	 * IOT AP configured in WEP open type sends auth frame with
-	 * same sequence number. DUT sends auth frame, first with auth
-	 * algo as shared key and then as open system. Since, AP sends
-	 * auth frame with same sequence number, DUT drops the second
-	 * auth frame from AP which results in authentication failure.
-	 */
-	if (pe_session->prev_auth_seq_num == curr_seq_num &&
-	    mac_hdr->fc.retry) {
-		pe_err("auth frame, seq num: %d is already processed, drop it",
-			curr_seq_num);
 		return;
 	}
 

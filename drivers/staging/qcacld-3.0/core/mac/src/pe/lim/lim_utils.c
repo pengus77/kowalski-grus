@@ -48,7 +48,6 @@
 #include "lim_ft_defs.h"
 #include "lim_session.h"
 #include "cds_reg_service.h"
-#include "cds_concurrency.h"
 #include "nan_datapath.h"
 #include "wma.h"
 #include "wlan_reg_services_api.h"
@@ -682,8 +681,6 @@ void lim_cleanup_mlm(tpAniSirGlobal mac_ctx)
 		tx_timer_delete(&lim_timer->gLimDisassocAckTimer);
 
 		tx_timer_delete(&lim_timer->gLimDeauthAckTimer);
-
-		tx_timer_delete(&lim_timer->sae_auth_timer);
 
 		tx_timer_delete(&lim_timer->sae_auth_timer);
 
@@ -1950,86 +1947,6 @@ lim_decide_sta_protection(tpAniSirGlobal mac_ctx,
 			psession_entry->beaconParams.gHTObssMode =
 				(uint8_t) htInfo.obssNonHTStaPresent;
 
-	}
-}
-
-static void lim_trigger_disconnect_with_ap(uint32_t sme_sessionid)
-{
-	cds_msg_t msg = { 0 };
-	QDF_STATUS qdf_status;
-
-	msg.type = eWNI_SME_FORCE_DISCONNECT;
-	msg.bodyptr = NULL;
-	msg.bodyval = sme_sessionid;
-	msg.callback = NULL;
-
-	pe_debug("disconneting due to Rx LDPC change for vdev-id:%d",
-		sme_sessionid);
-	qdf_status = cds_mq_post_message(QDF_MODULE_ID_SME, &msg);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		pe_err("Fail to post eWNI_SME_FORCE_DISCONNECT msg to SME");
-		return;
-	}
-}
-
-static void lim_csa_ecsa_handler(tpAniSirGlobal mac_ctx, tpPESession session)
-{
-	uint8_t old_channel, new_channel, do_disconnect;
-	uint8_t is_dbs_supported, is_same_band, is_rx_ldpc_changed = 0;
-	uint8_t cur_cxn_rx_ldpc, new_cxn_rx_ldpc;
-
-	old_channel = session->currentOperChannel;
-	new_channel = session->gLimChannelSwitch.primaryChannel;
-	cur_cxn_rx_ldpc = session->htConfig.ht_rx_ldpc;
-	is_dbs_supported = wma_is_dbs_enable();
-	is_same_band = CDS_IS_SAME_BAND_CHANNELS(old_channel, new_channel);
-	new_cxn_rx_ldpc = wma_is_rx_ldpc_supported_for_channel(new_channel,
-						HW_MODE_DBS);
-
-	if (cur_cxn_rx_ldpc && !new_cxn_rx_ldpc)
-		is_rx_ldpc_changed = 1;
-
-	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
-			(QDF_STA_MODE == session->pePersona) &&
-			is_dbs_supported &&
-			!is_same_band && is_rx_ldpc_changed) {
-		pe_debug("Dynamic RX LDPC is on, do disconnect");
-		do_disconnect = 1;
-	} else {
-		pe_debug("use host driver CSA/ECSA mechanism");
-		do_disconnect = 0;
-	}
-
-	switch (session->gLimChannelSwitch.state) {
-	case eLIM_CHANNEL_SWITCH_PRIMARY_ONLY:
-		pe_debug("CHANNEL_SWITCH_PRIMARY_ONLY");
-		if (do_disconnect)
-			lim_trigger_disconnect_with_ap(session->smeSessionId);
-		else
-			lim_switch_primary_channel(mac_ctx,
-				session->gLimChannelSwitch.primaryChannel,
-				session);
-		session->gLimChannelSwitch.state = eLIM_CHANNEL_SWITCH_IDLE;
-		break;
-	case eLIM_CHANNEL_SWITCH_PRIMARY_AND_SECONDARY:
-		pe_debug("CHANNEL_SWITCH_PRIMARY_AND_SECONDARY");
-		if (do_disconnect)
-			lim_trigger_disconnect_with_ap(session->smeSessionId);
-		else
-			lim_switch_primary_secondary_channel(mac_ctx, session,
-				session->gLimChannelSwitch.primaryChannel,
-				session->gLimChannelSwitch.ch_center_freq_seg0,
-				session->gLimChannelSwitch.ch_center_freq_seg1,
-				session->gLimChannelSwitch.ch_width);
-		session->gLimChannelSwitch.state = eLIM_CHANNEL_SWITCH_IDLE;
-		break;
-	case eLIM_CHANNEL_SWITCH_IDLE:
-	default:
-		pe_err("incorrect state ");
-		if (lim_restore_pre_channel_switch_state(mac_ctx, session) !=
-				eSIR_SUCCESS)
-			pe_err("Can't restore state, reset the system");
-		return;
 	}
 }
 
@@ -5016,60 +4933,6 @@ void lim_add_channel_status_info(tpAniSirGlobal p_mac,
 	return;
 }
 
-void lim_add_channel_status_info(tpAniSirGlobal p_mac,
-				 struct lim_channel_status *channel_stat,
-				 uint8_t channel_id)
-{
-	uint8_t i;
-	bool found = false;
-	struct lim_scan_channel_status *channel_info =
-		&p_mac->lim.scan_channel_status;
-	struct lim_channel_status *channel_status_list =
-		channel_info->channel_status_list;
-	uint8_t total_channel = channel_info->total_channel;
-
-	if (!ACS_FW_REPORT_PARAM_CONFIGURED)
-		return;
-
-	for (i = 0; i < total_channel; i++) {
-		if (channel_status_list[i].channel_id == channel_id) {
-			if (channel_stat->cmd_flags ==
-			    WMA_CHAN_END_RESP &&
-			    channel_status_list[i].cmd_flags ==
-			    WMA_CHAN_START_RESP) {
-				/* adjust to delta value for counts */
-				channel_stat->rx_clear_count -=
-				    channel_status_list[i].rx_clear_count;
-				channel_stat->cycle_count -=
-				    channel_status_list[i].cycle_count;
-				channel_stat->rx_frame_count -=
-				    channel_status_list[i].rx_frame_count;
-				channel_stat->tx_frame_count -=
-				    channel_status_list[i].tx_frame_count;
-				channel_stat->bss_rx_cycle_count -=
-				    channel_status_list[i].bss_rx_cycle_count;
-			}
-			qdf_mem_copy(&channel_status_list[i], channel_stat,
-				     sizeof(*channel_status_list));
-			found = true;
-			break;
-		}
-	}
-
-	if (!found) {
-		if (total_channel < SIR_MAX_SUPPORTED_ACS_CHANNEL_LIST) {
-			qdf_mem_copy(&channel_status_list[total_channel++],
-				     channel_stat,
-				     sizeof(*channel_status_list));
-			channel_info->total_channel = total_channel;
-		} else {
-			pe_err("Chan cnt exceed, channel_id=%d", channel_id);
-		}
-	}
-
-	return;
-}
-
 /**
  * @function :  lim_is_channel_valid_for_channel_switch()
  *
@@ -6073,13 +5936,12 @@ void lim_pmf_sa_query_timer_handler(void *pMacGlobal, uint32_t param)
 #endif
 
 bool lim_check_vht_op_mode_change(tpAniSirGlobal pMac, tpPESession psessionEntry,
-				uint8_t chanWidth, uint8_t dot11_mode,
-				uint8_t staId, uint8_t *peerMac)
+				  uint8_t chanWidth, uint8_t staId,
+				  uint8_t *peerMac)
 {
 	tUpdateVHTOpMode tempParam;
 
 	tempParam.opMode = chanWidth;
-	tempParam.dot11_mode = dot11_mode;
 	tempParam.staId = staId;
 	tempParam.smesessionId = psessionEntry->smeSessionId;
 	qdf_mem_copy(tempParam.peer_mac, peerMac, sizeof(tSirMacAddr));
@@ -6534,18 +6396,6 @@ static inline bool lim_get_rx_ldpc(tpAniSirGlobal mac_ctx, enum channel_enum ch)
 		return true;
 	else
 		return false;
-	}
-	hw_mode_to_use = is_hw_mode_dbs ? HW_MODE_DBS : HW_MODE_DBS_NONE;
-	if (mac_ctx->roam.configParam.rx_ldpc_enable &&
-			wma_is_rx_ldpc_supported_for_channel(
-				CDS_CHANNEL_NUM(ch), hw_mode_to_use))
-		ret_val = true;
-	else
-		ret_val = false;
-	pe_debug("ch: %d rx_ldpc: %d hw_mode_to_use: %d",
-		ch, ret_val, hw_mode_to_use);
-
-	return ret_val;
 }
 
 /**
@@ -6674,8 +6524,7 @@ QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
 	lim_set_ht_caps(mac_ctx, session, ht_caps,
 			DOT11F_IE_HTCAPS_MIN_LEN + 2);
 	/* Get LDPC and over write for 2G */
-	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_6,
-						 is_hw_mode_dbs);
+	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_6);
 	/* Get self cap for HT40 support in 2G */
 	if (mac_ctx->roam.configParam.channelBondingMode24GHz) {
 		p_ht_cap->supportedChannelWidthSet = 1;
@@ -6693,8 +6542,7 @@ QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
 	 * Get LDPC and over write for 5G - using channel 64 because it
 	 * is available in all reg domains.
 	 */
-	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64,
-						 is_hw_mode_dbs);
+	p_ht_cap->advCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64);
 	/* Get self cap for HT40 support in 5G */
 	if (mac_ctx->roam.configParam.channelBondingMode5GHz) {
 		p_ht_cap->supportedChannelWidthSet = 1;
@@ -6717,8 +6565,7 @@ QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
 	 * Get LDPC and over write for 5G - using channel 64 because it
 	 * is available in all reg domains.
 	 */
-	p_vht_cap->ldpcCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64,
-						   is_hw_mode_dbs);
+	p_vht_cap->ldpcCodingCap = lim_get_rx_ldpc(mac_ctx, CHAN_ENUM_64);
 	/* Self VHT channel width for 5G is already negotiated with FW */
 	lim_populate_mcs_set_vht_per_vdev(mac_ctx, vht_caps,
 					  vdev_id, NSS_CHAINS_BAND_5GHZ);
@@ -6967,70 +6814,6 @@ QDF_STATUS lim_strip_supp_op_class_update_struct(tpAniSirGlobal mac_ctx,
 	}
 
 	return QDF_STATUS_SUCCESS;
-}
-
-#ifdef WLAN_FEATURE_11W
-void lim_del_pmf_sa_query_timer(tpAniSirGlobal mac_ctx, tpPESession pe_session)
-{
-	uint32_t associated_sta;
-	tpDphHashNode sta_ds = NULL;
-
-	for (associated_sta = 1;
-			associated_sta < mac_ctx->lim.gLimAssocStaLimit;
-			associated_sta++) {
-		sta_ds = dph_get_hash_entry(mac_ctx, associated_sta,
-				&pe_session->dph.dphHashTable);
-		if (NULL == sta_ds)
-			continue;
-		if (!sta_ds->rmfEnabled) {
-			pe_debug("no PMF timer for sta-idx:%d assoc-id:%d",
-				 sta_ds->staIndex, sta_ds->assocId);
-			continue;
-		}
-
-		pe_debug("Deleting pmfSaQueryTimer for sta-idx:%d assoc-id:%d",
-			sta_ds->staIndex, sta_ds->assocId);
-		tx_timer_deactivate(&sta_ds->pmfSaQueryTimer);
-		tx_timer_delete(&sta_ds->pmfSaQueryTimer);
-	}
-}
-#endif
-
-tSirRetStatus lim_strip_supp_op_class_update_struct(tpAniSirGlobal mac_ctx,
-		uint8_t *addn_ie, uint16_t *addn_ielen,
-		tDot11fIESuppOperatingClasses *dst)
-{
-	uint8_t extracted_buff[DOT11F_IE_SUPPOPERATINGCLASSES_MAX_LEN + 2];
-	tSirRetStatus status;
-
-	qdf_mem_set((uint8_t *)&extracted_buff[0],
-		    DOT11F_IE_SUPPOPERATINGCLASSES_MAX_LEN + 2,
-		    0);
-	status = lim_strip_ie(mac_ctx, addn_ie, addn_ielen,
-			      DOT11F_EID_SUPPOPERATINGCLASSES, ONE_BYTE,
-			      NULL, 0, extracted_buff,
-			      DOT11F_IE_SUPPOPERATINGCLASSES_MAX_LEN);
-	if (eSIR_SUCCESS != status) {
-		pe_warn("Failed to strip supp_op_mode IE status: %d",
-		       status);
-		return status;
-	}
-
-	if (DOT11F_EID_SUPPOPERATINGCLASSES != extracted_buff[0] ||
-	    extracted_buff[1] > DOT11F_IE_SUPPOPERATINGCLASSES_MAX_LEN) {
-		pe_warn("Invalid IEs eid: %d elem_len: %d",
-			extracted_buff[0], extracted_buff[1]);
-		return eSIR_FAILURE;
-	}
-
-	/* update the extracted supp op class to struct*/
-	if (DOT11F_PARSE_SUCCESS != dot11f_unpack_ie_supp_operating_classes(
-	    mac_ctx, &extracted_buff[2], extracted_buff[1], dst, false)) {
-		pe_err("dot11f_unpack Parse Error");
-		return eSIR_FAILURE;
-	}
-
-	return eSIR_SUCCESS;
 }
 
 /**

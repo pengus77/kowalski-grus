@@ -130,71 +130,6 @@ static inline void lim_process_sae_msg(tpAniSirGlobal mac, void *body)
 {}
 #endif
 
-#ifdef WLAN_FEATURE_SAE
-/**
- * lim_process_sae_msg() - Process SAE message
- * @mac: Global MAC pointer
- * @body: Buffer pointer
- *
- * Return: None
- */
-static void lim_process_sae_msg(tpAniSirGlobal mac, struct sir_sae_msg *body)
-{
-	struct sir_sae_msg *sae_msg = body;
-	tpPESession session;
-
-	if (!sae_msg) {
-		pe_err("SAE msg is NULL");
-		return;
-	}
-
-	session = pe_find_session_by_sme_session_id(mac,
-				sae_msg->session_id);
-	if (session == NULL) {
-		pe_err("SAE:Unable to find session");
-		return;
-	}
-
-	if (session->pePersona != QDF_STA_MODE) {
-		pe_err("SAE:Not supported in this mode %d",
-				session->pePersona);
-		return;
-	}
-
-	pe_debug("SAE:status %d limMlmState %d pePersona %d",
-		sae_msg->sae_status, session->limMlmState,
-		session->pePersona);
-	switch (session->limMlmState) {
-	case eLIM_MLM_WT_SAE_AUTH_STATE:
-		/* SAE authentication is completed. Restore from auth state */
-		if (tx_timer_running(&mac->lim.limTimers.sae_auth_timer))
-			lim_deactivate_and_change_timer(mac,
-				eLIM_AUTH_SAE_TIMER);
-		/* success */
-		if (sae_msg->sae_status == IEEE80211_STATUS_SUCCESS)
-			lim_restore_from_auth_state(mac,
-				eSIR_SME_SUCCESS,
-				eSIR_MAC_SUCCESS_STATUS,
-				session);
-		else
-			lim_restore_from_auth_state(mac,
-				eSIR_SME_AUTH_REFUSED,
-				eSIR_MAC_UNSPEC_FAILURE_STATUS,
-				session);
-		break;
-	default:
-		/* SAE msg is received in unexpected state */
-		pe_err("received SAE msg in state %X",
-			session->limMlmState);
-		lim_print_mlm_state(mac, LOGE, session->limMlmState);
-		break;
-	}
-}
-#else
-static inline void lim_process_sae_msg(tpAniSirGlobal mac, void *body)
-{}
-#endif
-
 /**
  * lim_process_dual_mac_cfg_resp() - Process set dual mac config response
  * @mac: Global MAC pointer
@@ -1716,7 +1651,6 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx,
 		break;
 	case eWNI_SME_PDEV_SET_HT_VHT_IE:
 	case eWNI_SME_SET_VDEV_IES_PER_BAND:
-	case eWNI_SME_ROAM_INVOKE:
 	case eWNI_SME_SYS_READY_IND:
 	case eWNI_SME_JOIN_REQ:
 	case eWNI_SME_REASSOC_REQ:
@@ -1986,9 +1920,6 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx,
 				link_state_param->status);
 		qdf_mem_free((void *)(msg->bodyptr));
 		msg->bodyptr = NULL;
-		break;
-	case WMA_RX_CHN_STATUS_EVENT:
-		lim_process_rx_channel_status_event(mac_ctx, msg->bodyptr);
 		break;
 	case WMA_RX_CHN_STATUS_EVENT:
 		lim_process_rx_channel_status_event(mac_ctx, msg->bodyptr);

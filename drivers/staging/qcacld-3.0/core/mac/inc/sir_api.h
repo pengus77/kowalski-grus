@@ -52,9 +52,6 @@ typedef struct sAniSirGlobal *tpAniSirGlobal;
 
 #define SIR_MAX_SUPPORTED_BSS 5
 
-#define MAX_PEERS 32
-#define SIR_MAX_SUPPORTED_BSS 5
-
 #define OFFSET_OF(structType, fldName)   (&((structType *)0)->fldName)
 
 /* / Max supported channel list */
@@ -135,18 +132,6 @@ typedef uint8_t tSirVersionString[SIR_VERSION_STRING_LEN];
 #define SIR_UAPSD_GET(ac, mask)      (((mask) & (SIR_UAPSD_FLAG_ ## ac)) >> SIR_UAPSD_BITOFFSET_ ## ac)
 
 #endif
-
-/* RSN capabilities structure */
-
-struct rsn_caps {
-	uint16_t PreAuthSupported:1;
-	uint16_t NoPairwise:1;
-	uint16_t PTKSAReplayCounter:2;
-	uint16_t GTKSAReplayCounter:2;
-	uint16_t MFPRequired:1;
-	uint16_t MFPCapable:1;
-	uint16_t Reserved:8;
-};
 
 /**
  * enum sir_roam_op_code - Operation to be done by the callback.
@@ -468,24 +453,6 @@ struct sir_set_dual_mac_cfg {
 };
 
 /**
- * enum set_antenna_mode_status - Status of set antenna mode
- * command
- * @SET_ANTENNA_MODE_STATUS_OK: command successful
- * @SET_ANTENNA_MODE_STATUS_EINVAL: invalid antenna mode
- * @SET_ANTENNA_MODE_STATUS_ECANCELED: mode change cancelled
- * @SET_ANTENNA_MODE_STATUS_ENOTSUP: mode not supported
- */
-enum set_antenna_mode_status {
-	SET_ANTENNA_MODE_STATUS_OK,
-	SET_ANTENNA_MODE_STATUS_EINVAL,
-	SET_ANTENNA_MODE_STATUS_ECANCELED,
-	SET_ANTENNA_MODE_STATUS_ENOTSUP,
-};
-
-typedef void (*antenna_mode_cb)(enum set_antenna_mode_status status,
-				void *context);
-
-/**
  * struct sir_antenna_mode_param - antenna mode param
  * @num_tx_chains: Number of TX chains
  * @num_rx_chains: Number of RX chains
@@ -757,8 +724,8 @@ struct bss_description {
 	uint8_t mdiePresent;
 	/* MDIE for 11r, picked from the beacons */
 	uint8_t mdie[SIR_MDIE_SIZE];
-	uint8_t QBSSLoad_present;
-	uint8_t qbss_chan_load;
+#ifdef FEATURE_WLAN_ESE
+	uint16_t QBSSLoad_present;
 	uint16_t QBSSLoad_avail;
 	/* To achieve 8-byte alignment with ESE enabled */
 	uint32_t reservedPadding5;
@@ -961,7 +928,6 @@ typedef struct sAniGetTsmStatsRsp {
 				 * Per STA stats request must
 				 * contain valid
 				 */
-	struct qdf_mac_addr bssid; /* bssid to get the tsm stats for */
 	tAniTrafStrmMetrics tsmMetrics;
 	void *tsmStatsReq;      /* tsm stats request backup */
 } tAniGetTsmStatsRsp, *tpAniGetTsmStatsRsp;
@@ -1627,6 +1593,16 @@ typedef struct sSirSmeSwitchChannelInd {
 	struct ch_params chan_params;
 	struct qdf_mac_addr bssid;      /* BSSID */
 } tSirSmeSwitchChannelInd, *tpSirSmeSwitchChannelInd;
+
+/* / Definition for Neighbor BSS indication */
+/* / MAC ---> */
+/* / MAC reports this each time a new I/BSS is detected */
+typedef struct sSirSmeNeighborBssInd {
+	uint16_t messageType;   /* eWNI_SME_NEIGHBOR_BSS_IND */
+	uint16_t length;
+	uint8_t sessionId;
+	tSirBssDescription bssDescription[1];
+} tSirSmeNeighborBssInd, *tpSirSmeNeighborBssInd;
 
 /* / Definition for MIC failure indication */
 /* / MAC ---> */
@@ -2463,24 +2439,6 @@ typedef struct sSirUpdateAPWPARSNIEsReq {
 #define SIR_OFFLOAD_ENABLE                          1
 
 #ifdef WLAN_NS_OFFLOAD
-/**
- * enum sir_ipv6_addr_scope - Internal identification of IPv6 addr scope
- * @SIR_IPV6_ADDR_SCOPE_INVALID: invalid scope
- * @SIR_IPV6_ADDR_SCOPE_NODELOCAL: node local scope
- * @SIR_IPV6_ADDR_SCOPE_LINKLOCAL: link local scope
- * @SIR_IPV6_ADDR_SCOPE_SITELOCAL: site local scope
- * @SIR_IPV6_ADDR_SCOPE_ORGLOCAL: org local scope
- * @SIR_IPV6_ADDR_SCOPE_GLOBAL: global scope
- */
-enum sir_ipv6_addr_scope {
-	SIR_IPV6_ADDR_SCOPE_INVALID = 0,
-	SIR_IPV6_ADDR_SCOPE_NODELOCAL = 1,
-	SIR_IPV6_ADDR_SCOPE_LINKLOCAL = 2,
-	SIR_IPV6_ADDR_SCOPE_SITELOCAL = 3,
-	SIR_IPV6_ADDR_SCOPE_ORGLOCAL = 4,
-	SIR_IPV6_ADDR_SCOPE_GLOBAL = 5
-};
-
 typedef struct sSirNsOffloadReq {
 	uint8_t srcIPv6Addr[SIR_MAC_IPV6_ADDR_LEN];
 	uint8_t selfIPv6Addr[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA][SIR_MAC_IPV6_ADDR_LEN];
@@ -2490,35 +2448,7 @@ typedef struct sSirNsOffloadReq {
 	uint8_t targetIPv6AddrValid[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
 	uint8_t target_ipv6_addr_ac_type[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
 	uint8_t slotIdx;
-	enum sir_ipv6_addr_scope scope[SIR_MAC_NUM_TARGET_IPV6_NS_OFFLOAD_NA];
 } tSirNsOffloadReq, *tpSirNsOffloadReq;
-
-/**
- * sir_get_ipv6_addr_scope() - Convert linux specific IPv6 addr scope to
- *                             WLAN driver specific value
- * @scope: linux specific IPv6 addr scope
- *
- * Return: WLAN driver sepcific IPv6 addr scope
- */
-static inline
-enum sir_ipv6_addr_scope
-sir_get_ipv6_addr_scope(uint32_t ipv6_scope)
-{
-	switch (ipv6_scope) {
-	case IPV6_ADDR_SCOPE_NODELOCAL:
-		return SIR_IPV6_ADDR_SCOPE_NODELOCAL;
-	case IPV6_ADDR_SCOPE_LINKLOCAL:
-		return SIR_IPV6_ADDR_SCOPE_LINKLOCAL;
-	case IPV6_ADDR_SCOPE_SITELOCAL:
-		return SIR_IPV6_ADDR_SCOPE_SITELOCAL;
-	case IPV6_ADDR_SCOPE_ORGLOCAL:
-		return SIR_IPV6_ADDR_SCOPE_ORGLOCAL;
-	case IPV6_ADDR_SCOPE_GLOBAL:
-		return SIR_IPV6_ADDR_SCOPE_GLOBAL;
-	default:
-		return SIR_IPV6_ADDR_SCOPE_INVALID;
-	}
-}
 #endif /* WLAN_NS_OFFLOAD */
 
 typedef struct sSirHostOffloadReq {
@@ -3194,6 +3124,21 @@ struct sir_dual_mac_config_resp {
 };
 
 /**
+ * enum set_antenna_mode_status - Status of set antenna mode
+ * command
+ * @SET_ANTENNA_MODE_STATUS_OK: command successful
+ * @SET_ANTENNA_MODE_STATUS_EINVAL: invalid antenna mode
+ * @SET_ANTENNA_MODE_STATUS_ECANCELED: mode change cancelled
+ * @SET_ANTENNA_MODE_STATUS_ENOTSUP: mode not supported
+ */
+enum set_antenna_mode_status {
+	SET_ANTENNA_MODE_STATUS_OK,
+	SET_ANTENNA_MODE_STATUS_EINVAL,
+	SET_ANTENNA_MODE_STATUS_ECANCELED,
+	SET_ANTENNA_MODE_STATUS_ENOTSUP,
+};
+
+/**
  * struct sir_antenna_mode_resp - set antenna mode response
  * @status: Status of setting the antenna mode
  */
@@ -3208,15 +3153,6 @@ typedef struct sAniSetTmLevelReq {
 	uint16_t tmMode;
 	uint16_t newTmLevel;
 } tAniSetTmLevelReq, *tpAniSetTmLevelReq;
-
-/* access categories */
-enum sir_wifi_traffic_ac {
-	WIFI_AC_VO = 0,
-	WIFI_AC_VI = 1,
-	WIFI_AC_BE = 2,
-	WIFI_AC_BK = 3,
-	WIFI_AC_MAX = 4,
-};
 
 #ifdef FEATURE_WLAN_TDLS
 /* TDLS Request struct SME-->PE */
@@ -3358,15 +3294,6 @@ typedef struct sSirTdlsEventnotify {
 	uint16_t messageType;
 	uint32_t peer_reason;
 } tSirTdlsEventnotify;
-
-/**
- * struct sir_sme_tdls_notify_set_state_disable - notify set state disable
- * @session_id: session id
- */
-struct sir_tdls_notify_set_state_disable {
-	uint32_t session_id;
-};
-
 #endif /* FEATURE_WLAN_TDLS */
 
 /* Reset AP Caps Changed */
@@ -4652,7 +4579,6 @@ enum {
  * @msg_type: message type
  * @len: message length
  * @vdev_id: vdev id
- * @rx_ldpc_ini: Rx LDPC ini setting
  *
  * Message wrapper structure for eWNI_SME_SET_VDEV_IES_PER_BAND.
  */
@@ -4660,7 +4586,6 @@ struct sir_set_vdev_ies_per_band {
 	uint16_t msg_type;
 	uint16_t len;
 	uint32_t vdev_id;
-	uint8_t is_hw_mode_dbs;
 };
 
 /**
@@ -6417,8 +6342,6 @@ struct ndp_responder_rsp_event {
  * @num_active_ndps_on_peer: number of ndp instances on peer
  * @peer_ndi_mac_addr: peer NDI mac address
  * @rsp_code: ndp response code
- * @num_channels: num channels
- * @ch: channel info struct array
  * @ndp_info: ndp application info
  *
  */
@@ -6429,8 +6352,6 @@ struct ndp_confirm_event {
 	uint32_t num_active_ndps_on_peer;
 	struct qdf_mac_addr peer_ndi_mac_addr;
 	enum ndp_response_code rsp_code;
-	uint32_t num_channels;
-	struct ndp_channel_info ch[SIR_NAN_CH_INFO_MAX_CHANNELS];
 	struct ndp_app_info ndp_info;
 };
 
@@ -6518,27 +6439,6 @@ struct ndp_schedule_update_rsp {
 	uint32_t vdev_id;
 	uint32_t status;
 	uint32_t reason;
-};
-
-/**
- * struct ndp_sch_update_event - ndp schedule update indication
- * @vdev_id: vdev id on which ndp schedule update was received
- * @peer_addr: peer for which schedule update was received
- * @flags: reason for sch update
- * @num_channels: num of channels
- * @num_ndp_instances: num of ndp instances
- * @ch: channel info array
- * @ndp_instances: array of ndp instances
- *
- */
-struct ndp_sch_update_event {
-	uint32_t vdev_id;
-	struct qdf_mac_addr peer_addr;
-	uint32_t flags;
-	uint32_t num_channels;
-	uint32_t num_ndp_instances;
-	struct ndp_channel_info ch[SIR_NAN_CH_INFO_MAX_CHANNELS];
-	uint32_t *ndp_instances;
 };
 
 /**

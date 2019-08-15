@@ -693,136 +693,6 @@ static int hdd_set_grat_arp_keepalive(struct hdd_adapter *adapter)
 }
 
 /**
- * hdd_lookup_ifaddr() - Lookup interface address data by name
- * @adapter: the adapter whose name should be searched for
- *
- * return in_ifaddr pointer on success, NULL for failure
- */
-static struct in_ifaddr *hdd_lookup_ifaddr(hdd_adapter_t *adapter)
-{
-	struct in_ifaddr *ifa;
-	struct in_device *in_dev;
-
-	if (!adapter) {
-		hdd_err("adapter is null");
-		return NULL;
-	}
-
-	in_dev = __in_dev_get_rtnl(adapter->dev);
-	if (!in_dev) {
-		hdd_err("Failed to get in_device");
-		return NULL;
-	}
-
-	/* lookup address data by interface name */
-	for (ifa = in_dev->ifa_list; ifa; ifa = ifa->ifa_next) {
-		if (!strcmp(adapter->dev->name, ifa->ifa_label))
-			return ifa;
-	}
-
-	return NULL;
-}
-
-/**
- * hdd_populate_ipv4_addr() - Populates the adapter's IPv4 address
- * @adapter: the adapter whose IPv4 address is desired
- * @ipv4_addr: the address of the array to copy the IPv4 address into
- *
- * return: zero for success; non-zero for failure
- */
-static int hdd_populate_ipv4_addr(hdd_adapter_t *adapter, uint8_t *ipv4_addr)
-{
-	struct in_ifaddr *ifa;
-	int i;
-
-	if (!adapter) {
-		hdd_err("adapter is null");
-		return -EINVAL;
-	}
-
-	if (!ipv4_addr) {
-		hdd_err("ipv4_addr is null");
-		return -EINVAL;
-	}
-
-	ifa = hdd_lookup_ifaddr(adapter);
-	if (!ifa || !ifa->ifa_local) {
-		hdd_err("ipv4 address not found");
-		return -EINVAL;
-	}
-
-	/* convert u32 to byte array */
-	for (i = 0; i < 4; i++)
-		ipv4_addr[i] = (ifa->ifa_local >> i * 8) & 0xff;
-
-	return 0;
-}
-
-/**
- * hdd_set_grat_arp_keepalive() - Enable grat APR keepalive
- * @adapter: the HDD adapter to configure
- *
- * This configures gratuitous APR keepalive based on the adapter's current
- * connection information, specifically IPv4 address and BSSID
- *
- * return: zero for success, non-zero for failure
- */
-static int hdd_set_grat_arp_keepalive(hdd_adapter_t *adapter)
-{
-	QDF_STATUS status;
-	int exit_code;
-	hdd_context_t *hdd_ctx;
-	hdd_station_ctx_t *sta_ctx;
-	tSirKeepAliveReq req = {
-		.packetType = SIR_KEEP_ALIVE_UNSOLICIT_ARP_RSP,
-		.dest_macaddr = QDF_MAC_ADDR_BROADCAST_INITIALIZER,
-	};
-
-	if (!adapter) {
-		hdd_err("adapter is null");
-		return -EINVAL;
-	}
-
-	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	if (!hdd_ctx) {
-		hdd_err("hdd_ctx is null");
-		return -EINVAL;
-	}
-
-	sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-	if (!sta_ctx) {
-		hdd_err("sta_ctx is null");
-		return -EINVAL;
-	}
-
-	exit_code = hdd_populate_ipv4_addr(adapter, req.hostIpv4Addr);
-	if (exit_code) {
-		hdd_err("Failed to populate ipv4 address");
-		return exit_code;
-	}
-
-	/* according to RFC5227, sender/target ip address should be the same */
-	qdf_mem_copy(&req.destIpv4Addr, &req.hostIpv4Addr,
-		     sizeof(req.destIpv4Addr));
-
-	qdf_copy_macaddr(&req.bssid, &sta_ctx->conn_info.bssId);
-	req.timePeriod = hdd_ctx->config->infraStaKeepAlivePeriod;
-	req.sessionId = adapter->sessionId;
-
-	hdd_debug("Setting gratuitous ARP keepalive; ipv4_addr:%u.%u.%u.%u",
-		 req.hostIpv4Addr[0], req.hostIpv4Addr[1],
-		 req.hostIpv4Addr[2], req.hostIpv4Addr[3]);
-
-	status = sme_set_keep_alive(hdd_ctx->hHal, req.sessionId, &req);
-	if (QDF_IS_STATUS_ERROR(status)) {
-		hdd_err("Failed to set keepalive");
-		return qdf_status_to_os_return(status);
-	}
-
-	return 0;
-}
-
-/**
  * __hdd_ipv4_notifier_work_queue() - IPv4 notification work function
  * @work: registered work item
  *
@@ -1106,7 +976,6 @@ void hdd_disable_mc_addr_filtering(struct hdd_adapter *adapter,
 out:
 	hdd_exit();
 }
-#endif
 
 int hdd_cache_mc_addr_list(struct pmo_mc_addr_list_params *mc_list_config)
 {
@@ -1528,84 +1397,6 @@ static void hdd_is_interface_down_during_ssr(struct hdd_context *hdd_ctx)
 	hdd_exit();
 }
 
-#ifdef FEATURE_WLAN_DIAG_SUPPORT
-/**
- * hdd_wlan_ssr_reinit_event()- send ssr reinit state
- *
- * This Function send send ssr reinit state diag event
- *
- * Return: void.
- */
-static void hdd_wlan_ssr_reinit_event(void)
-{
-	WLAN_HOST_DIAG_EVENT_DEF(ssr_reinit, struct host_event_wlan_ssr_reinit);
-	qdf_mem_zero(&ssr_reinit, sizeof(ssr_reinit));
-	ssr_reinit.status = SSR_SUB_SYSTEM_REINIT;
-	WLAN_HOST_DIAG_EVENT_REPORT(&ssr_reinit,
-					EVENT_WLAN_SSR_REINIT_SUBSYSTEM);
-}
-#else
-static inline void hdd_wlan_ssr_reinit_event(void)
-{
-
-}
-#endif
-
-/**
- * hdd_send_default_scan_ies - send default scan ies to fw
- *
- * This function is used to send default scan ies to fw
- * in case of wlan re-init
- *
- * Return: void
- */
-static void hdd_send_default_scan_ies(hdd_context_t *hdd_ctx)
-{
-	hdd_adapter_list_node_t *adapter_node, *next;
-	hdd_adapter_t *adapter;
-	QDF_STATUS status;
-
-	status = hdd_get_front_adapter(hdd_ctx, &adapter_node);
-	while (NULL != adapter_node && QDF_STATUS_SUCCESS == status) {
-		adapter = adapter_node->pAdapter;
-		if (hdd_is_interface_up(adapter) &&
-		    (adapter->device_mode == QDF_STA_MODE ||
-		    adapter->device_mode == QDF_P2P_DEVICE_MODE) &&
-		    adapter->scan_info.default_scan_ies) {
-			sme_set_default_scan_ie(hdd_ctx->hHal,
-				      adapter->sessionId,
-				      adapter->scan_info.default_scan_ies,
-				      adapter->scan_info.default_scan_ies_len);
-		}
-		status = hdd_get_next_adapter(hdd_ctx, adapter_node,
-					      &next);
-		adapter_node = next;
-	}
-}
-
-void hdd_is_interface_down_during_ssr(hdd_context_t *hdd_ctx)
-{
-	hdd_adapter_t *adapter = NULL;
-	hdd_adapter_list_node_t *adapternode = NULL, *pnext = NULL;
-	QDF_STATUS status;
-
-	ENTER();
-
-	status = hdd_get_front_adapter(hdd_ctx, &adapternode);
-	while (NULL != adapternode && QDF_STATUS_SUCCESS == status) {
-		adapter = adapternode->pAdapter;
-		if (test_bit(DOWN_DURING_SSR, &adapter->event_flags)) {
-			clear_bit(DOWN_DURING_SSR, &adapter->event_flags);
-			hdd_stop_adapter(hdd_ctx, adapter, true);
-			clear_bit(DEVICE_IFACE_OPENED, &adapter->event_flags);
-		}
-		status = hdd_get_next_adapter(hdd_ctx, adapternode, &pnext);
-		adapternode = pnext;
-	}
-
-	EXIT();
-}
-
 /**
  * hdd_restore_sar_config - Restore the saved SAR config after SSR
  * @hdd_ctx: HDD context
@@ -1694,6 +1485,8 @@ err_re_init:
 err_ctx_null:
 	/* Allow the phone to go to sleep */
 	hdd_allow_suspend(WIFI_POWER_EVENT_WAKELOCK_DRIVER_REINIT);
+	if (bug_on_reinit_failure)
+		QDF_BUG(0);
 	return -EPERM;
 }
 
@@ -1726,18 +1519,6 @@ int wlan_hdd_set_powersave(struct hdd_adapter *adapter,
 	if (allow_power_save &&
 	    adapter->device_mode == QDF_STA_MODE &&
 	    !adapter->session.station.ap_supports_immediate_power_save) {
-		timeout = AUTO_PS_DEFER_TIMEOUT_MS;
-		hdd_debug("Defer power-save due to AP spec non-conformance");
-	}
-
-	/*
-	 * This is a workaround for defective AP's that send a disassoc
-	 * immediately after WPS connection completes. Defer powersave by a
-	 * small amount if the affected AP is detected.
-	 */
-	if (allow_power_save &&
-	    adapter->device_mode == QDF_STA_MODE &&
-	    !adapter->sessionCtx.station.ap_supports_immediate_power_save) {
 		timeout = AUTO_PS_DEFER_TIMEOUT_MS;
 		hdd_debug("Defer power-save due to AP spec non-conformance");
 	}
@@ -2044,20 +1825,6 @@ static int __wlan_hdd_cfg80211_suspend_wlan(struct wiphy *wiphy,
 		sme_ps_timer_flush_sync(mac_handle, adapter->session_id);
 	}
 
-	/* flush any pending powersave timers */
-	status = hdd_get_front_adapter(pHddCtx, &pAdapterNode);
-	while (pAdapterNode && QDF_IS_STATUS_SUCCESS(status)) {
-		pAdapter = pAdapterNode->pAdapter;
-
-		if (pAdapter->sessionId >= MAX_NUMBER_OF_ADAPTERS)
-			goto fetch_adapter;
-
-		sme_ps_timer_flush_sync(pHddCtx->hHal, pAdapter->sessionId);
-fetch_adapter:
-		status = hdd_get_next_adapter(pHddCtx, pAdapterNode,
-					      &pAdapterNode);
-	}
-
 	/*
 	 * Suspend IPA early before proceeding to suspend other entities like
 	 * firmware to avoid any race conditions.
@@ -2095,7 +1862,7 @@ fetch_adapter:
 		clear_bit(RX_SUSPEND_EVENT,
 			  &cds_sched_context->ol_rx_event_flag);
 		hdd_err("Failed to stop tl_shim rx thread");
-		goto resume_mc;
+		goto resume_all;
 	}
 	hdd_ctx->is_ol_rx_thread_suspended = true;
 #endif
@@ -2116,6 +1883,7 @@ fetch_adapter:
 	hdd_exit();
 	return 0;
 
+#ifdef QCA_CONFIG_SMP
 resume_all:
 	/* Resume tlshim Rx thread */
 	if (hdd_ctx->is_ol_rx_thread_suspended) {

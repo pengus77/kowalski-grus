@@ -269,7 +269,6 @@ void ol_txrx_peer_find_hash_erase(struct ol_txrx_pdev_t *pdev)
 	 * Not really necessary to take peer_ref_mutex lock - by this point,
 	 * it's known that the pdev is no longer in use.
 	 */
-	ol_txrx_peer_delete_roam_stale_peer(pdev);
 
 	for (i = 0; i <= pdev->peer_hash.mask; i++) {
 		if (!TAILQ_EMPTY(&pdev->peer_hash.bins[i])) {
@@ -618,8 +617,6 @@ void ol_txrx_peer_tx_ready_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 {
 	struct ol_txrx_peer_t *peer;
-	struct ol_txrx_roam_stale_peer_t *stale_peer = NULL;
-	struct ol_txrx_roam_stale_peer_t *stale_peer_next = NULL;
 	int i = 0;
 	int32_t ref_cnt;
 
@@ -656,6 +653,7 @@ void ol_rx_peer_unmap_handler(ol_txrx_pdev_handle pdev, uint16_t peer_id)
 		return;
 	}
 	peer = pdev->peer_id_to_obj_map[peer_id].peer;
+
 	if (peer == NULL) {
 		/*
 		 * Currently peer IDs are assigned for vdevs as well as peers.
@@ -762,22 +760,6 @@ void ol_txrx_peer_remove_obj_map_entries(ol_txrx_pdev_handle pdev,
 		num_deleted_maps += peer_id_ref_cnt;
 		pdev->peer_id_to_obj_map[peer_id].peer = NULL;
 		peer->peer_ids[i] = HTT_INVALID_PEER;
-
-		if (peer_id_ref_cnt)
-			pdev->peer_id_to_obj_map[peer_id].peer_ref = peer;
-		else
-			pdev->peer_id_to_obj_map[peer_id].peer_ref = NULL;
-
-	}
-
-	qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
-
-	if (num_deleted_maps > qdf_atomic_read(&peer->ref_cnt)) {
-		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
-			  FL("num_deleted_maps %d ref_cnt %d"),
-			  num_deleted_maps, qdf_atomic_read(&peer->ref_cnt));
-		QDF_BUG(0);
-		return;
 	}
 	qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
 

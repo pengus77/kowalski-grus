@@ -62,51 +62,6 @@ static inline void htc_add_emulation_delay(void)
 }
 #endif
 
-#ifdef WMI_INTERFACE_EVENT_LOGGING
-void htc_print_credit_history(HTC_HANDLE htc, uint32_t count,
-			      qdf_abstract_print *print, void *print_priv)
-{
-	uint32_t idx;
-	HTC_TARGET *target;
-
-	target = GET_HTC_TARGET_FROM_HANDLE(htc);
-	LOCK_HTC_CREDIT(target);
-
-	if (count > HTC_CREDIT_HISTORY_MAX)
-		count = HTC_CREDIT_HISTORY_MAX;
-	if (count > g_htc_credit_history_length)
-		count = g_htc_credit_history_length;
-
-	/* subtract count from index, and wrap if necessary */
-	idx = HTC_CREDIT_HISTORY_MAX + g_htc_credit_history_idx - count;
-	idx %= HTC_CREDIT_HISTORY_MAX;
-
-	print(print_priv,
-	      "Time (seconds)     Type                         Credits    Queue Depth");
-	while (count) {
-		struct HTC_CREDIT_HISTORY *hist =
-						&htc_credit_history_buffer[idx];
-		long long us = qdf_log_timestamp_to_usecs(hist->time);
-		long long s = qdf_do_div(us, 1000000);
-		long long us_mod = qdf_do_mod(us, 1000000);
-
-		print(print_priv, "% 8lld.%06lld    %-25s    %-7.d    %d",
-		      s,
-		      us_mod,
-		      htc_credit_exchange_type_str(hist->type),
-		      hist->tx_credit,
-		      hist->htc_tx_queue_depth);
-
-		--count;
-		++idx;
-		if (idx >= HTC_CREDIT_HISTORY_MAX)
-			idx = 0;
-	}
-
-	UNLOCK_HTC_CREDIT(target);
-}
-#endif /* WMI_INTERFACE_EVENT_LOGGING */
-
 void htc_dump_counter_info(HTC_HANDLE HTCHandle)
 {
 #ifdef WLAN_DEBUG
@@ -184,7 +139,7 @@ static void send_packet_completion(HTC_TARGET *target, HTC_PACKET *pPacket)
 
 }
 
-void htc_send_complete_check_cleanup(unsigned long context)
+void htc_send_complete_check_cleanup(void *context)
 {
 	HTC_ENDPOINT *pEndpoint = (HTC_ENDPOINT *) context;
 

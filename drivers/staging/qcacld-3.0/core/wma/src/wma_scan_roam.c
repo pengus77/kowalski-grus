@@ -288,102 +288,6 @@ static inline void wma_roam_scan_fill_fils_params(
 #endif
 
 /**
- * wma_roam_scan_mawc_params() - send roam scan mode request to fw
- * @wma_handle: wma handle
- * @roam_req: roam request param
- *
- * Fill the MAWC roaming parameters and send
- * WMI_ROAM_CONFIGURE_MAWC_CMDID TLV to firmware.
- *
- * Return: QDF status
- */
-QDF_STATUS wma_roam_scan_mawc_params(tp_wma_handle wma_handle,
-		tSirRoamOffloadScanReq *roam_req)
-{
-	struct wmi_mawc_roam_params *params;
-	QDF_STATUS status;
-
-	if (!roam_req) {
-		WMA_LOGE("No MAWC parameters to send");
-		return QDF_STATUS_E_INVAL;
-	}
-	params = qdf_mem_malloc(sizeof(*params));
-	if (!params) {
-		WMA_LOGE("No memory allocated for MAWC roam params");
-		return QDF_STATUS_E_NOMEM;
-	}
-	params->vdev_id = roam_req->sessionId;
-	params->enable = roam_req->mawc_roam_params.mawc_enabled &&
-		roam_req->mawc_roam_params.mawc_roam_enabled;
-	params->traffic_load_threshold =
-		roam_req->mawc_roam_params.mawc_roam_traffic_threshold;
-	params->best_ap_rssi_threshold =
-		roam_req->mawc_roam_params.mawc_roam_ap_rssi_threshold -
-		WMA_NOISE_FLOOR_DBM_DEFAULT;
-	params->rssi_stationary_high_adjust =
-		roam_req->mawc_roam_params.mawc_roam_rssi_high_adjust;
-	params->rssi_stationary_low_adjust =
-		roam_req->mawc_roam_params.mawc_roam_rssi_low_adjust;
-	status = wmi_unified_roam_mawc_params_cmd(
-			wma_handle->wmi_handle, params);
-	qdf_mem_free(params);
-
-	return status;
-}
-
-#ifdef WLAN_FEATURE_FILS_SK
-/**
- * wma_roam_scan_fill_fils_params() - API to fill FILS params in RSO command
- * @wma_handle: WMA handle
- * @params: Pointer to destination RSO params to be filled
- * @roam_req: Pointer to RSO params from CSR
- *
- * Return: None
- */
-static void wma_roam_scan_fill_fils_params(tp_wma_handle wma_handle,
-					   struct roam_offload_scan_params
-					   *params, tSirRoamOffloadScanReq
-					   *roam_req)
-{
-	struct roam_fils_params *dst_fils_params, *src_fils_params;
-
-	if (!params || !roam_req || !roam_req->is_fils_connection) {
-		WMA_LOGE("wma_roam_scan_fill_fils_params- NULL");
-		return;
-	}
-
-	src_fils_params = &roam_req->roam_fils_params;
-	dst_fils_params = &params->roam_fils_params;
-
-	params->add_fils_tlv = true;
-
-	dst_fils_params->username_length = src_fils_params->username_length;
-	qdf_mem_copy(dst_fils_params->username, src_fils_params->username,
-		     dst_fils_params->username_length);
-
-	dst_fils_params->next_erp_seq_num = src_fils_params->next_erp_seq_num;
-	dst_fils_params->rrk_length = src_fils_params->rrk_length;
-	qdf_mem_copy(dst_fils_params->rrk, src_fils_params->rrk,
-		     dst_fils_params->rrk_length);
-
-	dst_fils_params->rik_length = src_fils_params->rik_length;
-	qdf_mem_copy(dst_fils_params->rik, src_fils_params->rik,
-		     dst_fils_params->rik_length);
-
-	dst_fils_params->realm_len = src_fils_params->realm_len;
-	qdf_mem_copy(dst_fils_params->realm, src_fils_params->realm,
-		     dst_fils_params->realm_len);
-}
-#else
-static inline void wma_roam_scan_fill_fils_params(
-					tp_wma_handle wma_handle,
-					struct roam_offload_scan_params *params,
-					tSirRoamOffloadScanReq *roam_req)
-
-{ }
-#endif
-
-/**
  * wma_roam_scan_offload_mode() - send roam scan mode request to fw
  * @wma_handle: wma handle
  * @scan_cmd_fp: start scan command ptr
@@ -628,65 +532,6 @@ QDF_STATUS wma_roam_scan_offload_rssi_thresh(tp_wma_handle wma_handle,
 			roam_params->bg_scan_client_bitmap,
 			roam_params->roam_bad_rssi_thresh_offset_2g);
 	return status;
-}
-
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-static const char *wma_roam_reason_to_string(uint32_t roam_reason)
-{
-	switch (roam_reason) {
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_NONE);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_PER);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_BMISS);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_LOW_RSSI);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_HIGH_RSSI);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_PERIODIC);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_MAWC);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_DENSE);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_BACKGROUND);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_FORCED);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_BTM);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_UNIT_TEST);
-	CASE_RETURN_STRING(WMI_ROAM_TRIGGER_REASON_MAX);
-
-	default:
-		return "unknown";
-	}
-}
-#endif
-
-static const char *wma_roam_event_to_string(uint32_t roam_reason)
-{
-	switch (roam_reason) {
-	CASE_RETURN_STRING(WMI_ROAM_REASON_INVALID);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_BETTER_AP);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_BMISS);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_LOW_RSSI);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_SUITABLE_AP);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_HO_FAILED);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_INVOKE_ROAM_FAIL);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_RSO_STATUS);
-	CASE_RETURN_STRING(WMI_ROAM_REASON_BTM);
-
-	default:
-		return "unknown";
-	}
-}
-
-static const char *wma_roam_notif_to_string(uint32_t notif)
-{
-	switch (notif) {
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_INVALID);
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_ROAM_START);
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_ROAM_ABORT);
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_ROAM_REASSOC);
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_SCAN_MODE_SUCCESS);
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_SCAN_MODE_FAIL);
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_DISCONNECT);
-	CASE_RETURN_STRING(WMI_ROAM_NOTIF_SUBNET_CHANGED);
-
-	default:
-		return "unknown";
-	}
 }
 
 /**
@@ -1851,12 +1696,6 @@ QDF_STATUS wma_process_roaming_config(tp_wma_handle wma_handle,
 		 */
 		wma_roam_scan_offload_rssi_thresh(wma_handle, roam_req);
 		/*
-		 * After sending the roam scan mode because of a disconnect,
-		 * clear the scan bitmap client as well by sending
-		 * the following command
-		 */
-		wma_roam_scan_offload_rssi_thresh(wma_handle, roam_req);
-		/*
 		 * If the STOP command is due to a disconnect, then
 		 * send the filter command to clear all the filter
 		 * entries. If it is roaming scenario, then do not
@@ -2476,26 +2315,12 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	vdev_id = roam_synch_ind_ptr->roamedVdevId;
 	wma->interfaces[vdev_id].nss = roam_synch_ind_ptr->nss;
 	del_bss_params = qdf_mem_malloc(sizeof(*del_bss_params));
-	if (!del_bss_params)
-		return;
-
 	del_sta_params = qdf_mem_malloc(sizeof(*del_sta_params));
-	if (!del_sta_params) {
-		qdf_mem_free(del_bss_params);
-		return;
-	}
-
 	set_link_params = qdf_mem_malloc(sizeof(*set_link_params));
-	if (!set_link_params) {
-		qdf_mem_free(del_bss_params);
-		qdf_mem_free(del_sta_params);
-		return;
-	}
 	add_sta_params = qdf_mem_malloc(sizeof(*add_sta_params));
-	if (!add_sta_params) {
-		qdf_mem_free(del_bss_params);
-		qdf_mem_free(del_sta_params);
-		qdf_mem_free(set_link_params);
+	if (!del_bss_params || !del_sta_params ||
+		!set_link_params || !add_sta_params) {
+		WMA_LOGE("%s: failed to allocate memory", __func__);
 		return;
 	}
 	qdf_mem_zero(del_bss_params, sizeof(*del_bss_params));
@@ -2541,60 +2366,6 @@ static void wma_roam_update_vdev(tp_wma_handle wma,
 	qdf_mem_free(add_sta_params);
 }
 
-
-/**
- * wma_roam_remove_self_reassoc() - post a message to SME module to indicate
- *				    to remove self reassociation command from
- *				    sme active queue.
- * @wma: pointer to wma handle
- * @vdev_id: vdev id or sme session id which needs to cleaned up
- *
- * Post a message to SME module to indicate to remove self reassociation command
- * from sme active queue, so that next command from sme pending queue can be
- * processed.
- *
- * Return: none
- */
-static void wma_roam_remove_self_reassoc(tp_wma_handle wma, uint32_t vdev_id)
-{
-	cds_msg_t sme_msg = { 0 };
-	QDF_STATUS qdf_status;
-
-	sme_msg.type = eWNI_SME_SAME_AP_REASSOC_IND;
-	sme_msg.bodyptr = NULL;
-	sme_msg.bodyval = vdev_id;
-
-	qdf_status = cds_mq_post_message(QDF_MODULE_ID_SME, &sme_msg);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		WMA_LOGE("Fail to post eWNI_SME_SAME_AP_REASSOC_IND to SME");
-		return;
-	}
-}
-
-/**
- * wma_get_phy_mode: get current PHY Mode
- * @chan: channel number
- * @chan_width: maximum channel width possible
- * @phy_mode: PHY Mode
- *
- * Return: None
- */
-static
-void wma_get_phy_mode(uint8_t chan, uint32_t chan_width, uint32_t *phy_mode)
-{
-	uint32_t dot11_mode;
-	struct sAniSirGlobal *mac = cds_get_context(QDF_MODULE_ID_PE);
-
-	if (!mac) {
-		WMA_LOGE("MAC context is NULL");
-		*phy_mode = MODE_UNKNOWN;
-		return;
-	}
-
-	wlan_cfg_get_int(mac, WNI_CFG_DOT11_MODE, &dot11_mode);
-	*phy_mode = wma_chan_phy_mode(chan, chan_width, dot11_mode);
-}
-
 /**
  * wma_roam_synch_event_handler() - roam synch event handler
  * @handle: wma handle
@@ -2614,7 +2385,6 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	roam_offload_synch_ind *roam_synch_ind_ptr = NULL;
 	tpSirBssDescription  bss_desc_ptr = NULL;
-	uint8_t channel;
 	uint16_t ie_len = 0;
 	uint8_t channel;
 	int status = -EINVAL;
@@ -2824,20 +2594,6 @@ int wma_roam_synch_event_handler(void *handle, uint8_t *event,
 	wma_get_phy_mode_cb(channel,
 			    wma->interfaces[synch_event->vdev_id].chan_width,
 			    &wma->interfaces[synch_event->vdev_id].chanmode);
-
-	/*
-	 * update phy_mode in wma to avoid mismatch in phymode between
-	 * host and firmware. The phymode stored in
-	 * interface[vdev_id].chanmode is sent to firmware as part of
-	 * opmode update during either - vht opmode action frame received
-	 * or during opmode change detected while processing beacon.
-	 * Any mismatch of this value with firmware phymode results in
-	 * firmware assert.
-	 */
-	channel = cds_freq_to_chan(wma->interfaces[synch_event->vdev_id].mhz);
-	wma_get_phy_mode(channel,
-			 wma->interfaces[synch_event->vdev_id].chan_width,
-			 &wma->interfaces[synch_event->vdev_id].chanmode);
 
 	wma->csr_roam_synch_cb((tpAniSirGlobal)wma->mac_context,
 		roam_synch_ind_ptr, bss_desc_ptr, SIR_ROAM_SYNCH_COMPLETE);
@@ -3238,7 +2994,6 @@ void wma_set_ric_req(tp_wma_handle wma, void *msg, uint8_t is_add_ts)
 
 	wmi_unified_set_ric_req_cmd(wma->wmi_handle, msg, is_add_ts);
 }
-
 #endif /* WLAN_FEATURE_ROAM_OFFLOAD */
 
 /**
@@ -3279,7 +3034,7 @@ int wma_rssi_breached_event_handler(void *handle,
 
 	WMA_LOGD("%s: req_id: %u vdev_id: %d curr_rssi: %d", __func__,
 		rssi.request_id, rssi.session_id, rssi.curr_rssi);
-	WMA_LOGD("%s: curr_bssid: %pM", __func__, rssi.curr_bssid.bytes);
+	WMA_LOGI("%s: curr_bssid: %pM", __func__, rssi.curr_bssid.bytes);
 
 	mac->sme.rssi_threshold_breached_cb(mac->hdd_handle, &rssi);
 	WMA_LOGD("%s: Invoke HDD rssi breached callback", __func__);
@@ -3511,7 +3266,7 @@ send_resp:
 		 params->maxTxPower,
 		 status);
 	params->status = status;
-	WMA_LOGD("%s: sending WMA_SWITCH_CHANNEL_RSP, status = 0x%x",
+	WMA_LOGI("%s: sending WMA_SWITCH_CHANNEL_RSP, status = 0x%x",
 		 __func__, status);
 	wma_send_msg_high_priority(wma, WMA_SWITCH_CHANNEL_RSP,
 				   (void *)params, 0);
@@ -3998,7 +3753,7 @@ int wma_extscan_operations_event_handler(void *handle,
 	}
 	pMac->sme.pExtScanIndCb(pMac->hdd_handle,
 				eSIR_EXTSCAN_SCAN_PROGRESS_EVENT_IND, oprn_ind);
-	WMA_LOGD("%s: sending scan progress event to hdd", __func__);
+	WMA_LOGI("%s: sending scan progress event to hdd", __func__);
 exit_handler:
 	qdf_mem_free(oprn_ind);
 	return 0;
@@ -4049,7 +3804,7 @@ int wma_extscan_table_usage_event_handler(void *handle,
 	pMac->sme.pExtScanIndCb(pMac->hdd_handle,
 				eSIR_EXTSCAN_SCAN_RES_AVAILABLE_IND,
 				tbl_usg_ind);
-	WMA_LOGD("%s: sending scan_res available event to hdd", __func__);
+	WMA_LOGI("%s: sending scan_res available event to hdd", __func__);
 	qdf_mem_free(tbl_usg_ind);
 	return 0;
 }
@@ -4275,7 +4030,7 @@ int wma_extscan_hotlist_match_event_handler(void *handle,
 	dest_hotlist->ap_found = ap_found;
 	pMac->sme.pExtScanIndCb(pMac->hdd_handle,
 				eSIR_EXTSCAN_HOTLIST_MATCH_IND, dest_hotlist);
-	WMA_LOGD("%s: sending hotlist match event to hdd", __func__);
+	WMA_LOGI("%s: sending hotlist match event to hdd", __func__);
 	qdf_mem_free(dest_hotlist);
 	return 0;
 }
@@ -4849,7 +4604,7 @@ int wma_passpoint_match_event_handler(void *handle,
 	dest_match->request_id = 0;
 	dest_match->id = event->id;
 	dest_match->anqp_len = event->anqp_length;
-	WMA_LOGD("%s: passpoint match: id: %u anqp length %u", __func__,
+	WMA_LOGI("%s: passpoint match: id: %u anqp length %u", __func__,
 		 dest_match->id, dest_match->anqp_len);
 
 	dest_ap->channel = event->channel_mhz;
@@ -5396,7 +5151,6 @@ QDF_STATUS wma_reset_passpoint_network_list(tp_wma_handle wma,
 QDF_STATUS wma_scan_probe_setoui(tp_wma_handle wma, tSirScanMacOui *psetoui)
 {
 	struct scan_mac_oui set_oui;
-	uint32_t i = 0;
 
 	qdf_mem_zero(&set_oui, sizeof(struct scan_mac_oui));
 
@@ -5513,22 +5267,9 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 	}
 
 	wmi_event = param_buf->fixed_param;
-	WMA_LOGD("%s: Reason %x %s, Notif %x %s for vdevid %x, rssi %d",
-		 __func__, wmi_event->reason,
-		 wma_roam_event_to_string(wmi_event->reason),
-		 wmi_event->notif,
-		 wma_roam_notif_to_string(wmi_event->notif),
+	WMA_LOGD("%s: Reason %x, Notif %x for vdevid %x, rssi %d",
+		 __func__, wmi_event->reason, wmi_event->notif,
 		 wmi_event->vdev_id, wmi_event->rssi);
-	wma_peer_debug_log(wmi_event->vdev_id, DEBUG_ROAM_EVENT,
-			   DEBUG_INVALID_PEER_ID, NULL, NULL,
-			   wmi_event->reason,
-			   (wmi_event->reason == WMI_ROAM_REASON_INVALID) ?
-				wmi_event->notif : wmi_event->rssi);
-
-	if (wmi_event->vdev_id >= wma_handle->max_bssid) {
-		WMA_LOGE("Invalid vdev id from firmware");
-		return -EINVAL;
-	}
 
 	if (wmi_event->vdev_id >= wma_handle->max_bssid) {
 		WMA_LOGE("Invalid vdev id from firmware");
@@ -5631,25 +5372,6 @@ int wma_roam_event_callback(WMA_HANDLE handle, uint8_t *event_buf,
 			 wmi_event->reason, wmi_event->vdev_id);
 		break;
 	}
-	/*
-	 * LFR3 module will only send ROAM_ABORT, HO_FAILED, or ROAM_SUCCESS up
-	 * on ROAM_START indication. ROAM_SUCCESS is handled in seperate
-	 * function. WMI_ROAM_REASON_INVOKE_ROAM_FAIL can be send when LFR3
-	 * can't find AP on that channel, so it can't start ROAMING
-	 */
-	if (((WMI_ROAM_REASON_INVALID == wmi_event->reason) &&
-				(WMI_ROAM_NOTIF_ROAM_ABORT ==
-						wmi_event->notif))
-			|| (WMI_ROAM_REASON_HO_FAILED == wmi_event->reason)
-			|| (WMI_ROAM_REASON_INVOKE_ROAM_FAIL ==
-				wmi_event->reason)) {
-		WMA_LOGD(FL("SELF-REASSOC: Roam reason-%x notif-%x vdevid-%x"),
-			 wmi_event->reason, wmi_event->notif,
-			 wmi_event->vdev_id);
-		wma_roam_remove_self_reassoc(wma_handle, wmi_event->vdev_id);
-		cds_restart_opportunistic_timer(false);
-	}
-
 	return 0;
 }
 

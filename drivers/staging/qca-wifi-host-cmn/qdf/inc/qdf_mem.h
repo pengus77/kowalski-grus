@@ -118,11 +118,7 @@ void *qdf_mem_malloc_debug(size_t size, const char *file, uint32_t line,
  * This function will free the memory pointed to by 'ptr'. It also checks for
  * memory corruption, underrun, overrun, double free, domain mismatch, etc.
  *
- * This function changes the memory domain associated with future memory
- * allocations. This can be used to check for memory leaks when combined with
- * qdf_mem_check_for_leaks().
- *
- * Return: None
+ * Return: none
  */
 void qdf_mem_free_debug(void *ptr, const char *file, uint32_t line);
 
@@ -359,7 +355,7 @@ static inline void qdf_mempool_free(qdf_device_t osdev, qdf_mempool_t pool,
 void qdf_mem_dma_sync_single_for_device(qdf_device_t osdev,
 					qdf_dma_addr_t bus_addr,
 					qdf_size_t size,
-					qdf_dma_dir_t direction);
+					__dma_data_direction direction);
 
 void qdf_mem_dma_sync_single_for_cpu(qdf_device_t osdev,
 					qdf_dma_addr_t bus_addr,

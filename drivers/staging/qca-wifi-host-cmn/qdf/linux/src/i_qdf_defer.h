@@ -228,17 +228,6 @@ static inline __qdf_workqueue_t *__qdf_alloc_unbound_workqueue(char *name)
 }
 
 /**
- * __qdf_create_singlethread_workqueue() - create a single threaded workqueue
- * @name: string
- *
- * Return: pointer of type qdf_workqueue_t
- */
-static inline __qdf_workqueue_t *__qdf_create_singlethread_workqueue(char *name)
-{
-	return create_singlethread_workqueue(name);
-}
-
-/**
  * __qdf_flush_workqueue - flush the workqueue
  * @wqueue: pointer to workqueue
  * Return: none
@@ -305,16 +294,6 @@ static inline QDF_STATUS __qdf_disable_bh(struct tasklet_struct *bh)
 {
 	tasklet_kill(bh);
 	return QDF_STATUS_SUCCESS;
-}
-
-/**
- * __qdf_tasklet_is_scheduled - check bh status
- * @bh: pointer to bottom
- * Return: tasklet schedule state
- */
-static inline bool __qdf_tasklet_is_scheduled(struct tasklet_struct *bh)
-{
-	return test_bit(TASKLET_STATE_SCHED, &bh->state);
 }
 
 #endif /*_I_QDF_DEFER_H*/

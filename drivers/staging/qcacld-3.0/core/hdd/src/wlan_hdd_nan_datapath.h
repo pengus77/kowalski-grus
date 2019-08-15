@@ -37,9 +37,6 @@ struct wireless_dev;
 
 #define NDP_BROADCAST_STAID           (0)
 
-#define NAN_CH_INFO_MAX_LEN \
-	(SIR_NAN_CH_INFO_MAX_CHANNELS * sizeof(uint32_t) * 2)
-
 #ifdef WLAN_FEATURE_NAN_DATAPATH
 #define WLAN_HDD_IS_NDI(adapter) ((adapter)->device_mode == QDF_NDI_MODE)
 

@@ -60,12 +60,6 @@
 #define IS_TDLS_PEER(type) 0
 #endif
 
-#ifdef FEATURE_WLAN_TDLS
-#define IS_TDLS_PEER(type)  ((type) == STA_ENTRY_TDLS_PEER)
-#else
-#define IS_TDLS_PEER(type) 0
-#endif
-
 /**
  * lim_cmp_ssid() - utility function to compare SSIDs
  * @rx_ssid: Received SSID
@@ -2234,7 +2228,7 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 	    LIM_IS_IBSS_ROLE(session_entry)) {
 		add_sta_params->htCapable = sta_ds->mlmStaContext.htCapability;
 		add_sta_params->vhtCapable =
-			sta_ds->mlmStaContext.vhtCapability;
+			 sta_ds->mlmStaContext.vhtCapability;
 	}
 #ifdef FEATURE_WLAN_TDLS
 	/* SystemRole shouldn't be matter if staType is TDLS peer */

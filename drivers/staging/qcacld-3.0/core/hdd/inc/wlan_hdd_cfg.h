@@ -59,46 +59,6 @@ struct hdd_context;
 
 /* Number of items that can be configured */
 #define MAX_CFG_INI_ITEMS   1024
-#define MAX_PRB_REQ_VENDOR_OUI_INI_LEN 160
-#define VENDOR_SPECIFIC_IE_BITMAP 0x20000000
-
-/*
- * Maximum ini string length of actions oui extensions,
- * (n * 83) + (n - 1) spaces + 1 (terminating character),
- * where n is the no of oui extensions
- * currently, max no of oui extensions is 10
- */
-#define MAX_ACTION_OUI_STRING_LEN 840
-
-/*
- * Maximum length of the concurrent STA interface created using
- * gEnableConcurrentSTA ini param.
- */
-#define CFG_CONCURRENT_IFACE_MAX_LEN 16
-
-/**
- * enum hdd_action_oui_token_type - string token types expected for action ouis
- * @HDD_ACTION_OUI_TOKEN: oui string
- * @HDD_ACTION_OUI_DATA_LENGTH_TOKEN: data length string
- * @HDD_ACTION_OUI_DATA_TOKEN: OUI data string
- * @HDD_ACTION_OUI_DATA_MASK_TOKEN: data mask string
- * @HDD_ACTION_OUI_INFO_MASK_TOKEN: info mask string
- * @HDD_ACTION_OUI_MAC_ADDR_TOKEN: mac addr string
- * @HDD_ACTION_OUI_MAC_MASK_TOKEN: mac mask string
- * @HDD_ACTION_OUI_CAPABILITY_TOKEN: capability string
- * @HDD_ACTION_OUI_END_TOKEN: end of one oui extension
- */
-enum hdd_action_oui_token_type {
-	HDD_ACTION_OUI_TOKEN = 1 << 0,
-	HDD_ACTION_OUI_DATA_LENGTH_TOKEN = 1 << 1,
-	HDD_ACTION_OUI_DATA_TOKEN = 1 << 2,
-	HDD_ACTION_OUI_DATA_MASK_TOKEN = 1 << 3,
-	HDD_ACTION_OUI_INFO_MASK_TOKEN = 1 << 4,
-	HDD_ACTION_OUI_MAC_ADDR_TOKEN = 1 << 5,
-	HDD_ACTION_OUI_MAC_MASK_TOKEN = 1 << 6,
-	HDD_ACTION_OUI_CAPABILITY_TOKEN = 1 << 7,
-	HDD_ACTION_OUI_END_TOKEN = 1 << 8,
-};
 
 #define MAX_PRB_REQ_VENDOR_OUI_INI_LEN 160
 #define VENDOR_SPECIFIC_IE_BITMAP 0x20000000
@@ -403,24 +363,6 @@ enum hdd_dot11_mode {
 #define CFG_CHANNEL_BONDING_MODE_MIN           WNI_CFG_CHANNEL_BONDING_MODE_STAMIN
 #define CFG_CHANNEL_BONDING_MODE_MAX           WNI_CFG_CHANNEL_BONDING_MODE_STAMAX
 #define CFG_CHANNEL_BONDING_MODE_DEFAULT       WNI_CFG_CHANNEL_BONDING_MODE_STADEF
-
-/*
- * <ini>
- * gShortGI20Mhz - Short Guard Interval for HT20
- * @Min: 0
- * @Max: 1
- * @Default: 1
- *
- * This ini is used to set default short interval for HT20
- *
- * Related: None
- *
- * Supported Feature: STA
- *
- * Usage: Internal/External
- *
- * </ini>
- */
 
 /*
  * <ini>
@@ -910,7 +852,7 @@ enum hdd_dot11_mode {
 #define CFG_DROP_BCN_ON_CHANNEL_MISMATCH      "drop_bcn_on_chan_mismatch"
 #define CFG_DROP_BCN_ON_CHANNEL_MISMATCH_MIN       (0)
 #define CFG_DROP_BCN_ON_CHANNEL_MISMATCH_MAX       (1)
-#define CFG_DROP_BCN_ON_CHANNEL_MISMATCH_DEFAULT   (1)
+#define CFG_DROP_BCN_ON_CHANNEL_MISMATCH_DEFAULT   (0)
 
 /*
  * <ini>
@@ -10142,7 +10084,6 @@ enum dot11p_mode {
 #define CFG_ENABLE_FATAL_EVENT_TRIGGER_MAX             (1)
 #define CFG_ENABLE_FATAL_EVENT_TRIGGER_DEFAULT         (1)
 
-#ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 /*
  * <ini>
  * gEnableEdcaParams - Enable edca parameter
@@ -11028,30 +10969,6 @@ enum dot11p_mode {
 #define CFG_CRASH_FW_TIMEOUT_DISABLE    (0)
 #define CFG_CRASH_FW_TIMEOUT_ENABLE     (1)
 #define CFG_CRASH_FW_TIMEOUT_DEFAULT    (1)
-
-/*
- * <ini>
- * rx_wakelock_timeout - Amount of time to hold wakelock for RX unicast packets
- * @Min: 0
- * @Max: 100
- * @Default: 50
- *
- * This ini item configures the amount of time, in milliseconds, that the driver
- * should prevent system power collapse after receiving an RX unicast packet.
- * A conigured value of 0 disables the RX Wakelock feature completely.
- *
- * Related: None.
- *
- * Supported Feature: RX Wakelock
- *
- * Usage: Internal/External
- *
- * </ini>
- */
-#define CFG_RX_WAKELOCK_TIMEOUT_NAME     "rx_wakelock_timeout"
-#define CFG_RX_WAKELOCK_TIMEOUT_DEFAULT  (50)
-#define CFG_RX_WAKELOCK_TIMEOUT_MIN      (0)
-#define CFG_RX_WAKELOCK_TIMEOUT_MAX      (100)
 
 /*
  * <ini>
@@ -15914,7 +15831,6 @@ enum hdd_external_acs_policy {
 #define CFG_ROAM_SCORE_DELTA_MIN        0
 #define CFG_ROAM_SCORE_DELTA_MAX        100
 
-#ifdef MWS_COEX
 /*
  * <ini>
  * roam_score_delta_bitmap - bitmap to enable roam triggers on
@@ -16238,17 +16154,6 @@ struct hdd_config {
 	uint32_t mws_coex_5g_nr_pwr_limit;
 #endif
 
-	/* Bitmap for operating voltage corner mode */
-	uint32_t vc_mode_cfg_bitmap;
-
-#ifdef MWS_COEX
-	/* Bitmap for MWS-COEX 4G Quick FTDM */
-	u32 g_mws_coex_4g_quick_tdm;
-
-	/* Bitmap for MWS-COEX 5G-NR power limit */
-	u32 g_mws_coex_5g_nr_pwr_limit;
-#endif
-
 	uint16_t nNeighborScanPeriod;
 	uint16_t neighbor_scan_min_period;
 	uint8_t nNeighborLookupRssiThreshold;
@@ -16535,7 +16440,6 @@ struct hdd_config {
 	uint8_t fTDLSPrefOffChanBandwidth;
 	uint8_t enable_tdls_scan;
 	uint32_t tdls_peer_kickout_threshold;
-	uint32_t tdls_discovery_wake_timeout;
 #endif
 	uint8_t scanAgingTimeout;
 	uint8_t disableLDPCWithTxbfAP;
@@ -16579,7 +16483,6 @@ struct hdd_config {
 	uint32_t IpaHighBandwidthMbps;
 	uint32_t IpaMediumBandwidthMbps;
 	uint32_t IpaLowBandwidthMbps;
-	uint32_t IpaMccTxDescSize;
 #ifdef FEATURE_WLAN_MCC_TO_SCC_SWITCH
 	uint32_t WlanMccToSccSwitchMode;
 #endif
@@ -16790,12 +16693,6 @@ struct hdd_config {
 	bool smart_chainmask_enabled;
 	bool alternative_chainmask_enabled;
 	uint16_t  self_gen_frm_pwr;
-#ifdef WLAN_FEATURE_UDP_RESPONSE_OFFLOAD
-	bool udp_resp_offload_support;
-	uint32_t dest_port;
-	char payload_filter[MAX_LEN_UDP_RESP_OFFLOAD];
-	char response_payload[MAX_LEN_UDP_RESP_OFFLOAD];
-#endif
 #ifdef FEATURE_WLAN_SCAN_PNO
 	bool pno_channel_prediction;
 	uint8_t top_k_num_of_channels;
@@ -16915,7 +16812,6 @@ struct hdd_config {
 	/* beacon count before channel switch */
 	uint8_t sap_chanswitch_beacon_cnt;
 	uint8_t sap_chanswitch_mode;
-	uint32_t rx_wakelock_timeout;
 	uint32_t max_sched_scan_plan_interval;
 	uint32_t max_sched_scan_plan_iterations;
 #ifdef WLAN_FEATURE_WOW_PULSE

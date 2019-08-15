@@ -43,25 +43,6 @@ ol_txrx_peer_handle ol_txrx_peer_get_ref_by_addr(ol_txrx_pdev_handle pdev,
 int  ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 			      enum peer_debug_id_type dbg_id);
 
-/* ol_txrx_is_peer_eligible_for_deletion() - check if peer to be deleted
- * @peer: peer handler
- * @pdev: pointer to pdev
- *
- * Return: true if eligible for deletion else false
- */
-bool ol_txrx_is_peer_eligible_for_deletion(ol_txrx_peer_handle peer,
-					   struct ol_txrx_pdev_t *pdev);
-
-int ol_txrx_peer_unref_delete(ol_txrx_peer_handle peer,
-					      const char *fname,
-					      int line);
-
-ol_txrx_peer_handle ol_txrx_find_peer_by_addr_inc_ref(ol_txrx_pdev_handle pdev,
-						uint8_t *peer_addr,
-						uint8_t *peer_id);
-
-bool ol_txrx_mon_mgmt_process(struct mon_rx_status *rx_status,
-			      qdf_nbuf_t nbuf, uint8_t status);
 /**
  * ol_tx_desc_pool_size_hl() - allocate tx descriptor pool size for HL systems
  * @ctrl_pdev: the control pdev handle

@@ -1285,7 +1285,7 @@ populate_dot11f_ht_info(tpAniSirGlobal pMac,
 
 		pHTInfoField1->secondaryChannelOffset =
 			psessionEntry->htSecondaryChannelOffset;
-	pHTInfoField1->recommendedTxWidthSet =
+		pHTInfoField1->recommendedTxWidthSet =
 			psessionEntry->htRecommendedTxWidthSet;
 
 	if ((psessionEntry) && LIM_IS_AP_ROLE(psessionEntry)) {
@@ -5875,7 +5875,6 @@ populate_dot11f_beacon_report(tpAniSirGlobal pMac,
 			      struct rrm_beacon_report_last_beacon_params
 			      *last_beacon_report_params)
 {
-	tDot11fIEbeacon_report_frm_body_fragment_id *frm_body_frag_id;
 
 	pDot11f->report.Beacon.regClass = pBeaconReport->regClass;
 	pDot11f->report.Beacon.channel = pBeaconReport->channel;

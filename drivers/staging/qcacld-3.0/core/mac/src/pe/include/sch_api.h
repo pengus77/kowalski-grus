@@ -48,7 +48,6 @@ void sch_qos_update_local(tpAniSirGlobal pMac, tpPESession psessionEntry);
 void sch_edca_profile_update(tpAniSirGlobal pMac,
 			     tpPESession psessionEntry);
 
-void sch_edca_profile_update_all(tpAniSirGlobal pmac);
 /* / Set the fixed fields in a beacon frame */
 QDF_STATUS sch_set_fixed_beacon_fields(tpAniSirGlobal pMac,
 				       tpPESession psessionEntry);

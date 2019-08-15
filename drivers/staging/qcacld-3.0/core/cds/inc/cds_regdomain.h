@@ -65,13 +65,7 @@
 #include <reg_services_public_struct.h>
 
 #define MIN_TX_PWR_CAP    8
-#define MAX_TX_PWR_CAP    22
-
-#define CTRY_DEFAULT          0
-#define CTRY_FLAG             0x8000
-#define WORLD_ROAMING_FLAG    0x4000
-#define WORLD_ROAMING_MASK    0x00F0
-#define WORLD_ROAMING_PREFIX  0x0060
+#define MAX_TX_PWR_CAP    30
 
 #define CTRY_DEFAULT          0
 #define CTRY_FLAG             0x8000
@@ -158,7 +152,6 @@ enum country_code {
 	CTRY_ISRAEL = 376,
 	CTRY_ITALY = 380,
 	CTRY_JAMAICA = 388,
-	CTRY_JAPAN = 392,
 	CTRY_JORDAN = 400,
 	CTRY_KAZAKHSTAN = 398,
 	CTRY_KENYA = 404,
@@ -190,7 +183,6 @@ enum country_code {
 	CTRY_MONGOLIA = 496,
 	CTRY_MONTENEGRO = 499,
 	CTRY_MOROCCO = 504,
-	CTRY_MYANMAR = 104,
 	CTRY_NAMIBIA = 516,
 	CTRY_NEPAL = 524,
 	CTRY_NETHERLANDS = 528,
@@ -309,9 +301,6 @@ enum reg_domain {
 	ETSI9_WORLD = 0x3E,
 	ETSI10_WORLD = 0x24,
 	ETSI11_WORLD = 0x26,
-	ETSI13_WORLD = 0x27,
-	ETSI14_WORLD = 0x29,
-	ETSI15_WORLD = 0x31,
 
 	APL4_WORLD = 0x42,
 	APL3_FCCA = 0x50,
@@ -414,9 +403,6 @@ enum reg_domain {
 	ETSI9 = 0x0930,
 	ETSI10 = 0x0D30,
 	ETSI11 = 0x0E30,
-	ETSI13 = 0x0E39,
-	ETSI14 = 0x0E40,
-	ETSI15 = 0x0E41,
 
 	APL1 = 0x0150,
 	APL2 = 0x0250,

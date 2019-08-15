@@ -36,6 +36,10 @@
 #include "lim_scan_result_utils.h"
 #include "lim_timer_utils.h"
 #include "lim_trace.h"
+typedef enum {
+	ONE_BYTE = 1,
+	TWO_BYTE = 2
+} eSizeOfLenField;
 
 #define LIM_STA_ID_MASK                        0x00FF
 #define LIM_AID_MASK                              0xC000
@@ -180,15 +184,6 @@ void lim_update_short_preamble(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 void lim_update_short_slot_time(tpAniSirGlobal pMac, tSirMacAddr peerMacAddr,
 		tpUpdateBeaconParams pBeaconParams,
 		tpPESession psessionEntry);
-/*
- * lim_deactivate_timers() - Function to deactivate lim timers
- * @mac_ctx: Pointer to global mac structure
- *
- *	This function is used to deactivate lim timers
- *
- * Return: None
- */
-void lim_deactivate_timers(tpAniSirGlobal mac_ctx);
 
 /*
  * lim_send_sme_mgmt_frame_ind() - Function to send mgmt frame ind to HDD
@@ -577,11 +572,6 @@ void lim_handle_heart_beat_failure_timeout(tpAniSirGlobal pMac);
 	wlan_get_vendor_ie_ptr_from_oui(SIR_MAC_P2P_OUI, \
 			SIR_MAC_P2P_OUI_SIZE, ie, ie_len)
 
-#define LE_READ_2(p) \
-	((uint16_t)\
-	((((const uint8_t *)(p))[0]) |\
-	(((const uint8_t *)(p))[1] <<  8)))
-
 uint8_t lim_get_noa_attr_stream_in_mult_p2p_ies(tpAniSirGlobal pMac,
 		uint8_t *noaStream, uint8_t noaLen,
 		uint8_t overFlowLen);
@@ -752,10 +742,10 @@ void lim_diag_mgmt_rx_event_report(tpAniSirGlobal mac_ctx, void *mgmt_hdr,
 static inline void lim_diag_event_report(tpAniSirGlobal pMac, uint16_t
 		eventType, tpPESession pSessionEntry, uint16_t status,
 		uint16_t reasonCode) {}
-void lim_diag_mgmt_tx_event_report(tpAniSirGlobal mac_ctx, void *mgmt_hdr,
+static inline void lim_diag_mgmt_tx_event_report(tpAniSirGlobal mac_ctx, void *mgmt_hdr,
 		tpPESession session, uint16_t result_code,
 		uint16_t reason_code) {}
-void lim_diag_mgmt_rx_event_report(tpAniSirGlobal mac_ctx, void *mgmt_hdr,
+static inline void lim_diag_mgmt_rx_event_report(tpAniSirGlobal mac_ctx, void *mgmt_hdr,
 		tpPESession session, uint16_t result_code,
 		uint16_t reason_code) {}
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
@@ -804,8 +794,7 @@ QDF_STATUS lim_send_ext_cap_ie(tpAniSirGlobal mac_ctx, uint32_t session_id,
 			       tDot11fIEExtCap *extracted_extcap, bool merge);
 
 QDF_STATUS lim_send_ies_per_band(tpAniSirGlobal mac_ctx,
-				 tpPESession session, uint8_t vdev_id,
-				 uint8_t is_hw_mode_dbs);
+				 tpPESession session, uint8_t vdev_id);
 
 QDF_STATUS lim_strip_extcap_ie(tpAniSirGlobal mac_ctx, uint8_t *addn_ie,
 			  uint16_t *addn_ielen, uint8_t *extracted_extcap);

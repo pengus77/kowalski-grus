@@ -25,7 +25,6 @@
 #define _QDF_OS_TIME_H
 
 #include <i_qdf_time.h>
-#include "qdf_util.h"
 
 typedef __qdf_time_t qdf_time_t;
 typedef __qdf_ktime_t qdf_ktime_t;

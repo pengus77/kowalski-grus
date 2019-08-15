@@ -906,6 +906,10 @@ void htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 	}
 	case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND:
 	{
+		uint16_t peer_id;
+		uint8_t tid;
+		uint8_t offload_ind, frag_ind;
+
 		if (qdf_unlikely(!pdev->cfg.is_full_reorder_offload)) {
 			qdf_print("HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND not ");
 			qdf_print("supported when full reorder offload is ");
@@ -919,9 +923,26 @@ void htt_t2h_msg_handler(void *context, HTC_PACKET *pkt)
 			break;
 		}
 
-		htt_t2h_rx_in_order_indication_handler(
-				pdev->txrx_pdev,
-				htt_t2h_msg, *msg_word);
+		peer_id = HTT_RX_IN_ORD_PADDR_IND_PEER_ID_GET(*msg_word);
+		tid = HTT_RX_IN_ORD_PADDR_IND_EXT_TID_GET(*msg_word);
+		offload_ind = HTT_RX_IN_ORD_PADDR_IND_OFFLOAD_GET(*msg_word);
+		frag_ind = HTT_RX_IN_ORD_PADDR_IND_FRAG_GET(*msg_word);
+
+#if defined(HELIUMPLUS_DEBUG)
+		qdf_print("%s %d: peerid %d tid %d offloadind %d fragind %d\n",
+			  __func__, __LINE__, peer_id, tid, offload_ind,
+			  frag_ind);
+#endif
+		if (qdf_unlikely(frag_ind)) {
+			ol_rx_frag_indication_handler(pdev->txrx_pdev,
+						      htt_t2h_msg,
+						      peer_id, tid);
+			break;
+		}
+
+		ol_rx_in_order_indication_handler(pdev->txrx_pdev,
+						  htt_t2h_msg, peer_id,
+						  tid, offload_ind);
 		break;
 	}
 
@@ -1114,18 +1135,6 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 
 			break;
 		}
-		case HTT_T2H_MSG_TYPE_TX_OFFLOAD_DELIVER_IND:
-		{
-			if (qdf_unlikely(
-				!pdev->cfg.is_full_reorder_offload)) {
-				break;
-			}
-
-			ol_tx_offload_deliver_indication_handler(
-					pdev->txrx_pdev, msg_word);
-			break;
-		}
-
 		case HTT_T2H_MSG_TYPE_RX_PN_IND:
 		{
 			u_int16_t peer_id;
@@ -1200,6 +1209,10 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 		}
 		case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND:
 		{
+			u_int16_t peer_id;
+			u_int8_t tid;
+			u_int8_t offload_ind, frag_ind;
+
 			if (qdf_unlikely(
 				  !pdev->cfg.is_full_reorder_offload)) {
 				qdf_print("HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND not supported when full reorder offload is disabled\n");
@@ -1212,9 +1225,26 @@ void htt_t2h_msg_handler_fast(void *context, qdf_nbuf_t *cmpl_msdus,
 				break;
 			}
 
-			htt_t2h_rx_in_order_indication_handler(
-					pdev->txrx_pdev,
-					htt_t2h_msg, *msg_word);
+			peer_id = HTT_RX_IN_ORD_PADDR_IND_PEER_ID_GET(
+							*msg_word);
+			tid = HTT_RX_IN_ORD_PADDR_IND_EXT_TID_GET(
+							*msg_word);
+			offload_ind =
+				HTT_RX_IN_ORD_PADDR_IND_OFFLOAD_GET(
+							*msg_word);
+			frag_ind = HTT_RX_IN_ORD_PADDR_IND_FRAG_GET(
+							*msg_word);
+
+			if (qdf_unlikely(frag_ind)) {
+				ol_rx_frag_indication_handler(
+				pdev->txrx_pdev, htt_t2h_msg, peer_id,
+				tid);
+				break;
+			}
+
+			ol_rx_in_order_indication_handler(
+					pdev->txrx_pdev, htt_t2h_msg,
+					peer_id, tid, offload_ind);
 			break;
 		}
 		default:

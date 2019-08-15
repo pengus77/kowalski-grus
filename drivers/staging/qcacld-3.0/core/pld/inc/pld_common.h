@@ -108,18 +108,6 @@ enum pld_platform_cap_flag {
 };
 
 /**
- * enum pld_cc_src - platform country code source
- * @PLD_SOURCE_CORE: coutry code from core
- * @PLD_SOURCE_11D: counry code from 11d
- * @PLD_SOURCE_USER: country code from user
- */
-enum pld_cc_src {
-	PLD_SOURCE_CORE,
-	PLD_SOURCE_11D,
-	PLD_SOURCE_USER
-};
-
-/**
  * struct pld_platform_cap - platform capabilities
  * @cap_flag: capabilities flag
  *

@@ -23,10 +23,13 @@
 #include <cdp_txrx_cmn.h>       /* ol_pdev_handle */
 #include <cds_ieee80211_common.h>   /* ieee80211_qosframe_htc_addr4 */
 #include <enet.h>               /* LLC_SNAP_HDR_LEN */
-#include "target_if_def_config.h"
+#if defined(CONFIG_HL_SUPPORT)
+#include "wlan_tgt_def_config_hl.h"
+#else
+#include "wlan_tgt_def_config.h"
+#endif
 #include "ol_txrx_ctrl_api.h"   /* txrx_pdev_cfg_param_t */
 #include <cdp_txrx_handle.h>
-
 
 /**
  * @brief format of data frames delivered to/from the WLAN driver by/to the OS
@@ -325,8 +328,8 @@ void ol_cfg_set_tx_free_at_download(struct cdp_cfg *cfg_pdev);
  */
 #define OL_CFG_NUM_MSDU_REAP 512
 #define ol_cfg_tx_credit_lwm(pdev)					       \
-	((TGT_NUM_MSDU_DESC >  OL_CFG_NUM_MSDU_REAP) ?		       \
-	 (TGT_NUM_MSDU_DESC -  OL_CFG_NUM_MSDU_REAP) : 0)
+	((CFG_TGT_NUM_MSDU_DESC >  OL_CFG_NUM_MSDU_REAP) ?		       \
+	 (CFG_TGT_NUM_MSDU_DESC -  OL_CFG_NUM_MSDU_REAP) : 0)
 
 /**
  * @brief In a HL system, specify the target initial credit count.

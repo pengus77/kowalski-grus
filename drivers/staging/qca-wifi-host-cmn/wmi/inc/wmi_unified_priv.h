@@ -54,8 +54,6 @@
 
 #define WMI_UNIFIED_MAX_EVENT 0x100
 
-#ifdef WMI_INTERFACE_EVENT_LOGGING
-
 #ifndef WMI_EVENT_DEBUG_MAX_ENTRY
 #define WMI_EVENT_DEBUG_MAX_ENTRY (1024)
 #endif
@@ -91,6 +89,8 @@
 #define wmi_warn_rl(params...) QDF_TRACE_WARN_RL(QDF_MODULE_ID_WMI, params)
 #define wmi_info_rl(params...) QDF_TRACE_INFO_RL(QDF_MODULE_ID_WMI, params)
 #define wmi_debug_rl(params...) QDF_TRACE_DEBUG_RL(QDF_MODULE_ID_WMI, params)
+
+#ifdef WMI_INTERFACE_EVENT_LOGGING
 
 /**
  * struct wmi_command_debug - WMI command log buffer data type
@@ -234,10 +234,6 @@ QDF_STATUS (*send_vdev_nss_chain_params_cmd)(wmi_unified_t wmi_handle,
 
 QDF_STATUS (*send_vdev_stop_cmd)(wmi_unified_t wmi,
 					uint8_t vdev_id);
-
-QDF_STATUS
-(*send_conf_hw_filter_mode_cmd)(wmi_unified_t wmi,
-				struct wmi_hw_filter_req_params *req);
 
 QDF_STATUS (*send_vdev_down_cmd)(wmi_unified_t wmi,
 			uint8_t vdev_id);
@@ -582,9 +578,6 @@ QDF_STATUS (*send_process_ll_stats_get_cmd)
 QDF_STATUS (*send_congestion_cmd)(wmi_unified_t wmi_handle,
 			uint8_t vdev_id);
 
-QDF_STATUS (*send_congestion_cmd)(wmi_unified_t wmi_handle,
-			A_UINT8 vdev_id);
-
 QDF_STATUS (*send_snr_request_cmd)(wmi_unified_t wmi_handle);
 
 QDF_STATUS (*send_snr_cmd)(wmi_unified_t wmi_handle, uint8_t vdev_id);
@@ -871,24 +864,6 @@ QDF_STATUS (*extract_apf_read_memory_resp_event)(wmi_unified_t wmi_handle,
 			void *evt_buf,
 			struct wmi_apf_read_memory_resp_event_params *resp);
 #endif /* FEATURE_WLAN_APF */
-
-QDF_STATUS (*send_set_active_apf_mode_cmd)(wmi_unified_t wmi_handle,
-					   uint8_t vdev_id,
-					   FW_ACTIVE_BPF_MODE ucast_mode,
-					   FW_ACTIVE_BPF_MODE mcast_bcast_mode);
-
-QDF_STATUS (*send_apf_enable_cmd)(wmi_unified_t wmi_handle, uint32_t vdev_id,
-				  bool enable);
-
-QDF_STATUS (*send_apf_write_work_memory_cmd)(wmi_unified_t wmi_handle,
-			struct wmi_apf_write_memory_params *apf_write_params);
-
-QDF_STATUS (*send_apf_read_work_memory_cmd)(wmi_unified_t wmi_handle,
-			struct wmi_apf_read_memory_params *apf_read_params);
-
-QDF_STATUS (*extract_apf_read_memory_resp_event)(wmi_unified_t wmi_handle,
-			void *evt_buf,
-			struct wmi_apf_read_memory_resp_event_params *resp);
 
 QDF_STATUS (*send_pdev_get_tpc_config_cmd)(wmi_unified_t wmi_handle,
 		uint32_t param);

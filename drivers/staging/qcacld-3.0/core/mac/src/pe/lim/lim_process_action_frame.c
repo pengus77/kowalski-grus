@@ -564,9 +564,8 @@ static void __lim_process_operating_mode_action_frame(tpAniSirGlobal mac_ctx,
 				eHT_CHANNEL_WIDTH_20MHZ;
 			ch_bw = eHT_CHANNEL_WIDTH_20MHZ;
 		}
-
 		lim_check_vht_op_mode_change(mac_ctx, session, ch_bw,
-			session->dot11mode, sta_ptr->staIndex, mac_hdr->sa);
+					     sta_ptr->staIndex, mac_hdr->sa);
 	}
 
 update_nss:
@@ -1652,56 +1651,6 @@ lim_drop_unprotected_action_frame(tpAniSirGlobal pMac, tpPESession psessionEntry
 }
 #endif
 
-/*
- * lim_process_action_vendor_specific() - Process action frame received
- * @mac_ctx: Pointer to Global MAC structure
- * @pkt_info: A pointer to packet info structure
- * @action_hdr: Pointer to vendor specific action frame hdr
- * @session: PE session entry
- *
- * Return: none
- */
-static void lim_process_action_vendor_specific(tpAniSirGlobal mac_ctx,
-			uint8_t *pkt_info,
-			tpSirMacVendorSpecificPublicActionFrameHdr action_hdr,
-			tpPESession session)
-{
-	tpSirMacMgmtHdr mac_hdr = NULL;
-	uint32_t frame_len = 0;
-	uint8_t session_id = 0;
-	uint8_t p2p_oui[] = { 0x50, 0x6F, 0x9A, 0x09 };
-	uint8_t dpp_oui[] = { 0x50, 0x6F, 0x9A, 0x1A };
-
-	mac_hdr = WMA_GET_RX_MAC_HEADER(pkt_info);
-	frame_len = WMA_GET_RX_PAYLOAD_LEN(pkt_info);
-	if (frame_len < sizeof(*action_hdr)) {
-		pe_debug("Received action frame of invalid len %d", frame_len);
-		return;
-	}
-
-	if (session)
-		session_id = session->smeSessionId;
-	/* Check if it is a P2P or DPP public action frame. */
-	if (!qdf_mem_cmp(action_hdr->Oui, p2p_oui, 4) ||
-	    !qdf_mem_cmp(action_hdr->Oui, dpp_oui, 4)) {
-		/* Forward to the SME to HDD to wpa_supplicant */
-		/* type is ACTION */
-		lim_send_sme_mgmt_frame_ind(mac_ctx, mac_hdr->fc.subType,
-					    (uint8_t *) mac_hdr, frame_len +
-					    sizeof(tSirMacMgmtHdr), session_id,
-					    WMA_GET_RX_CH(pkt_info), session,
-					    WMA_GET_RX_RSSI_NORMALIZED(
-					    pkt_info));
-	} else {
-		pe_debug("Unhandled public action frame (Vendor specific) OUI: %x %x %x %x",
-				action_hdr->Oui[0],
-				action_hdr->Oui[1],
-				action_hdr->Oui[2],
-				action_hdr->Oui[3]);
-	}
-
-}
-
 /**
  * lim_process_addba_req() - process ADDBA Request
  * @mac_ctx: Pointer to Global MAC structure
@@ -2381,5 +2330,6 @@ void lim_process_action_frame_no_session(tpAniSirGlobal pMac, uint8_t *pBd)
 		pe_warn("Unhandled action frame without session: %x",
 			       action_hdr->category);
 		break;
+
 	}
 }

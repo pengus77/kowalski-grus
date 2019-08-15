@@ -789,31 +789,6 @@ void htt_rx_msdu_desc_free(htt_pdev_handle htt_pdev, qdf_nbuf_t msdu);
  */
 void htt_rx_msdu_buff_replenish(htt_pdev_handle pdev);
 
-#ifndef CONFIG_HL_SUPPORT
-/**
- * @brief Add new MSDU buffers for the target to fill.
- * @details
- *  This is full_reorder_offload version of the replenish function.
- *  In full_reorder, FW sends HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND
- *  msg to host. It includes the number of MSDUs. Thgis will be fed
- *  into htt_rx_msdu_buff_in_order_replenish function.
- *  The reason for creating yet another function is to avoid checks
- *  in real-time.
- *
- * @param pdev - the HTT instance the rx data will be received on
- * @num        - number of buffers to replenish
- *
- * Return: number of buffers actually replenished
- */
-int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num);
-#else
-static inline
-int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
-{
-	return 0;
-}
-#endif
-
 /**
  * @brief Add new MSDU buffers for the target to fill.
  * @details
@@ -897,7 +872,6 @@ uint16_t htt_rx_msdu_rx_desc_size_hl(htt_pdev_handle pdev, void *msdu_desc);
  */
 void htt_rx_get_vowext_stats(qdf_nbuf_t msdu, struct vow_extstats *vowstats);
 
-#ifndef CONFIG_HL_SUPPORT
 /**
  * @brief parses the offload message passed by the target.
  * @param pdev - pdev handle
@@ -919,10 +893,10 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 				 int *tid,
 				 uint8_t *fw_desc,
 				 qdf_nbuf_t *head_buf, qdf_nbuf_t *tail_buf);
-#endif
 
 uint32_t htt_rx_amsdu_rx_in_order_get_pktlog(qdf_nbuf_t rx_ind_msg);
 
+#ifndef REMOVE_PKT_LOG
 /**
  * htt_rx_update_smmu_map() - set smmu map/unmap for rx buffers
  * @pdev: htt pdev handle
@@ -931,6 +905,12 @@ uint32_t htt_rx_amsdu_rx_in_order_get_pktlog(qdf_nbuf_t rx_ind_msg);
  * Return: QDF_STATUS
  */
 QDF_STATUS htt_rx_update_smmu_map(struct htt_pdev_t *pdev, bool map);
+#else
+static inline QDF_STATUS htt_rx_update_smmu_map(struct htt_pdev_t *pdev, bool map)
+{
+	return QDF_STATUS_SUCCESS;
+}
+#endif
 
 /** htt_tx_enable_ppdu_end
  * @enable_ppdu_end - set it to 1 if WLAN_FEATURE_TSF_PLUS is defined,

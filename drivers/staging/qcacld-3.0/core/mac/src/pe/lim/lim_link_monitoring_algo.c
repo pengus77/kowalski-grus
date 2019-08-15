@@ -544,7 +544,7 @@ void lim_handle_heart_beat_failure(tpAniSirGlobal mac_ctx,
 		 */
 		pe_debug("received heartbeat timeout in state %X",
 			session->limMlmState);
-		lim_print_mlm_state(mac_ctx, LOGD, session->limMlmState);
+		lim_print_mlm_state(mac_ctx, LOG1, session->limMlmState);
 		mac_ctx->lim.gLimHBfailureCntInOtherStates++;
 	}
 

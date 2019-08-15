@@ -71,8 +71,6 @@
 
 #define MAX_PRINT_FAILURE_CNT 50
 
-#define MAX_PRINT_FAILURE_CNT 50
-
 #define WMA_INVALID_VDEV_ID                             0xFF
 
 /* Deprecated logging macros, to be removed. Please do not use in new code */
@@ -86,9 +84,6 @@
 	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_ERROR, ## args)
 #define WMA_LOGP(args ...) \
 	QDF_TRACE(QDF_MODULE_ID_WMA, QDF_TRACE_LEVEL_FATAL, ## args)
-#define wma_log_rate_limit_err(rate, args...) \
-	QDF_TRACE_RATE_LIMITED(rate, QDF_MODULE_ID_WMA,\
-			QDF_TRACE_LEVEL_ERROR, ## args)
 
 #define wma_alert(params...) QDF_TRACE_FATAL(QDF_MODULE_ID_WMA, params)
 #define wma_err(params...) QDF_TRACE_ERROR(QDF_MODULE_ID_WMA, params)
@@ -806,7 +801,6 @@ struct roam_synch_frame_ind {
  * @aid: association id
  * @rmfEnabled: Robust Management Frame (RMF) enabled/disabled
  * @key: GTK key
- * @ucast_key_cipher: unicast cipher key
  * @uapsd_cached_val: uapsd cached value
  * @stats_rsp: stats response
  * @fw_stats_set: fw stats value
@@ -826,7 +820,6 @@ struct roam_synch_frame_ind {
  * @plink_status_req: link status request
  * @psnr_req: snr request
  * @delay_before_vdev_stop: delay
- * @override_li: dynamically user configured listen interval
  * @tx_streams: number of tx streams can be used by the vdev
  * @rx_streams: number of rx streams can be used by the vdev
  * @chain_mask: chain mask can be used by the vdev
@@ -845,12 +838,6 @@ struct roam_synch_frame_ind {
  * @roam_scan_stats_req: cached roam scan stats request
  *
  * It stores parameters per vdev in wma.
- * @in_bmps : Whether bmps for this interface has been enabled
- * @vdev_start_wakelock: wakelock to protect vdev start op with firmware
- * @vdev_stop_wakelock: wakelock to protect vdev stop op with firmware
- * @vdev_set_key_wakelock: wakelock to protect vdev set key op with firmware
- * @channel: channel
- * @roam_scan_stats_req: cached roam scan stats request
  */
 struct wma_txrx_node {
 	uint8_t addr[IEEE80211_ADDR_LEN];
@@ -884,7 +871,6 @@ struct wma_txrx_node {
 	uint8_t rmfEnabled;
 #ifdef WLAN_FEATURE_11W
 	wma_igtk_key_t key;
-	uint32_t ucast_key_cipher;
 #endif /* WLAN_FEATURE_11W */
 	uint32_t uapsd_cached_val;
 	tAniGetPEStatsRsp *stats_rsp;
@@ -1193,8 +1179,6 @@ typedef struct {
 	struct wma_tx_ack_work_ctx *ack_work_ctx;
 	uint8_t powersave_mode;
 	bool ptrn_match_enable_all_vdev;
-	uint8_t wma_ptrn_id_def;
-	uint8_t wma_ptrn_id_usr;
 	void *pGetRssiReq;
 	bool get_one_peer_info;
 	bool get_sta_peer_info;

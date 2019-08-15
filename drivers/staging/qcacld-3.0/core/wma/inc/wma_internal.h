@@ -171,18 +171,6 @@ void wma_send_msg_by_priority(tp_wma_handle wma_handle, uint16_t msg_type,
  */
 void wma_send_msg(tp_wma_handle wma_handle, uint16_t msg_type,
 			 void *body_ptr, uint32_t body_val);
-/**
- * wma_send_msg_high_priority() - Send wma message to PE with high priority.
- * @wma_handle: wma handle
- * @msg_type: message type
- * @body_ptr: message body ptr
- * @body_val: message body value
- *
- * Return: none
- */
-void wma_send_msg_high_priority(tp_wma_handle wma_handle, uint16_t msg_type,
-			void *body_ptr, uint32_t body_val);
-
 
 /**
  * wma_send_msg_high_priority() - Send wma message to PE with high priority.
@@ -576,10 +564,6 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma, struct wma_vdev_start_req *req,
 
 void wma_vdev_resp_timer(void *data);
 
-int wma_set_packet_capture_mode(tp_wma_handle wma_handle,
-				uint8_t vdev_id,
-				uint8_t val);
-
 struct wma_target_req *wma_fill_vdev_req(tp_wma_handle wma,
 						uint8_t vdev_id,
 						uint32_t msg_type, uint8_t type,
@@ -690,10 +674,6 @@ void wma_process_update_userpos(tp_wma_handle wma_handle,
 
 void wma_hidden_ssid_vdev_restart(tp_wma_handle wma_handle,
 				  tHalHiddenSsidVdevRestart *pReq);
-
-int
-wma_mgmt_offload_data_event_handler(void *handle, uint8_t *data,
-				    uint32_t data_len);
 
 /*
  * wma_power.c functions declarations
@@ -1008,8 +988,7 @@ int wma_oem_data_response_handler(void *handle, uint8_t *datap,
 QDF_STATUS wma_pktlog_wmi_send_cmd(WMA_HANDLE handle,
 				   struct ath_pktlog_wmi_params *params);
 #endif
-int wma_d0_wow_disable_ack_event(void *handle, u_int8_t *event,
-				u_int32_t len);
+
 int wma_wow_wakeup_host_event(void *handle, uint8_t *event,
 				     uint32_t len);
 
@@ -1061,7 +1040,7 @@ QDF_STATUS wma_stats_ext_req(void *wma_ptr, tpStatsExtRequest preq);
 #endif
 
 QDF_STATUS wma_process_ibss_route_table_update_ind(void *wma_handle,
-						   struct sAniIbssRouteTable *pData);
+						   tAniIbssRouteTable * pData);
 
 #ifdef WLAN_FEATURE_EXTWOW_SUPPORT
 QDF_STATUS wma_enable_ext_wow(tp_wma_handle wma, tpSirExtWoWParams params);

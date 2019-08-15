@@ -121,7 +121,7 @@ void lim_send_sme_ap_channel_switch_resp(tpAniSirGlobal pMac,
  * @msg_type: msg_type
  */
 void
-lim_process_beacon_tx_success_ind(tpAniSirGlobal mac_ctx, uint16_t msg_type,
+lim_process_beacon_tx_success_ind(tpAniSirGlobal pMac, uint16_t msgType,
 				  void *event);
 
 typedef enum {

@@ -62,8 +62,7 @@ void ol_tx_setup_fastpath_ce_handles(struct hif_opaque_softc *osc,
 qdf_nbuf_t ol_tx_ll(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
 #endif
 
-qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
-			  bool notify_tx_comp);
+qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list);
 
 #ifdef CONFIG_HL_SUPPORT
 #define OL_TX_SEND ol_tx_hl
@@ -78,10 +77,10 @@ qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
 #endif
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
-void ol_tx_vdev_ll_pause_queue_send(unsigned long context);
+void ol_tx_vdev_ll_pause_queue_send(void *context);
 void ol_tx_pdev_ll_pause_queue_send_all(struct ol_txrx_pdev_t *pdev);
 #else
-static inline void ol_tx_vdev_ll_pause_queue_send(unsigned long context)
+static inline void ol_tx_vdev_ll_pause_queue_send(void *context)
 {
 }
 static inline

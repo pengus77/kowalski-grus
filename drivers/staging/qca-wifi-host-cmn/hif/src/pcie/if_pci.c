@@ -1484,7 +1484,7 @@ static void soc_wake_reset(struct hif_softc *scn)
  * allow the target to go to sleep and cancel the sleep timer.
  * otherwise reschedule the sleep timer.
  */
-static void hif_sleep_entry(unsigned long arg)
+static void hif_sleep_entry(void *arg)
 {
 	struct HIF_CE_state *hif_state = (struct HIF_CE_state *)arg;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_state);
@@ -2847,12 +2847,6 @@ int hif_pci_bus_suspend_noirq(struct hif_softc *scn)
  */
 int hif_pci_bus_resume_noirq(struct hif_softc *scn)
 {
-	int ret;
-
-	ret = __hif_check_link_status(scn);
-	if (ret)
-		return ret;
-
 	if (hif_can_suspend_link(GET_HIF_OPAQUE_HDL(scn)))
 		qdf_atomic_set(&scn->link_suspended, 0);
 

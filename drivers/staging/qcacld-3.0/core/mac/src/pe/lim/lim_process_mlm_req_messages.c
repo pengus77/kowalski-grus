@@ -625,15 +625,6 @@ static void lim_post_join_set_link_state_callback(tpAniSirGlobal mac,
 	struct session_params *session_cb_param =
 					(struct session_params *)callback_arg;
 	tLimMlmJoinCnf mlm_join_cnf;
-	tpPESession session_entry = pe_find_session_by_session_id(mac,
-					session_cb_param->session_id);
-	if (session_entry == NULL) {
-		pe_err("sessionId:%d does not exist",
-				session_cb_param->session_id);
-		qdf_mem_free(session_cb_param);
-		return;
-	}
-	qdf_mem_free(session_cb_param);
 
 	tpPESession session_entry = pe_find_session_by_session_id(mac,
 					session_cb_param->session_id);

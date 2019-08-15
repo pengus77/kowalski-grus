@@ -119,68 +119,6 @@ void ol_rx_ind_record_event(uint32_t value, enum ol_rx_ind_record_type type)
 
 #endif /* OL_RX_INDICATION_RECORD */
 
-
-#define OL_RX_INDICATION_MAX_RECORDS 2048
-
-/**
- * enum ol_rx_ind_record_type - OL rx indication events
- * @OL_RX_INDICATION_POP_START: event recorded before netbuf pop
- * @OL_RX_INDICATION_POP_END: event recorded after netbuf pop
- * @OL_RX_INDICATION_BUF_REPLENISH: event recorded after buffer replenishment
- */
-enum ol_rx_ind_record_type {
-	OL_RX_INDICATION_POP_START,
-	OL_RX_INDICATION_POP_END,
-	OL_RX_INDICATION_BUF_REPLENISH,
-};
-
-/**
- * struct ol_rx_ind_record - structure for detailing ol txrx rx ind. event
- * @value: info corresponding to rx indication event
- * @type: what the event was
- * @time: when it happened
- */
-struct ol_rx_ind_record {
-	uint16_t value;
-	enum ol_rx_ind_record_type type;
-	uint64_t time;
-};
-
-#ifdef OL_RX_INDICATION_RECORD
-static uint32_t ol_rx_ind_record_index;
-static struct ol_rx_ind_record
-	      ol_rx_indication_record_history[OL_RX_INDICATION_MAX_RECORDS];
-
-/**
- * ol_rx_ind_record_event() - record ol rx indication events
- * @value: contains rx ind. event related info
- * @type: ol rx indication message type
- *
- * This API record the ol rx indiation event in a rx indication
- * record buffer.
- *
- * Return: None
- */
-static void ol_rx_ind_record_event(uint32_t value,
-				    enum ol_rx_ind_record_type type)
-{
-	ol_rx_indication_record_history[ol_rx_ind_record_index].value = value;
-	ol_rx_indication_record_history[ol_rx_ind_record_index].type = type;
-	ol_rx_indication_record_history[ol_rx_ind_record_index].time =
-							qdf_get_log_timestamp();
-
-	ol_rx_ind_record_index++;
-	if (ol_rx_ind_record_index >= OL_RX_INDICATION_MAX_RECORDS)
-		ol_rx_ind_record_index = 0;
-}
-#else
-static inline
-void ol_rx_ind_record_event(uint32_t value, enum ol_rx_ind_record_type type)
-{
-}
-
-#endif /* OL_RX_INDICATION_RECORD */
-
 void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 			qdf_nbuf_t rx_buf_list);
 
@@ -1048,24 +986,6 @@ ol_rx_offload_deliver_ind_handler(ol_txrx_pdev_handle pdev,
 	htt_rx_msdu_buff_replenish(htt_pdev);
 }
 
-#ifdef WDI_EVENT_ENABLE
-static inline
-void ol_rx_mic_error_send_pktlog_event(struct ol_txrx_pdev_t *pdev,
-	struct ol_txrx_peer_t *peer, qdf_nbuf_t msdu, uint8_t pktlog_bit)
-{
-	ol_rx_send_pktlog_event(pdev, peer, msdu, pktlog_bit);
-}
-
-#else
-static inline
-void ol_rx_mic_error_send_pktlog_event(struct ol_txrx_pdev_t *pdev,
-	struct ol_txrx_peer_t *peer, qdf_nbuf_t msdu, uint8_t pktlog_bit)
-{
-}
-
-#endif
-
-
 void
 ol_rx_mic_error_handler(
 	ol_txrx_pdev_handle pdev,
@@ -1530,7 +1450,9 @@ void ol_rx_peer_init(struct ol_txrx_pdev_t *pdev, struct ol_txrx_peer_t *peer)
 	peer->keyinstalled = 0;
 
 	peer->last_assoc_rcvd = 0;
-	peer->last_disassoc_deauth_rcvd = 0;
+	peer->last_disassoc_rcvd = 0;
+	peer->last_deauth_rcvd = 0;
+
 	qdf_atomic_init(&peer->fw_pn_check);
 }
 
@@ -1539,7 +1461,8 @@ ol_rx_peer_cleanup(struct ol_txrx_vdev_t *vdev, struct ol_txrx_peer_t *peer)
 {
 	peer->keyinstalled = 0;
 	peer->last_assoc_rcvd = 0;
-	peer->last_disassoc_deauth_rcvd = 0;
+	peer->last_disassoc_rcvd = 0;
+	peer->last_deauth_rcvd = 0;
 	ol_rx_reorder_peer_cleanup(vdev, peer);
 }
 
@@ -1557,7 +1480,6 @@ void ol_rx_frames_free(htt_pdev_handle htt_pdev, qdf_nbuf_t frames)
 	}
 }
 
-#ifndef CONFIG_HL_SUPPORT
 void
 ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 				  qdf_nbuf_t rx_ind_msg,
@@ -1608,18 +1530,6 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 
 	ol_rx_ind_record_event(msdu_count, OL_RX_INDICATION_POP_START);
 
-	rx_ind_data = qdf_nbuf_data(rx_ind_msg);
-	msg_word = (uint32_t *)rx_ind_data;
-	/* Get the total number of MSDUs */
-	msdu_count = HTT_RX_IN_ORD_PADDR_IND_MSDU_CNT_GET(*(msg_word + 1));
-	if (cds_get_pktcap_mode_enable())
-		/* Get the flow id to check if it is for offloaded data */
-		is_pkt_capture_flow_id =
-		HTT_RX_IN_ORD_PADDR_IND_PKT_CAPTURE_MODE_IS_MONITOR_SET
-		(*(msg_word + 1));
-
-	ol_rx_ind_record_event(msdu_count, OL_RX_INDICATION_POP_START);
-
 	/*
 	 * Get a linked list of the MSDUs in the rx in order indication.
 	 * This also attaches each rx MSDU descriptor to the
@@ -1660,9 +1570,6 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 	 */
 	if (peer) {
 		vdev = peer->vdev;
-		vdev_id = vdev->vdev_id;
-	} else if (is_pkt_capture_flow_id) {
-		vdev_id = HTT_INVALID_VDEV;
 	} else {
 		ol_txrx_dbg(
 			   "%s: Couldn't find peer from ID 0x%x\n",
@@ -1687,26 +1594,8 @@ ol_rx_in_order_indication_handler(ol_txrx_pdev_handle pdev,
 		loop_msdu = qdf_nbuf_next(loop_msdu);
 	}
 
-	if (head_mon_msdu)
-		ol_txrx_mon_data_process(
-			vdev_id, head_mon_msdu,
-			PROCESS_TYPE_DATA_RX, 0, 0,
-			TXRX_PKT_FORMAT_8023);
-
-	if (is_pkt_capture_flow_id) {
-		/* The pkt is for offloaded data, drop here */
-		while (head_msdu) {
-			qdf_nbuf_t msdu = head_msdu;
-
-			head_msdu = qdf_nbuf_next(head_msdu);
-			htt_rx_desc_frame_free(htt_pdev, msdu);
-		}
-		return;
-	}
-
 	peer->rx_opt_proc(vdev, peer, tid, head_msdu);
 }
-#endif
 
 #ifndef REMOVE_PKT_LOG
 /**

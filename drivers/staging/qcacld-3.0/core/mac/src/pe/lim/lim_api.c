@@ -847,29 +847,6 @@ static QDF_STATUS lim_unregister_sap_bcn_callback(tpAniSirGlobal mac_ctx)
 	return status;
 }
 
-/*
- * pe_shutdown_notifier_cb - Shutdown notifier callback
- * @ctx: Pointer to Global MAC structure
- *
- * Return: None
- */
-static void pe_shutdown_notifier_cb(void *ctx)
-{
-	tpAniSirGlobal mac_ctx = (tpAniSirGlobal)ctx;
-	tpPESession session;
-	uint8_t i;
-
-	lim_deactivate_timers(mac_ctx);
-	for (i = 0; i < mac_ctx->lim.maxBssId; i++) {
-		session = &mac_ctx->lim.gpSession[i];
-		if (session->valid == true) {
-			if (LIM_IS_AP_ROLE(session))
-				qdf_mc_timer_stop(&session->
-						 protection_fields_reset_timer);
-		}
-	}
-}
-
 /** -------------------------------------------------------------
    \fn pe_open
    \brief will be called in Open sequence from mac_open
@@ -938,9 +915,7 @@ QDF_STATUS pe_open(tpAniSirGlobal pMac, struct cds_config_info *cds_cfg)
 
 	return status; /* status here will be QDF_STATUS_SUCCESS */
 
-pe_open_lock_2_fail:
-	qdf_mutex_destroy(&pMac->lim.lkPeGlobalLock);
-pe_open_lock_1_fail:
+pe_open_lock_fail:
 	qdf_mem_free(pMac->lim.gpSession);
 	pMac->lim.gpSession = NULL;
 pe_open_psession_fail:
@@ -960,7 +935,6 @@ pe_open_psession_fail:
 QDF_STATUS pe_close(tpAniSirGlobal pMac)
 {
 	uint8_t i;
-	qdf_list_node_t *lst_node;
 
 	if (ANI_DRIVER_TYPE(pMac) == QDF_DRIVER_TYPE_MFG)
 		return QDF_STATUS_SUCCESS;
@@ -1306,58 +1280,6 @@ static QDF_STATUS pe_handle_probe_req_frames(tpAniSirGlobal mac_ctx,
 		pe_err_rl("Failed to post probe req frame to Scan Queue");
 
 	return status;
-}
-
-/**
- * pe_drop_pending_rx_mgmt_frames: To drop pending RX mgmt frames
- * @mac_ctx: Pointer to global MAC structure
- * @hdr: Management header
- * @cds_pkt: Packet
- *
- * This function is used to drop RX pending mgmt frames if pe mgmt queue
- * reaches threshold
- *
- * Return: QDF_STATUS_SUCCESS on success or QDF_STATUS_E_FAILURE on failure
- */
-static QDF_STATUS pe_drop_pending_rx_mgmt_frames(tpAniSirGlobal mac_ctx,
-				tpSirMacMgmtHdr hdr, cds_pkt_t *cds_pkt)
-{
-	qdf_spin_lock(&mac_ctx->sys.bbt_mgmt_lock);
-	if (mac_ctx->sys.sys_bbt_pending_mgmt_count >=
-	     MGMT_RX_PACKETS_THRESHOLD) {
-		qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
-		pe_debug("No.of pending RX management frames reaches to threshold, dropping management frames");
-		cds_pkt_return_packet(cds_pkt);
-		cds_pkt = NULL;
-		mac_ctx->rx_packet_drop_counter++;
-		return QDF_STATUS_E_FAILURE;
-	} else if (mac_ctx->sys.sys_bbt_pending_mgmt_count >
-		   (MGMT_RX_PACKETS_THRESHOLD / 2)) {
-		/* drop all probereq, proberesp and beacons */
-		if (hdr->fc.subType == SIR_MAC_MGMT_BEACON ||
-		    hdr->fc.subType == SIR_MAC_MGMT_PROBE_REQ ||
-		    hdr->fc.subType == SIR_MAC_MGMT_PROBE_RSP) {
-			qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
-			if (!(mac_ctx->rx_packet_drop_counter % 100))
-				pe_debug("No.of pending RX mgmt frames reaches 1/2 thresh, dropping frame subtype: %d rx_packet_drop_counter: %d",
-					hdr->fc.subType,
-					mac_ctx->rx_packet_drop_counter);
-			mac_ctx->rx_packet_drop_counter++;
-			cds_pkt_return_packet(cds_pkt);
-			cds_pkt = NULL;
-			return QDF_STATUS_E_FAILURE;
-		}
-	}
-	mac_ctx->sys.sys_bbt_pending_mgmt_count++;
-	qdf_spin_unlock(&mac_ctx->sys.bbt_mgmt_lock);
-	if (mac_ctx->sys.sys_bbt_pending_mgmt_count ==
-	    (MGMT_RX_PACKETS_THRESHOLD / 4)) {
-		if (!(mac_ctx->rx_packet_drop_counter % 100))
-			pe_debug("No.of pending RX management frames reaches to 1/4th of threshold, rx_packet_drop_counter: %d",
-				mac_ctx->rx_packet_drop_counter);
-		mac_ctx->rx_packet_drop_counter++;
-	}
-	return QDF_STATUS_SUCCESS;
 }
 
 /* --------------------------------------------------------------------------- */
@@ -2193,14 +2115,6 @@ lim_roam_fill_bss_descr(tpAniSirGlobal pMac,
 			qdf_mem_free(parsed_frm_ptr);
 			return QDF_STATUS_E_FAILURE;
 		}
-
-		/*
-		 * For Beacons, unpack core doesnot parse beacon interval,
-		 * capabilities, timestamp. Do it here
-		 */
-		sir_parse_bcn_fixed_fields(pMac, parsed_frm_ptr,
-			&bcn_proberesp_ptr[SIR_MAC_HDR_LEN_3A]);
-
 	} else {
 		if (sir_convert_probe_frame2_struct(pMac,
 			&bcn_proberesp_ptr[SIR_MAC_HDR_LEN_3A],
@@ -2794,6 +2708,7 @@ void lim_update_lost_link_info(tpAniSirGlobal mac, tpPESession session,
 	lim_sys_process_mmh_msg_api(mac, &mmh_msg, ePROT);
 }
 
+#ifdef TRACE_RECORD
 QDF_STATUS pe_acquire_global_lock(tAniSirLim *psPe)
 {
 	QDF_STATUS status = QDF_STATUS_E_INVAL;
@@ -2806,6 +2721,7 @@ QDF_STATUS pe_acquire_global_lock(tAniSirLim *psPe)
 	}
 	return status;
 }
+#endif
 
 QDF_STATUS pe_release_global_lock(tAniSirLim *psPe)
 {
@@ -2819,7 +2735,6 @@ QDF_STATUS pe_release_global_lock(tAniSirLim *psPe)
 	}
 	return status;
 }
-#endif
 
 /**
  * lim_mon_init_session() - create PE session for monitor mode operation
@@ -2919,4 +2834,3 @@ QDF_STATUS lim_update_ext_cap_ie(tpAniSirGlobal mac_ctx,
 	(*local_ie_len) += driver_ext_cap.num_bytes;
 	return QDF_STATUS_SUCCESS;
 }
-

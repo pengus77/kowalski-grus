@@ -853,7 +853,6 @@ int ce_send_fast(struct CE_handle *copyeng, qdf_nbuf_t msdu,
 			ce_state->state = CE_PENDING;
 		hif_pm_runtime_put(hif_hdl);
 	}
-	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
 
 	qdf_spin_unlock_bh(&ce_state->ce_index_lock);
 

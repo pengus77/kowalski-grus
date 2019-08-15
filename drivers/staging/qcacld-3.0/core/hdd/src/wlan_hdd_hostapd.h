@@ -29,7 +29,6 @@
 
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
-#include <linux/ieee80211.h>
 #include <qdf_list.h>
 #include <qdf_types.h>
 #include <wlan_hdd_main.h>

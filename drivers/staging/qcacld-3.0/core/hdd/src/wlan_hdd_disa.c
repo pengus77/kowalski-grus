@@ -31,6 +31,7 @@
 
 #define WLAN_WAIT_TIME_ENCRYPT_DECRYPT 1000
 
+
 /**
  * hdd_encrypt_decrypt_msg_context - hdd encrypt/decrypt message context
  * @status: status of response. 0: no error, -ENOMEM: unable to allocate
@@ -109,7 +110,7 @@ static void hdd_encrypt_decrypt_msg_cb(void *cookie,
  * hdd_post_encrypt_decrypt_msg_rsp () - send encrypt/decrypt data to user space
  * @encrypt_decrypt_rsp_params: encrypt/decrypt response parameters
  *
- * Return: 0 on success, negative errno on failure
+ * Return: none
  */
 static int hdd_post_encrypt_decrypt_msg_rsp(struct hdd_context *hdd_ctx,
 	struct disa_encrypt_decrypt_resp_params *resp)
@@ -344,34 +345,13 @@ static void hdd_encrypt_decrypt_context_dealloc(void *priv)
 }
 
 /**
- * hdd_encrypt_decrypt_context_dealloc() - deallocate memory allocated for data
- * @priv: Pointer to private data
- *
- * Return: None
- */
-static void hdd_encrypt_decrypt_context_dealloc(void *priv)
-{
-	struct hdd_encrypt_decrypt_msg_context *context = priv;
-
-	if (context->request.data) {
-		qdf_mem_free(context->request.data);
-		context->request.data = NULL;
-	}
-
-	if (context->response.data) {
-		qdf_mem_free(context->response.data);
-		context->response.data = NULL;
-	}
-}
-
-/**
  * hdd_encrypt_decrypt_msg () - process encrypt/decrypt message
  * @adapter : adapter context
  * @hdd_ctx: hdd context
  * @data: Pointer to data
  * @data_len: Data length
  *
- * Return: 0 on success, negative errno on failure
+ Return: 0 on success, negative errno on failure
  */
 static int hdd_encrypt_decrypt_msg(struct hdd_adapter *adapter,
 				   struct hdd_context *hdd_ctx,

@@ -73,7 +73,7 @@ void ol_pdev_cfg_param_update(struct txrx_pdev_cfg_t *cfg_ctx)
 }
 #endif
 
-#if TGT_DEFAULT_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK
+#if CFG_TGT_DEFAULT_RX_SKIP_DEFRAG_TIMEOUT_DUP_DETECTION_CHECK
 static inline
 uint8_t ol_defrag_timeout_check(void)
 {
@@ -110,13 +110,13 @@ struct cdp_cfg *ol_pdev_cfg_attach(qdf_device_t osdev, void *pcfg_param)
 	cfg_ctx->rx_pn_check = 1;
 	cfg_ctx->defrag_timeout_check = ol_defrag_timeout_check();
 	cfg_ctx->max_peer_id = 511;
-	cfg_ctx->max_vdev = TGT_NUM_VDEV;
+	cfg_ctx->max_vdev = CFG_TGT_NUM_VDEV;
 	cfg_ctx->pn_rx_fwd_check = 1;
 	cfg_ctx->frame_type = wlan_frm_fmt_802_3;
 	cfg_ctx->max_thruput_mbps = MAX_THROUGHPUT;
 	cfg_ctx->max_nbuf_frags = 1;
 	cfg_ctx->vow_config = vow_config;
-	cfg_ctx->target_tx_credit = TGT_NUM_MSDU_DESC;
+	cfg_ctx->target_tx_credit = CFG_TGT_NUM_MSDU_DESC;
 	cfg_ctx->throttle_period_ms = 40;
 	cfg_ctx->dutycycle_level[0] = THROTTLE_DUTY_CYCLE_LEVEL0;
 	cfg_ctx->dutycycle_level[1] = THROTTLE_DUTY_CYCLE_LEVEL1;
@@ -348,22 +348,6 @@ void ol_set_cfg_ptp_rx_opt_enabled(struct cdp_cfg *cfg_pdev, u_int8_t val)
 u_int8_t ol_cfg_is_ptp_rx_opt_enabled(struct cdp_cfg *cfg_pdev)
 {
 	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)cfg_pdev;
-
-	return cfg->is_ptp_rx_opt_enabled;
-}
-#endif
-
-#ifdef WLAN_FEATURE_TSF_PLUS
-void ol_set_cfg_ptp_rx_opt_enabled(ol_pdev_handle pdev, u_int8_t val)
-{
-	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
-
-	cfg->is_ptp_rx_opt_enabled = val;
-}
-
-u_int8_t ol_cfg_is_ptp_rx_opt_enabled(ol_pdev_handle pdev)
-{
-	struct txrx_pdev_cfg_t *cfg = (struct txrx_pdev_cfg_t *)pdev;
 
 	return cfg->is_ptp_rx_opt_enabled;
 }

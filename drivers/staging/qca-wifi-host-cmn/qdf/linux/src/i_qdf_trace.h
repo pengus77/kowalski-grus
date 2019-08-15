@@ -71,10 +71,10 @@
 		} \
 	} while (0)
 #else
-#define QDF_TRACE(arg ...)
-#define QDF_VTRACE(arg ...)
-#define QDF_TRACE_HEX_DUMP(arg ...)
-#define __QDF_TRACE_RATE_LIMITED(arg ...)
+#define QDF_TRACE(x...) ((void)0)
+#define QDF_VTRACE(x...) ((void)0)
+#define QDF_TRACE_HEX_DUMP(x...) ((void)0)
+#define __QDF_TRACE_RATE_LIMITED(x...) ((void)0)
 #endif
 #else /* CONFIG_MCL */
 
@@ -317,12 +317,6 @@ static inline void __qdf_bug(void)
 	} while (0)
 
 #endif /* PANIC_ON_BUG */
-
-#ifdef KSYM_SYMBOL_LEN
-#define __QDF_SYMBOL_LEN KSYM_SYMBOL_LEN
-#else
-#define __QDF_SYMBOL_LEN 1
-#endif
 
 #ifdef KSYM_SYMBOL_LEN
 #define __QDF_SYMBOL_LEN KSYM_SYMBOL_LEN

@@ -1375,7 +1375,6 @@ QDF_STATUS hdd_wmm_adapter_close(struct hdd_adapter *adapter)
 
 	hdd_enter();
 
-	ENTER();
 	/* free any context records that we still have linked */
 	while (!list_empty(&adapter->hdd_wmm_status.wmmContextList)) {
 		pQosContext =

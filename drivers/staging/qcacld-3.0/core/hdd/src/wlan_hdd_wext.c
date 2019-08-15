@@ -45,7 +45,6 @@
 #include <wlan_hdd_wmm.h>
 #include "utils_api.h"
 #include "wlan_hdd_p2p.h"
-#include "wlan_hdd_request_manager.h"
 #ifdef FEATURE_WLAN_TDLS
 #include "wlan_hdd_tdls.h"
 #endif
@@ -1086,50 +1085,6 @@
  * </ioctl>
  */
 #define WE_SET_MODULATED_DTIM                 96
-
-/*
- * <ioctl>
- * wow_ito - sets the timeout value for inactivity data while
- * in power save mode during wow
- *
- * @INPUT: int1â€¦..int255
- *
- * @OUTPUT: None
- *
- * This IOCTL set the timeout value for inactivity data in power save mode
- *
- * @E.g: iwpriv wlan0 wow_ito 20
- *
- * Supported Feature: STA
- *
- * Usage: External
- *
- * </ioctl>
-*/
-#define WE_SET_WOW_DATA_INACTIVITY_TO    90
-
-
-/*
- * <ioctl>
- * setModDTIM - Change Modulated DTIM
- *
- * @INPUT: set_value.
- *
- * @OUTPUT: None
- *
- * This IOCTL is used to change modulated DTIM
- * value without WIFI OFF/ON.
- *
- * @E.g: iwpriv wlan0 setModDTIM <value>
- * iwpriv wlan0 setModDTIM 2
- *
- * Supported Feature: N/A
- *
- * Usage: External
- *
- * </ioctl>
- */
-#define WE_SET_MODULATED_DTIM                 91
 
 /* Private ioctls and their sub-ioctls */
 #define WLAN_PRIV_SET_NONE_GET_INT    (SIOCIWFIRSTPRIV + 1)
@@ -3292,9 +3247,11 @@ static QDF_STATUS hdd_wlan_get_ibss_peer_info(struct hdd_adapter *adapter,
 
 			qdf_mem_copy(mac_addr, pPeerInfo->peerInfoParams[0].
 					mac_addr, sizeof(mac_addr));
+#ifdef WLAN_DEBUG
 			hdd_debug("PEER ADDR : %pM TxRate: %d Mbps  RSSI: %d",
 				mac_addr, (int)tx_rate,
 				(int)pPeerInfo->peerInfoParams[0].rssi);
+#endif
 		}
 	} else {
 		hdd_warn("Warning: sme_request_ibss_peer_info Request failed");
@@ -4182,15 +4139,8 @@ static int __iw_setint_getnone(struct net_device *dev,
 
 	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
 	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (ret)
-		return -EINVAL;
-
-	sme_config = qdf_mem_malloc(sizeof(*sme_config));
-	if (!sme_config) {
-		hdd_err("failed to allocate memory for sme_config");
-		return -ENOMEM;
-	}
-	qdf_mem_zero(sme_config, sizeof(*sme_config));
+	if (0 != ret)
+		return ret;
 
 	ret = hdd_check_private_wext_control(hdd_ctx, info);
 	if (0 != ret)
@@ -5105,11 +5055,6 @@ static int __iw_setint_getnone(struct net_device *dev,
 			return -EINVAL;
 
 
-		if (!hHal) {
-			ret = -EINVAL;
-			goto free;
-		}
-
 		hdd_ctx->config->gEnableDebugLog = set_value;
 		sme_update_connect_debug(mac_handle, set_value);
 		break;
@@ -5235,20 +5180,8 @@ static int __iw_setint_getnone(struct net_device *dev,
 			break;
 		}
 
-		cds_set_cur_conc_system_pref(set_value);
-		break;
-	}
-	case WE_SET_MODULATED_DTIM:
-	{
-		if ((set_value < CFG_ENABLE_MODULATED_DTIM_MIN) ||
-				(set_value > CFG_ENABLE_MODULATED_DTIM_MAX)) {
-			hdd_err("Invalid gEnableModuleDTIM value %d",
-				set_value);
-			ret = -EINVAL;
-			goto free;
-		} else {
-			hdd_ctx->config->enableModulatedDTIM = set_value;
-		}
+		/* hdd_ctx, hdd_ctx->config are already checked for null */
+		hdd_ctx->config->conc_system_pref = set_value;
 		break;
 	}
 	case WE_SET_11AX_RATE:
@@ -5867,8 +5800,7 @@ static int __iw_setnone_getint(struct net_device *dev,
 		if (QDF_STATUS_SUCCESS !=
 		    sme_cfg_get_int(mac_handle, WNI_CFG_CURRENT_TX_POWER_LEVEL,
 				    &txpow2g)) {
-			ret = -EIO;
-			break;
+			return -EIO;
 		}
 		hdd_debug("2G tx_power %d", txpow2g);
 		break;
@@ -5885,8 +5817,7 @@ static int __iw_setnone_getint(struct net_device *dev,
 		if (QDF_STATUS_SUCCESS !=
 		    sme_cfg_get_int(mac_handle, WNI_CFG_CURRENT_TX_POWER_LEVEL,
 				    &txpow5g)) {
-			ret = -EIO;
-			break;
+			return -EIO;
 		}
 		hdd_debug("5G tx_power %d", txpow5g);
 		break;
@@ -6981,7 +6912,7 @@ static int iw_get_policy_manager_ut_ops(struct hdd_context *hdd_ctx,
 		if (apps_args[1] >= PM_THROUGHPUT &&
 			apps_args[1] <= PM_LATENCY) {
 			pr_info("setting system pref to [%d]\n", apps_args[1]);
-			cds_set_cur_conc_system_pref(apps_args[1]);
+			hdd_ctx->config->conc_system_pref = apps_args[1];
 		}
 	}
 	break;
@@ -7066,7 +6997,7 @@ static int iw_get_policy_manager_ut_ops(struct hdd_context *hdd_ctx,
 	}
 	break;
 
-	case WE_POLICY_MANAGER_CINFO_CMD:
+	case WE_POLICY_MANAGER_SCENARIO_CMD:
 	{
 		clean_report(hdd_ctx);
 		if (apps_args[0] == 1) {
@@ -7106,6 +7037,7 @@ static int iw_get_policy_manager_ut_ops(struct hdd_context *hdd_ctx,
 			wlan_hdd_three_connections_scenario(hdd_ctx,
 				36, 149, POLICY_MGR_ONE_ONE, 1);
 		}
+		print_report(hdd_ctx);
 	}
 	break;
 	}
@@ -8125,38 +8057,6 @@ static bool validate_packet_filter_params_size(struct pkt_filter_cfg *request,
 }
 
 /**
- * validate_packet_filter_params_size() - Validate the size of the params rcvd
- * @priv_data: Pointer to the priv data from user space
- * @request: Pointer to the struct containing the copied data from user space
- *
- * Return: False on invalid length, true otherwise
- */
-static bool validate_packet_filter_params_size(struct pkt_filter_cfg *request,
-						uint16_t length)
-{
-	int max_params_size, rcvd_params_size;
-
-	max_params_size = HDD_MAX_CMP_PER_PACKET_FILTER *
-					sizeof(struct pkt_filter_param_cfg);
-
-	if (length < sizeof(struct pkt_filter_cfg) - max_params_size) {
-		hdd_err("Less than minimum number of arguments needed");
-		return false;
-	}
-
-	rcvd_params_size = request->num_params *
-					sizeof(struct pkt_filter_param_cfg);
-
-	if (length != sizeof(struct pkt_filter_cfg) -
-					max_params_size + rcvd_params_size) {
-		hdd_err("Arguments do not match the number of params provided");
-		return false;
-	}
-
-	return true;
-}
-
-/**
  * __iw_set_packet_filter_params() - set packet filter parameters in target
  * @dev: Pointer to netdev
  * @info: Pointer to iw request info
@@ -8988,69 +8888,6 @@ void hdd_set_dump_dp_trace(uint16_t cmd_type, uint16_t count)
 }
 #endif
 
-static int printk_adapter(void *priv, const char *fmt, ...)
-{
-	int ret;
-	va_list args;
-
-	va_start(args, fmt);
-	ret = vprintk(fmt, args);
-	ret += printk("\n");
-	va_end(args);
-
-	return ret;
-}
-
-#ifdef WMI_INTERFACE_EVENT_LOGGING
-static void hdd_ioctl_log_buffer(int log_id, uint32_t count)
-{
-	qdf_abstract_print *print = &printk_adapter;
-
-	switch (log_id) {
-	case HTC_CREDIT_HISTORY_LOG:
-		print(NULL, "HTC Credit History (count %u)", count);
-		cds_print_htc_credit_history(count, print, NULL);
-		break;
-	case COMMAND_LOG:
-		print(NULL, "Command Log (count %u)", count);
-		wma_print_wmi_cmd_log(count, print, NULL);
-		break;
-	case COMMAND_TX_CMP_LOG:
-		print(NULL, "Command Tx Complete Log (count %u)", count);
-		wma_print_wmi_cmd_tx_cmp_log(count, print, NULL);
-		break;
-	case MGMT_COMMAND_LOG:
-		print(NULL, "Management Command Log (count %u)", count);
-		wma_print_wmi_mgmt_cmd_log(count, print, NULL);
-		break;
-	case MGMT_COMMAND_TX_CMP_LOG:
-		print(NULL, "Management Command Tx Complete Log (count %u)",
-		      count);
-		wma_print_wmi_mgmt_cmd_tx_cmp_log(count, print, NULL);
-		break;
-	case EVENT_LOG:
-		print(NULL, "Event Log (count %u)", count);
-		wma_print_wmi_event_log(count, print, NULL);
-		break;
-	case RX_EVENT_LOG:
-		print(NULL, "Rx Event Log (count %u)", count);
-		wma_print_wmi_rx_event_log(count, print, NULL);
-		break;
-	case MGMT_EVENT_LOG:
-		print(NULL, "Management Event Log (count %u)", count);
-		wma_print_wmi_mgmt_event_log(count, print, NULL);
-		break;
-	default:
-		print(NULL, "Invalid Log Id %d", log_id);
-		break;
-	}
-}
-#else
-static inline void hdd_ioctl_log_buffer(int log_id, uint32_t count)
-{
-}
-#endif /* WMI_INTERFACE_EVENT_LOGGING */
-
 static int __iw_set_two_ints_getnone(struct net_device *dev,
 				     struct iw_request_info *info,
 				     union iwreq_data *wrqu, char *extra)
@@ -9140,11 +8977,6 @@ static int __iw_set_two_ints_getnone(struct net_device *dev,
 						 value[1], value[2]);
 		break;
 	case WE_SET_WLAN_RESUME:
-		if (!hdd_ctx->config->is_unit_test_framework_enabled) {
-			hdd_warn_ratelimited(HDD_UT_SUSPEND_RESUME_LOG_RL,
-					     "UT resume is disabled");
-			return 0;
-		}
 		ret = hdd_wlan_fake_apps_resume(hdd_ctx->wiphy, dev);
 		break;
 	case WE_LOG_BUFFER: {
@@ -9672,6 +9504,10 @@ static const struct iw_priv_args we_private_args[] = {
 	 0,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
 	 "getMaxAssoc"},
+
+	{WE_GET_SAP_AUTO_CHANNEL_SELECTION,
+		0, IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
+		"getAutoChannel" },
 
 	{WE_GET_CONCURRENCY_MODE,
 	 0,
@@ -10302,10 +10138,6 @@ static const struct iw_priv_args we_private_args[] = {
 	{WE_SET_FW_CRASH_INJECT,
 	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2,
 	 0, "crash_inject"}
-	,
-	{WE_LOG_BUFFER,
-	 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 2,
-	 0, "log_buffer"}
 	,
 #endif
 #if defined(WMI_INTERFACE_EVENT_LOGGING) || defined(FEATURE_HTC_CREDIT_HISTORY)

@@ -330,7 +330,6 @@ struct sme_qos_cb_s {
 	/* counter for assigning Dialog Tokens */
 	uint8_t nextDialogToken;
 } sme_qos_cb;
-
 typedef QDF_STATUS (*sme_QosProcessSearchEntry)(tpAniSirGlobal pMac,
 						tListElem *pEntry);
 
@@ -2783,12 +2782,6 @@ static enum sme_qos_statustype sme_qos_setup(tpAniSirGlobal pMac,
 					status = SME_QOS_STATUS_SETUP_REQ_PENDING_RSP;
 					pACInfo->reassoc_pending = true;
 				}
-				QDF_TRACE(QDF_MODULE_ID_SME,
-					QDF_TRACE_LEVEL_DEBUG,
-					"%s: %d: On session %d reassociation to enable APSD on AC %d is pending",
-					 __func__, __LINE__, sessionId, ac);
-				status = SME_QOS_STATUS_SETUP_REQ_PENDING_RSP;
-				pACInfo->reassoc_pending = true;
 			} else {
 				/* we don't need APSD on this AC and we don't
 				 * currently have APSD on this AC
@@ -2853,11 +2846,6 @@ static enum sme_qos_statustype sme_qos_setup(tpAniSirGlobal pMac,
 				pACInfo->reassoc_pending = true;
 			}
 		}
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			"On session %d reassociation to enable APSD on AC %d is pending",
-			sessionId, ac);
-		status = SME_QOS_STATUS_SETUP_REQ_PENDING_RSP;
-		pACInfo->reassoc_pending = true;
 	} while (0);
 
 	qdf_mem_free(pIes);
@@ -3486,13 +3474,13 @@ static QDF_STATUS sme_qos_ft_aggr_qos_req(tpAniSirGlobal mac_ctx, uint8_t
 		}
 	}
 
-	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+	QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO,
 		  FL("Sending aggregated message to HAL 0x%x"),
 		  aggr_req->aggrInfo.tspecIdx);
 
 	if (QDF_IS_STATUS_SUCCESS(umac_send_mb_message_to_mac(aggr_req))) {
 		status = QDF_STATUS_SUCCESS;
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO_HIGH,
 			  FL("sent down a AGGR QoS req to PE"));
 	}
 
@@ -3929,9 +3917,9 @@ static QDF_STATUS sme_qos_add_ts_req(tpAniSirGlobal pMac,
 	pMsg->req.tspec.tsinfo.traffic.direction =
 		pTspec_Info->ts_info.direction;
 	/* Make sure UAPSD is allowed */
-	if (pTspec_Info->ts_info.psb)
+	if (pTspec_Info->ts_info.psb) {
 		pMsg->req.tspec.tsinfo.traffic.psb = pTspec_Info->ts_info.psb;
-	else {
+	} else {
 		pMsg->req.tspec.tsinfo.traffic.psb = 0;
 		pTspec_Info->ts_info.psb = 0;
 	}
@@ -4366,9 +4354,9 @@ static QDF_STATUS sme_qos_process_reassoc_req_ev(tpAniSirGlobal pMac, uint8_t
 	pSession = &sme_qos_cb.sessionInfo[sessionId];
 
 	if (pSession->ftHandoffInProgress) {
-		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
-			  "%s: %d: no need for state transition, should already be in handoff state",
-			__func__, __LINE__);
+		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_INFO_HIGH,
+			  "%s: %d: no need for state transition, should "
+			  "already be in handoff state", __func__, __LINE__);
 		if ((pSession->ac_info[0].curr_state != SME_QOS_HANDOFF) ||
 		    (pSession->ac_info[1].curr_state != SME_QOS_HANDOFF) ||
 		    (pSession->ac_info[2].curr_state != SME_QOS_HANDOFF) ||

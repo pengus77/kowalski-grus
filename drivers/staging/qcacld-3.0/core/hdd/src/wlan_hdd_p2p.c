@@ -226,14 +226,6 @@ static int __wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	hdd_enter();
 
-	if (len < mgmt_hdr_len + 1) {
-		hdd_err("Invalid Length");
-		return -EINVAL;
-	}
-
-	type = WLAN_HDD_GET_TYPE_FRM_FC(buf[0]);
-	subType = WLAN_HDD_GET_SUBTYPE_FRM_FC(buf[0]);
-
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
 		hdd_err("Command not allowed in FTM mode");
 		return -EINVAL;
@@ -311,31 +303,6 @@ int wlan_hdd_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	cds_ssr_unprotect(__func__);
 
 	return ret;
-}
-
-/**
- * hdd_wlan_delete_mgmt_tx_cookie() - Wrapper to delete action frame cookie
- * @wdev: Pointer to wireless device
- * @cookie: Cookie to be deleted
- *
- * This is a wrapper function which actually invokes the hdd api to delete
- * cookie based on the device mode of adapter.
- *
- * Return: 0 - for success else negative value
- */
-static int hdd_wlan_delete_mgmt_tx_cookie(struct wireless_dev *wdev,
-				   u64 cookie)
-{
-	struct net_device *dev = wdev->netdev;
-	hdd_adapter_t *adapter = WLAN_HDD_GET_PRIV_PTR(dev);
-
-	if ((adapter->device_mode == QDF_STA_MODE) ||
-	    (adapter->device_mode == QDF_P2P_CLIENT_MODE) ||
-	    (adapter->device_mode == QDF_P2P_DEVICE_MODE)) {
-		hdd_delete_action_frame_cookie(adapter, cookie);
-	}
-
-	return 0;
 }
 
 static int __wlan_hdd_cfg80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
@@ -1005,7 +972,6 @@ void __hdd_indicate_mgmt_frame(struct hdd_adapter *adapter,
 			}
 		}
 	}
-	mutex_unlock(&cfg_state->remain_on_chan_ctx_lock);
 
 	if (NULL == adapter->dev) {
 		hdd_err("adapter->dev is NULL");
@@ -1035,25 +1001,6 @@ void __hdd_indicate_mgmt_frame(struct hdd_adapter *adapter,
 	hdd_debug("Indicate Frame over NL80211 sessionid : %d, idx :%d",
 		   adapter->session_id, adapter->dev->ifindex);
 
-done:
-	return true;
-}
-
-static uint16_t get_rx_frame_freq_from_chan(uint32_t rx_chan)
-{
-	if (rx_chan <= MAX_NO_OF_2_4_CHANNELS)
-		return ieee80211_channel_to_frequency(rx_chan,
-						      HDD_NL80211_BAND_2GHZ);
-
-	return ieee80211_channel_to_frequency(rx_chan,
-						HDD_NL80211_BAND_5GHZ);
-}
-
-static void indicate_rx_mgmt_over_nl80211(hdd_adapter_t *adapter,
-					  uint32_t frm_len,
-					  uint8_t *pb_frames, uint16_t freq,
-					  int8_t rx_rssi)
-{
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
 	cfg80211_rx_mgmt(adapter->dev->ieee80211_ptr,
 		 freq, rxRssi * 100, pb_frames,

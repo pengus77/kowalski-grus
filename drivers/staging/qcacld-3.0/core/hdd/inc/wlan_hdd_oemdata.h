@@ -198,16 +198,6 @@ int oem_activate_service(struct hdd_context *hdd_ctx);
  */
 int oem_deactivate_service(void);
 
-/**
- * oem_deactivate_service() - API to unregister the oem command handler
- *
- * This API is used to deregister the handler to receive netlink message
- * from an OEM application process
- *
- * Return: 0
- */
-int oem_deactivate_service(void);
-
 void hdd_send_oem_data_rsp_msg(struct oem_data_rsp *oem_rsp);
 void hdd_update_channel_bw_info(struct hdd_context *hdd_ctx,
 				uint16_t chan,

@@ -84,7 +84,6 @@ QDF_STATUS hif_post_recv_buffers_for_pipe(struct HIF_CE_pipe_info *pipe_info);
 
 QDF_STATUS hif_post_recv_buffers(struct hif_softc *scn);
 static void hif_config_rri_on_ddr(struct hif_softc *scn);
-static void hif_clear_rri_on_ddr(struct hif_softc *scn);
 
 /**
  * hif_target_access_log_dump() - dump access log
@@ -133,7 +132,7 @@ void hif_trigger_dump(struct hif_opaque_softc *hif_ctx,
 	}
 }
 
-static void ce_poll_timeout(unsigned long arg)
+static void ce_poll_timeout(void *arg)
 {
 	struct CE_state *CE_state = (struct CE_state *)arg;
 
@@ -1386,9 +1385,6 @@ struct CE_handle *ce_init(struct hif_softc *scn,
 	qdf_create_work(scn->qdf_dev, &CE_state->oom_allocation_work,
 			ce_oom_recovery, CE_state);
 
-	qdf_create_work(scn->qdf_dev, &CE_state->oom_allocation_work,
-			ce_oom_recovery, CE_state);
-
 	/* update the htt_data attribute */
 	ce_mark_datapath(CE_state);
 	scn->ce_id_to_state[CE_id] = CE_state;
@@ -2600,52 +2596,6 @@ void hif_ce_prepare_config(struct hif_softc *scn)
 		hif_state->target_ce_config = target_ce_config_wlan;
 		hif_state->target_ce_config_sz = sizeof(target_ce_config_wlan);
 		break;
-	case TARGET_TYPE_AR6320V1:
-	case TARGET_TYPE_AR6320V2:
-	case TARGET_TYPE_AR6320V3:
-		if (QDF_IS_EPPING_ENABLED(mode)) {
-			if (CE_EPPING_USES_IRQ)
-				host_ce_config = host_ce_cfg_ar6320_epping_irq;
-			else
-				host_ce_config =
-					host_ce_cfg_ar6320_epping_poll;
-			target_ce_config = target_ce_cfg_ar6320_epping;
-			target_ce_config_sz =
-				sizeof(target_ce_cfg_ar6320_epping);
-			target_service_to_ce_map =
-				target_service_to_ce_map_wlan_epping;
-			target_service_to_ce_map_sz =
-				sizeof(target_service_to_ce_map_wlan_epping);
-			target_shadow_reg_cfg = target_shadow_reg_cfg_epping;
-			shadow_cfg_sz = sizeof(target_shadow_reg_cfg_epping);
-		} else {
-			host_ce_config = host_ce_cfg_ar6320;
-			target_ce_config = target_ce_cfg_ar6320;
-			target_ce_config_sz = sizeof(target_ce_cfg_ar6320);
-		}
-		break;
-	case TARGET_TYPE_ADRASTEA:
-		if (QDF_IS_EPPING_ENABLED(mode)) {
-			if (CE_EPPING_USES_IRQ)
-				host_ce_config = host_ce_cfg_wcn3990_epping_irq;
-			else
-				host_ce_config =
-					host_ce_cfg_wcn3990_epping_poll;
-			target_ce_config = target_ce_cfg_wcn3990_epping;
-			target_ce_config_sz =
-					sizeof(target_ce_cfg_wcn3990_epping);
-			target_service_to_ce_map =
-				target_service_to_ce_map_wlan_epping;
-			target_service_to_ce_map_sz =
-				sizeof(target_service_to_ce_map_wlan_epping);
-			target_shadow_reg_cfg = target_shadow_reg_cfg_epping;
-			shadow_cfg_sz = sizeof(target_shadow_reg_cfg_epping);
-		} else {
-			host_ce_config = host_ce_cfg_wcn3990;
-			target_ce_config = target_ce_cfg_wcn3990;
-			target_ce_config_sz = sizeof(target_ce_cfg_wcn3990);
-		}
-		break;
 	case TARGET_TYPE_AR900B:
 	case TARGET_TYPE_QCA9984:
 	case TARGET_TYPE_IPQ4019:
@@ -2922,7 +2872,6 @@ int hif_config_ce(struct hif_softc *scn)
 	HIF_DBG("%s: ce_init done", __func__);
 
 	init_tasklet_workers(hif_hdl);
-	hif_fake_apps_init_ctx(scn);
 
 	HIF_DBG("%s: X, ret = %d", __func__, rv);
 
@@ -3158,12 +3107,12 @@ void *hif_ce_get_lro_ctx(struct hif_opaque_softc *hif_hdl, int ctx_id)
 {
 	struct CE_state *ce_state;
 	struct hif_softc *scn = HIF_GET_SOFTC(hif_hdl);
-	void *data = NULL;
 
 	ce_state = scn->ce_id_to_state[ctx_id];
 
 	return ce_state->lro_data;
 }
+#endif
 
 /**
  * hif_map_service_to_pipe() - returns  the ce ids pertaining to

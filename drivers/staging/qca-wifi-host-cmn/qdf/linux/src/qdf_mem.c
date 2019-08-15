@@ -48,43 +48,6 @@
 #include <net/cnss_prealloc.h>
 #endif
 
-/* Preprocessor Definitions and Constants */
-#define QDF_MEM_MAX_MALLOC (1024 * 1024) /* 1MiB */
-#define QDF_MEM_WARN_THRESHOLD 300 /* ms */
-#define QDF_DEBUG_STRING_SIZE 512
-
-static enum qdf_mem_domain qdf_mem_current_domain = QDF_MEM_DOMAIN_INIT;
-
-enum qdf_mem_domain qdf_mem_get_domain(void)
-{
-	return qdf_mem_current_domain;
-}
-
-void qdf_mem_set_domain(enum qdf_mem_domain domain)
-{
-	QDF_BUG(domain >= QDF_MEM_DOMAIN_INIT);
-	if (domain < QDF_MEM_DOMAIN_INIT)
-		return;
-
-	QDF_BUG(domain < QDF_MEM_DOMAIN_MAX_COUNT);
-	if (domain >= QDF_MEM_DOMAIN_MAX_COUNT)
-		return;
-
-	qdf_mem_current_domain = domain;
-}
-
-const uint8_t *qdf_mem_domain_name(enum qdf_mem_domain domain)
-{
-	switch (domain) {
-	case QDF_MEM_DOMAIN_INIT:
-		return "Init";
-	case QDF_MEM_DOMAIN_ACTIVE:
-		return "Active";
-	default:
-		return "Invalid";
-	}
-}
-
 #ifdef MEMORY_DEBUG
 #include "qdf_debug_domain.h"
 #include <qdf_list.h>

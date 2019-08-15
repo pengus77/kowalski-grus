@@ -74,23 +74,6 @@ qdf_nbuf_t ol_tx_data(void *data_vdev, qdf_nbuf_t skb);
 void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 			qdf_nbuf_t rx_buf_list);
 
-/**
- * ol_txrx_mon_data_process(): process data tx and rx packets
- * for pkt capture mode. (normal tx/rx + offloaded tx/rx)
- * @vdev_id: vdev id for which packet is captured
- * @mon_buf_list: netbuf list
- * @type: data process type
- * @tid:  tid number
- * @status: Tx status
- * @pktformat: Frame format
- *
- * Return: none
- */
-void ol_txrx_mon_data_process(uint8_t vdev_id,
-			      qdf_nbuf_t mon_buf_list,
-			      enum mon_data_process_type type,
-			      uint8_t tid, uint8_t status, bool pktformat);
-
 void ol_txrx_flush_rx_frames(struct ol_txrx_peer_t *peer,
 			     bool drop);
 #endif /* _OL_TXRX_OSIF_API__H_ */

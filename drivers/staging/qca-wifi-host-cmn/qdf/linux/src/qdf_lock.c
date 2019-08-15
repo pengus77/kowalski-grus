@@ -26,7 +26,6 @@
 #ifdef CONFIG_MCL
 #include <cds_api.h>
 #include <hif.h>
-#include <cds_api.h>
 #endif
 #include <i_qdf_lock.h>
 

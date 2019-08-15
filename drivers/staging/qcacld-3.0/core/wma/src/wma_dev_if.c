@@ -659,7 +659,6 @@ static QDF_STATUS wma_handle_vdev_detach(tp_wma_handle wma_handle,
 				    wmi_service_sync_delete_cmds))
 		wma_vdev_detach_callback(iface);
 	return status;
-
 out:
 	WMA_LOGE("Call txrx detach callback for vdev %d, generate_rsp %u",
 		vdev_id, generate_rsp);
@@ -914,9 +913,6 @@ static void wma_vdev_start_rsp(tp_wma_handle wma,
 			       resp_event)
 {
 	struct beacon_info *bcn;
-	ol_txrx_pdev_handle pdev;
-	ol_txrx_peer_handle peer = NULL;
-	uint8_t peer_id;
 
 #ifdef QCA_IBSS_SUPPORT
 	WMA_LOGD("%s: vdev start response received for %s mode", __func__,
@@ -1040,56 +1036,6 @@ static void wma_find_mcc_ap(tp_wma_handle wma, uint8_t vdev_id, bool add)
 	wma_send_msg(wma, WMA_UPDATE_Q2Q_IE_IND, (void *)ap_vdev_ids, result);
 }
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
-
-static const wmi_channel_width mode_to_width[MODE_MAX] = {
-	[MODE_11A]           = WMI_CHAN_WIDTH_20,
-	[MODE_11G]           = WMI_CHAN_WIDTH_20,
-	[MODE_11B]           = WMI_CHAN_WIDTH_20,
-	[MODE_11GONLY]       = WMI_CHAN_WIDTH_20,
-	[MODE_11NA_HT20]     = WMI_CHAN_WIDTH_20,
-	[MODE_11NG_HT20]     = WMI_CHAN_WIDTH_20,
-	[MODE_11AC_VHT20]    = WMI_CHAN_WIDTH_20,
-	[MODE_11AC_VHT20_2G] = WMI_CHAN_WIDTH_20,
-	[MODE_11NA_HT40]     = WMI_CHAN_WIDTH_40,
-	[MODE_11NG_HT40]     = WMI_CHAN_WIDTH_40,
-	[MODE_11AC_VHT40]    = WMI_CHAN_WIDTH_40,
-	[MODE_11AC_VHT40_2G] = WMI_CHAN_WIDTH_40,
-	[MODE_11AC_VHT80]    = WMI_CHAN_WIDTH_80,
-	[MODE_11AC_VHT80_2G] = WMI_CHAN_WIDTH_80,
-#if CONFIG_160MHZ_SUPPORT
-	[MODE_11AC_VHT80_80] = WMI_CHAN_WIDTH_80P80,
-	[MODE_11AC_VHT160]   = WMI_CHAN_WIDTH_160,
-#endif
-
-#if SUPPORT_11AX
-	[MODE_11AX_HE20]     = WMI_CHAN_WIDTH_20,
-	[MODE_11AX_HE40]     = WMI_CHAN_WIDTH_40,
-	[MODE_11AX_HE80]     = WMI_CHAN_WIDTH_80,
-	[MODE_11AX_HE80_80]  = WMI_CHAN_WIDTH_80P80,
-	[MODE_11AX_HE160]    = WMI_CHAN_WIDTH_160,
-	[MODE_11AX_HE20_2G]  = WMI_CHAN_WIDTH_20,
-	[MODE_11AX_HE40_2G]  = WMI_CHAN_WIDTH_40,
-	[MODE_11AX_HE80_2G]  = WMI_CHAN_WIDTH_80,
-#endif
-};
-
-/**
- * chanmode_to_chanwidth() - get channel width through channel mode
- * @chanmode:   channel phy mode
- *
- * Return: channel width
- */
-wmi_channel_width chanmode_to_chanwidth(WLAN_PHY_MODE chanmode)
-{
-	wmi_channel_width chan_width;
-
-	if (chanmode >= MODE_11A && chanmode < MODE_MAX)
-		chan_width = mode_to_width[chanmode];
-	else
-		chan_width = WMI_CHAN_WIDTH_20;
-
-	return chan_width;
-}
 
 /**
  * wma_vdev_start_resp_handler() - vdev start response handler
@@ -1242,15 +1188,6 @@ int wma_vdev_start_resp_handler(void *handle, uint8_t *cmd_param_info,
 
 		WMA_LOGD("%s: Send channel switch resp vdev %d status %d",
 			 __func__, resp_event->vdev_id, resp_event->status);
-
-		if (QDF_IS_STATUS_ERROR(resp_event->status)) {
-			wma_cli_set_command(resp_event->vdev_id,
-				(int)WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM, 0,
-				VDEV_CMD);
-			WMA_LOGD("vdev: %d WMI_VDEV_PARAM_ABG_MODE_TX_CHAIN_NUM 0",
-				resp_event->vdev_id);
-		}
-
 		params->chainMask = resp_event->chain_mask;
 		if ((2 != resp_event->cfgd_rx_streams) ||
 			(2 != resp_event->cfgd_tx_streams)) {
@@ -1908,9 +1845,6 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 	WMA_LOGD("%s: Created peer %pK with peer_addr %pM vdev_id %d, peer_count - %d",
 		  __func__, peer, peer_addr, vdev_id,
 		  wma->interfaces[vdev_id].peer_count);
-	wma_peer_debug_log(vdev_id, DEBUG_PEER_CREATE_SEND,
-			   DEBUG_INVALID_PEER_ID, peer_addr, peer, 0,
-			   qdf_atomic_read(&peer->ref_cnt));
 
 	wlan_roam_debug_log(vdev_id, DEBUG_PEER_CREATE_SEND,
 			    DEBUG_INVALID_PEER_ID, peer_addr, peer, 0, 0);
@@ -1936,9 +1870,9 @@ QDF_STATUS wma_create_peer(tp_wma_handle wma, struct cdp_pdev *pdev,
 		key_info.smesessionId = vdev_id;
 		qdf_mem_copy(key_info.peer_macaddr.bytes, peer_addr,
 				IEEE80211_ADDR_LEN);
-		key_info->sendRsp = false;
+		key_info.sendRsp = false;
 
-		wma_set_stakey(wma, key_info);
+		wma_set_stakey(wma, &key_info);
 	}
 
 	return QDF_STATUS_SUCCESS;
@@ -2233,12 +2167,15 @@ static void wma_clear_iface_key(struct wma_txrx_node *iface)
 #endif
 
 /**
- * wma_cleanup_target_req_param() - free param memory of target request
- * @tgt_req: target request params
+ * wma_vdev_stop_resp_handler() - vdev stop response handler
+ * @handle: wma handle
+ * @cmd_param_info: event buffer
+ * @len: buffer length
  *
- * Return: none
+ * Return: 0 for success or error code
  */
-static void wma_cleanup_target_req_param(struct wma_target_req *tgt_req)
+int wma_vdev_stop_resp_handler(void *handle, uint8_t *cmd_param_info,
+			       u32 len)
 {
 	tp_wma_handle wma = (tp_wma_handle) handle;
 	WMI_VDEV_STOPPED_EVENTID_param_tlvs *param_buf;
@@ -2566,26 +2503,6 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 	tx_sw_retry_threshold.vdev_id = self_sta_req->session_id;
 
 
-	tx_rx_aggregation_size.tx_aggregation_size_be =
-				self_sta_req->tx_aggregation_size_be;
-	tx_rx_aggregation_size.tx_aggregation_size_bk =
-				self_sta_req->tx_aggregation_size_bk;
-	tx_rx_aggregation_size.tx_aggregation_size_vi =
-				self_sta_req->tx_aggregation_size_vi;
-	tx_rx_aggregation_size.tx_aggregation_size_vo =
-				self_sta_req->tx_aggregation_size_vo;
-
-	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_be =
-				self_sta_req->tx_aggr_sw_retry_threshold_be;
-	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_bk =
-				self_sta_req->tx_aggr_sw_retry_threshold_bk;
-	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_vi =
-				self_sta_req->tx_aggr_sw_retry_threshold_vi;
-	tx_aggr_sw_retry_threshold.tx_aggr_sw_retry_threshold_vo =
-				self_sta_req->tx_aggr_sw_retry_threshold_vo;
-	tx_aggr_sw_retry_threshold.vdev_id = self_sta_req->session_id;
-
-
 	switch (self_sta_req->type) {
 	case WMI_VDEV_TYPE_STA:
 		ret = wma_set_tx_rx_aggregation_size_per_ac(
@@ -2804,13 +2721,6 @@ struct cdp_vdev *wma_vdev_attach(tp_wma_handle wma_handle,
 			WMA_LOGE("Failed to configure active APF mode");
 	}
 
-	if (self_sta_req->type == WMI_VDEV_TYPE_STA) {
-		status = wma_config_active_apf_mode(wma_handle,
-						    self_sta_req->session_id);
-		if (QDF_IS_STATUS_ERROR(status))
-			WMA_LOGE("Failed to configure active APF mode");
-	}
-
 end:
 	self_sta_req->status = status;
 
@@ -2979,9 +2889,9 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	intr[params.vdev_id].ht_capable = req->ht_capable;
 	intr[params.vdev_id].vht_capable = req->vht_capable;
 	intr[params.vdev_id].config.gtx_info.gtxRTMask[0] =
-		TGT_DEFAULT_GTX_HT_MASK;
+		CFG_TGT_DEFAULT_GTX_HT_MASK;
 	intr[params.vdev_id].config.gtx_info.gtxRTMask[1] =
-		TGT_DEFAULT_GTX_VHT_MASK;
+		CFG_TGT_DEFAULT_GTX_VHT_MASK;
 
 	if (wlan_cfg_get_int(mac_ctx, WNI_CFG_TGT_GTX_USR_CFG,
 			     &intr[params.vdev_id].config.gtx_info.gtxUsrcfg)
@@ -2993,15 +2903,15 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	}
 
 	intr[params.vdev_id].config.gtx_info.gtxPERThreshold =
-		TGT_DEFAULT_GTX_PER_THRESHOLD;
+		CFG_TGT_DEFAULT_GTX_PER_THRESHOLD;
 	intr[params.vdev_id].config.gtx_info.gtxPERMargin =
-		TGT_DEFAULT_GTX_PER_MARGIN;
+		CFG_TGT_DEFAULT_GTX_PER_MARGIN;
 	intr[params.vdev_id].config.gtx_info.gtxTPCstep =
-		TGT_DEFAULT_GTX_TPC_STEP;
+		CFG_TGT_DEFAULT_GTX_TPC_STEP;
 	intr[params.vdev_id].config.gtx_info.gtxTPCMin =
-		TGT_DEFAULT_GTX_TPC_MIN;
+		CFG_TGT_DEFAULT_GTX_TPC_MIN;
 	intr[params.vdev_id].config.gtx_info.gtxBWMask =
-		TGT_DEFAULT_GTX_BW_MASK;
+		CFG_TGT_DEFAULT_GTX_BW_MASK;
 	intr[params.vdev_id].mhz = params.chan_freq;
 	intr[params.vdev_id].chan_width = ch_width;
 	intr[params.vdev_id].channel = req->chan;
@@ -3019,12 +2929,16 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 	else if (req->is_quarter_rate)
 		temp_chan_info |=  (1 << WMI_CHAN_FLAG_QUARTER_RATE);
 
-	/* Config channel information in dfs_ic, the channel information
-	 * is needed when processing spectral scan results
+	/*
+	 * If the channel has DFS set, flip on radar reporting.
+	 *
+	 * It may be that this should only be done for IBSS/hostap operation
+	 * as this flag may be interpreted (at some point in the future)
+	 * by the firmware as "oh, and please do radar DETECTION."
+	 *
+	 * If that is ever the case we would insert the decision whether to
+	 * enable the firmware flag here.
 	 */
-	wma_dfs_configure_channel(wma->dfs_ic,
-				params.band_center_freq1,
-				params.band_center_freq2, req);
 
 	params.is_dfs = req->is_dfs;
 	params.is_restart = isRestart;
@@ -3084,13 +2998,7 @@ QDF_STATUS wma_vdev_start(tp_wma_handle wma,
 		params.pmf_enabled = req->pmf_enabled;
 		if (req->pmf_enabled)
 			temp_flags |= WMI_UNIFIED_VDEV_START_PMF_ENABLED;
-
-		if (req->ldpc_rx_enabled)
-			temp_flags |= WMI_UNIFIED_VDEV_START_LDPC_RX_ENABLED;
 	}
-	params.hidden_ssid = req->hidden_ssid;
-	if (req->hidden_ssid)
-		temp_flags |= WMI_UNIFIED_VDEV_START_HIDDEN_SSID;
 
 	params.hidden_ssid = req->hidden_ssid;
 	if (req->hidden_ssid)
@@ -3643,26 +3551,6 @@ void wma_remove_req(tp_wma_handle wma, uint8_t vdev_id,
 }
 
 /**
- * wma_set_packet_capture_mode() - set packet capture mode
- * @wma: wma handle
- * @vdev_id: vdev id
- * @val: mode to set
- *
- * Return: 0 on success, errno on failure
- */
-int wma_set_packet_capture_mode(tp_wma_handle wma_handle,
-				uint8_t vdev_id,
-				uint8_t val)
-{
-	int ret;
-
-	ret = wma_cli_set_command(vdev_id,
-				  WMI_VDEV_PARAM_PACKET_CAPTURE_MODE,
-				  val, VDEV_CMD);
-	return ret;
-}
-
-/**
  * wma_vdev_resp_timer() - wma response timeout function
  * @data: target request params
  *
@@ -3718,12 +3606,10 @@ void wma_vdev_resp_timer(void *data)
 	}
 #endif /* FEATURE_AP_MCC_CH_AVOIDANCE */
 
-	iface = &wma->interfaces[tgt_req->vdev_id];
 	if (tgt_req->msg_type == WMA_CHNL_SWITCH_REQ) {
 		tpSwitchChannelParams params =
 			(tpSwitchChannelParams) tgt_req->user_data;
 		params->status = QDF_STATUS_E_TIMEOUT;
-
 		WMA_LOGA("%s: WMA_SWITCH_CHANNEL_REQ timedout", __func__);
 
 		/*
@@ -4081,33 +3967,6 @@ static inline void wma_set_mgmt_frame_protection(tp_wma_handle wma)
 }
 #endif /* WLAN_FEATURE_11W */
 
-#ifdef WLAN_FEATURE_11W
-static void wma_set_mgmt_frame_protection(tp_wma_handle wma)
-{
-	struct pdev_params param = {0};
-	QDF_STATUS ret;
-
-	/*
-	 * when 802.11w PMF is enabled for hw encr/decr
-	 * use hw MFP Qos bits 0x10
-	 */
-	param.param_id = WMI_PDEV_PARAM_PMF_QOS;
-	param.param_value = true;
-	ret = wmi_unified_pdev_param_send(wma->wmi_handle,
-					 &param, WMA_WILDCARD_PDEV_ID);
-	if (QDF_IS_STATUS_ERROR(ret)) {
-		WMA_LOGE("%s: Failed to set QOS MFP/PMF (%d)",
-			 __func__, ret);
-	} else {
-		WMA_LOGD("%s: QOS MFP/PMF set", __func__);
-	}
-}
-#else
-static inline void wma_set_mgmt_frame_protection(tp_wma_handle wma)
-{
-}
-#endif /* WLAN_FEATURE_11W */
-
 /**
  * wma_add_bss_ap_mode() - process add bss request in ap mode
  * @wma: wma handle
@@ -4255,7 +4114,7 @@ static void wma_add_bss_ibss_mode(tp_wma_handle wma, tpAddBssParams add_bss)
 	struct wma_vdev_start_req req;
 	void *peer = NULL;
 	struct wma_target_req *msg;
-	uint8_t vdev_id, peer_id;
+	uint8_t vdev_id = 0, peer_id;
 	QDF_STATUS status;
 	tSetBssKeyParams key_info;
 	struct policy_mgr_hw_mode_params hw_mode = {0};

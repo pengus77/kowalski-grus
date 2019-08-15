@@ -124,7 +124,7 @@ static inline void ol_rx_fwd_to_tx(struct ol_txrx_vdev_t *vdev, qdf_nbuf_t msdu)
 	qdf_mem_zero(msdu->cb, sizeof(msdu->cb));
 	/* update any cb field expected by OL_TX_SEND */
 
-	msdu = OL_TX_SEND(vdev, msdu, 0);
+	msdu = OL_TX_SEND(vdev, msdu);
 
 	if (msdu) {
 		/*

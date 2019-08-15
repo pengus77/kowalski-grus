@@ -89,7 +89,6 @@ void lim_deactivate_timers_host_roam(tpAniSirGlobal mac_ctx)
 	tx_timer_deactivate(&lim_timer->gLimFTPreAuthRspTimer);
 }
 
-
 /**
  * lim_deactivate_and_change_timer_host_roam() - Change timers in host roaming
  * @mac_ctx: Pointer to Global MAC structure

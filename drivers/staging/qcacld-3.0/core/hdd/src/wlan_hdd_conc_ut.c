@@ -215,7 +215,7 @@ void fill_report(struct hdd_context *hdd_ctx, char *title,
 		? "enable" : "disable");
 	snprintf(report[report_idx].system_conf,
 		MAX_ALLOWED_CHAR_IN_REPORT, "%s",
-		system_config_to_string(cds_get_cur_conc_system_pref()));
+		system_config_to_string(hdd_ctx->config->conc_system_pref));
 	snprintf(report[report_idx].result_code,
 		MAX_ALLOWED_CHAR_IN_REPORT, "%s",
 		status ? "PASS" : "FAIL");
@@ -770,8 +770,6 @@ void wlan_hdd_three_connections_scenario(struct hdd_context *hdd_ctx,
 	bool status = false;
 	QDF_STATUS ret;
 	struct policy_mgr_sme_cbacks sme_cbacks;
-
-	system_pref = cds_get_cur_conc_system_pref();
 
 	/* let's set the chain_mask, mac_ids*/
 	if (chain_mask == POLICY_MGR_TWO_TWO) {

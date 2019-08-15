@@ -26,7 +26,6 @@
 #include <cds_api.h>
 #include <ani_global.h>
 #include <sir_types.h>
-#include <qdf_threads.h>
 #include <qdf_types.h>
 #include <lim_api.h>
 #include <sme_api.h>
@@ -285,7 +284,6 @@ int cds_sched_handle_throughput_req(bool high_tput_required)
 	return 0;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0)
 /**
  * cds_cpu_hotplug_multi_cluster() - calls the multi-cluster hotplug handler,
  *	when on a multi-cluster platform
@@ -447,25 +445,6 @@ QDF_STATUS cds_sched_open(void *p_cds_context,
 	mutex_init(&pSchedContext->affinity_lock);
 	pSchedContext->high_throughput_required = false;
 #endif
-	if (cds_get_pktcap_mode_enable()) {
-		spin_lock_init(&pSchedContext->ol_mon_thread_lock);
-		init_waitqueue_head(&pSchedContext->ol_mon_wait_queue);
-		init_completion(&pSchedContext->ol_mon_start_event);
-		init_completion(&pSchedContext->ol_suspend_mon_event);
-		init_completion(&pSchedContext->ol_resume_mon_event);
-		init_completion(&pSchedContext->ol_mon_shutdown);
-		pSchedContext->ol_mon_event_flag = 0;
-		spin_lock_init(&pSchedContext->ol_mon_queue_lock);
-		spin_lock_init(&pSchedContext->cds_ol_mon_pkt_freeq_lock);
-		INIT_LIST_HEAD(&pSchedContext->ol_mon_thread_queue);
-		spin_lock_bh(&pSchedContext->cds_ol_mon_pkt_freeq_lock);
-		INIT_LIST_HEAD(&pSchedContext->cds_ol_mon_pkt_freeq);
-		spin_unlock_bh(&pSchedContext->cds_ol_mon_pkt_freeq_lock);
-		if (cds_alloc_ol_mon_pkt_freeq(pSchedContext) !=
-		    QDF_STATUS_SUCCESS)
-			goto mon_freeqalloc_failure;
-	}
-
 	gp_cds_sched_context = pSchedContext;
 
 #ifdef QCA_CONFIG_SMP
@@ -483,27 +462,11 @@ QDF_STATUS cds_sched_open(void *p_cds_context,
 	wait_for_completion_interruptible(&pSchedContext->ol_rx_start_event);
 	cds_debug("CDS OL Rx Thread has started");
 #endif
-	if (cds_get_pktcap_mode_enable()) {
-		wait_for_completion_interruptible(
-					&pSchedContext->ol_mon_start_event);
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_INFO_HIGH,
-			  "%s: CDS OL MON Thread has started", __func__);
-	}
-
 	/* We're good now: Let's get the ball rolling!!! */
 	cds_debug("CDS Scheduler successfully Opened");
 	return QDF_STATUS_SUCCESS;
 
-OL_MON_THREAD_START_FAILURE:
 #ifdef QCA_CONFIG_SMP
-	/* Try and force the Main thread controller to exit */
-	set_bit(RX_SHUTDOWN_EVENT, &pSchedContext->ol_rx_event_flag);
-	set_bit(RX_POST_EVENT, &pSchedContext->ol_rx_event_flag);
-	wake_up_interruptible(&pSchedContext->ol_rx_wait_queue);
-	/* Wait for RX Thread to exit */
-	wait_for_completion(&pSchedContext->ol_rx_shutdown);
-#endif
-
 OL_RX_THREAD_START_FAILURE:
 #endif
 
@@ -820,148 +783,7 @@ static int cds_ol_rx_thread(void *arg)
 
 	return 0;
 }
-
-/**
- * cds_ol_mon_thread() - cds main tlshim mon thread
- * @Arg: pointer to the global CDS Sched Context
- *
- * This api is the thread handler for mon Data packet processing.
- *
- * Return: thread exit code
- */
-static int cds_ol_mon_thread(void *arg)
-{
-	p_cds_sched_context pschedcontext = (p_cds_sched_context)arg;
-	unsigned long pref_cpu = 0;
-	bool shutdown = false;
-	int status, i;
-
-	if (!arg) {
-		QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_ERROR,
-			  "%s: Bad Args passed", __func__);
-		return 0;
-	}
-
-	set_user_nice(current, -1);
-#ifdef MSM_PLATFORM
-	set_wake_up_idle(true);
 #endif
-
-	/**
-	 * Find the available cpu core other than cpu 0 and
-	 * bind the thread
-	 */
-	for_each_online_cpu(i) {
-		if (i == 0)
-			continue;
-		pref_cpu = i;
-			break;
-	}
-
-	cds_set_cpus_allowed_ptr(current, pref_cpu);
-
-	complete(&pschedcontext->ol_mon_start_event);
-
-	while (!shutdown) {
-		status =
-		wait_event_interruptible(
-				pschedcontext->ol_mon_wait_queue,
-				test_bit(RX_POST_EVENT,
-					 &pschedcontext->ol_mon_event_flag) ||
-				test_bit(RX_SUSPEND_EVENT,
-					 &pschedcontext->ol_mon_event_flag));
-		if (status == -ERESTARTSYS)
-			break;
-
-		clear_bit(RX_POST_EVENT, &pschedcontext->ol_mon_event_flag);
-		while (true) {
-			if (test_bit(RX_SHUTDOWN_EVENT,
-				     &pschedcontext->ol_mon_event_flag)) {
-				clear_bit(RX_SHUTDOWN_EVENT,
-					  &pschedcontext->ol_mon_event_flag);
-				if (test_bit(
-					RX_SUSPEND_EVENT,
-					&pschedcontext->ol_mon_event_flag)) {
-					clear_bit(
-					RX_SUSPEND_EVENT,
-					&pschedcontext->ol_mon_event_flag);
-					complete
-					(&pschedcontext->ol_suspend_mon_event);
-				}
-				QDF_TRACE(QDF_MODULE_ID_QDF,
-					  QDF_TRACE_LEVEL_INFO,
-					  "%s: Shutting down OL MON Thread",
-					  __func__);
-				shutdown = true;
-				break;
-			}
-			cds_mon_from_queue(pschedcontext);
-
-			if (test_bit(RX_SUSPEND_EVENT,
-				     &pschedcontext->ol_mon_event_flag)) {
-				clear_bit(RX_SUSPEND_EVENT,
-					  &pschedcontext->ol_mon_event_flag);
-				spin_lock(&pschedcontext->ol_mon_thread_lock);
-				INIT_COMPLETION
-					(pschedcontext->ol_resume_mon_event);
-				complete(&pschedcontext->ol_suspend_mon_event);
-				spin_unlock(&pschedcontext->ol_mon_thread_lock);
-				wait_for_completion_interruptible
-					(&pschedcontext->ol_resume_mon_event);
-			}
-			break;
-		}
-	}
-
-	QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_DEBUG,
-		  "%s: Exiting CDS OL mon thread", __func__);
-	complete_and_exit(&pschedcontext->ol_mon_shutdown, 0);
-
-	return 0;
-}
-
-void cds_remove_timer_from_sys_msg(uint32_t timer_cookie)
-{
-	p_cds_msg_wrapper msg_wrapper = NULL;
-	struct list_head *pos, *q;
-	unsigned long flags;
-	p_cds_mq_type sys_msgq;
-
-	if (!gp_cds_sched_context) {
-		cds_err("gp_cds_sched_context is null");
-		return;
-	}
-
-	if (!gp_cds_sched_context->McThread) {
-		cds_err("Cannot post message because MC thread is stopped");
-		return;
-	}
-
-	sys_msgq = &gp_cds_sched_context->sysMcMq;
-	/* No msg present in sys queue */
-	if (cds_is_mq_empty(sys_msgq))
-		return;
-
-	spin_lock_irqsave(&sys_msgq->mqLock, flags);
-	list_for_each_safe(pos, q, &sys_msgq->mqList) {
-		msg_wrapper = list_entry(pos, cds_msg_wrapper, msgNode);
-
-		if ((msg_wrapper->pVosMsg->type == SYS_MSG_ID_MC_TIMER) &&
-		    (msg_wrapper->pVosMsg->bodyval == timer_cookie)) {
-			/* return message to the Core */
-			list_del(pos);
-			spin_unlock_irqrestore(&sys_msgq->mqLock, flags);
-			QDF_TRACE(QDF_MODULE_ID_QDF, QDF_TRACE_LEVEL_DEBUG,
-				  "%s: removing timer message with cookie %d",
-				  __func__, timer_cookie);
-			cds_core_return_msg(gp_cds_sched_context->pVContext,
-					    msg_wrapper);
-			return;
-		}
-
-	}
-	spin_unlock_irqrestore(&sys_msgq->mqLock, flags);
-}
 
 /**
  * cds_sched_close() - close the cds scheduler

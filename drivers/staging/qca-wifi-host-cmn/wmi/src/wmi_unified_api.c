@@ -1963,25 +1963,6 @@ QDF_STATUS wmi_unified_congestion_request_cmd(void *wmi_hdl,
 }
 
 /**
- * wmi_unified_congestion_request_cmd() - send request to fw to get CCA
- * @wmi_hdl: wma handle
- * @vdev_id: vdev id
- *
- * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
- */
-QDF_STATUS wmi_unified_congestion_request_cmd(void *wmi_hdl,
-		uint8_t vdev_id)
-{
-	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
-
-	if (wmi_handle->ops->send_congestion_cmd)
-		return wmi_handle->ops->send_congestion_cmd(wmi_handle,
-			   vdev_id);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-/**
  * wmi_unified_process_ll_stats_set_cmd() - link layer stats set request
  * @wmi_handle:       wmi handle
  * @set_req:  ll stats set request command params
@@ -2113,28 +2094,7 @@ QDF_STATUS wmi_unified_egap_conf_params_cmd(void *wmi_hdl,
 
 	return QDF_STATUS_E_FAILURE;
 }
-
 #endif
-
-/**
- * wmi_unified_action_frame_patterns_cmd() - send wmi cmd of action filter params
- * @wmi_handle: wmi handler
- * @action_params: pointer to action_params
- *
- * Return: 0 for success, otherwise appropriate error code
- */
-QDF_STATUS wmi_unified_action_frame_patterns_cmd(void *wmi_hdl,
-				struct action_wakeup_set_param *action_params)
-{
-	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
-
-	if (wmi_handle->ops->send_action_frame_patterns_cmd)
-		return wmi_handle->ops->send_action_frame_patterns_cmd(
-				wmi_handle,
-				action_params);
-
-	return QDF_STATUS_E_FAILURE;
-}
 
 /**
  * wmi_unified_fw_profiling_data_cmd() - send FW profiling cmd to WLAN FW
@@ -2166,28 +2126,6 @@ QDF_STATUS wmi_unified_fw_profiling_data_cmd(void *wmi_hdl,
  * @time: time in ms
  *
  * Return: QDF status
- */
-QDF_STATUS wmi_unified_wow_timer_pattern_cmd(void *wmi_hdl, uint8_t vdev_id,
-					     uint32_t cookie, uint32_t time)
-{
-	wmi_unified_t wmi_handle = (wmi_unified_t) wmi_hdl;
-
-	if (wmi_handle->ops->send_wow_timer_pattern_cmd)
-		return wmi_handle->ops->send_wow_timer_pattern_cmd(wmi_handle,
-							vdev_id, cookie, time);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-/**
- * wmi_unified_wow_timer_pattern_cmd() - set timer pattern tlv, so that firmware
- * will wake up host after specified time is elapsed
- * @wmi_handle: wmi handle
- * @vdev_id: vdev id
- * @cookie: value to identify reason why host set up wake call.
- * @time: time in ms
- *
- * Return: CDF status
  */
 QDF_STATUS wmi_unified_wow_timer_pattern_cmd(void *wmi_hdl, uint8_t vdev_id,
 					     uint32_t cookie, uint32_t time)
@@ -3321,67 +3259,6 @@ wmi_extract_apf_read_memory_resp_event(wmi_unified_t wmi, void *evt_buf,
 	return QDF_STATUS_E_FAILURE;
 }
 #endif /* FEATURE_WLAN_APF */
-
-QDF_STATUS
-wmi_unified_set_active_apf_mode_cmd(wmi_unified_t wmi,
-				    uint8_t vdev_id,
-				    FW_ACTIVE_BPF_MODE ucast_mode,
-				    FW_ACTIVE_BPF_MODE mcast_bcast_mode)
-{
-
-	if (wmi->ops->send_set_active_apf_mode_cmd)
-		return wmi->ops->send_set_active_apf_mode_cmd(wmi, vdev_id,
-							      ucast_mode,
-							      mcast_bcast_mode);
-	return QDF_STATUS_E_FAILURE;
-}
-
-QDF_STATUS
-wmi_unified_send_apf_enable_cmd(wmi_unified_t wmi,
-				uint32_t vdev_id, bool enable)
-{
-	if (wmi->ops->send_apf_enable_cmd)
-		return wmi->ops->send_apf_enable_cmd(wmi, vdev_id, enable);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-QDF_STATUS
-wmi_unified_send_apf_write_work_memory_cmd(wmi_unified_t wmi,
-					   struct wmi_apf_write_memory_params
-								  *write_params)
-{
-	if (wmi->ops->send_apf_write_work_memory_cmd)
-		return wmi->ops->send_apf_write_work_memory_cmd(wmi,
-								write_params);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-QDF_STATUS
-wmi_unified_send_apf_read_work_memory_cmd(wmi_unified_t wmi,
-					  struct wmi_apf_read_memory_params
-								   *read_params)
-{
-	if (wmi->ops->send_apf_read_work_memory_cmd)
-		return wmi->ops->send_apf_read_work_memory_cmd(wmi,
-							       read_params);
-
-	return QDF_STATUS_E_FAILURE;
-}
-
-QDF_STATUS
-wmi_extract_apf_read_memory_resp_event(wmi_unified_t wmi, void *evt_buf,
-				struct wmi_apf_read_memory_resp_event_params
-								*read_mem_evt)
-{
-	if (wmi->ops->extract_apf_read_memory_resp_event)
-		return wmi->ops->extract_apf_read_memory_resp_event(wmi,
-								evt_buf,
-								read_mem_evt);
-
-	return QDF_STATUS_E_FAILURE;
-}
 
 /**
  *  wmi_unified_pdev_get_tpc_config_cmd_send() - WMI get tpc config function

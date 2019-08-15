@@ -565,7 +565,7 @@ bool hdd_get_interface_info(struct hdd_adapter *adapter,
 			staMac =
 				(uint8_t *) &(adapter->mac_addr.
 					      bytes[0]);
-			hdd_warn("client " MAC_ADDRESS_STR
+			hdd_err("client " MAC_ADDRESS_STR
 				" is in the middle of WPS/EAPOL exchange.",
 				MAC_ADDR_ARRAY(staMac));
 			pInfo->state = WIFI_AUTHENTICATING;
@@ -1263,7 +1263,7 @@ __wlan_hdd_cfg80211_ll_stats_set(struct wiphy *wiphy,
 	hdd_enter_dev(dev);
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_warn("Command not allowed in FTM mode");
+		hdd_err("Command not allowed in FTM mode");
 		return -EPERM;
 	}
 
@@ -1459,111 +1459,6 @@ int wlan_hdd_ll_stats_get(struct hdd_adapter *adapter, uint32_t req_id,
 }
 
 /**
- * wlan_hdd_send_ll_stats_req() - send LL stats request
- * @hdd_ctx: pointer to hdd context
- * @req: pointer to LL stats get request
- *
- * Return: 0 if success, non-zero if failure
- */
-static int wlan_hdd_send_ll_stats_req(hdd_context_t *hdd_ctx,
-				      tSirLLStatsGetReq *req)
-{
-	int ret = 0;
-	struct hdd_ll_stats_priv *priv = NULL;
-	struct hdd_request *request = NULL;
-	void *cookie = NULL;
-	static const struct hdd_request_params params = {
-		.priv_size = sizeof(*priv),
-		.timeout_ms = WLAN_WAIT_TIME_LL_STATS,
-	};
-
-	ENTER();
-
-	request = hdd_request_alloc(&params);
-	if (!request) {
-		hdd_err("Request Allocation Failure");
-		return -ENOMEM;
-	}
-
-	cookie = hdd_request_cookie(request);
-
-	priv = hdd_request_priv(request);
-
-	priv->request_id = req->reqId;
-	priv->request_bitmap = req->paramIdMask;
-
-	if (QDF_STATUS_SUCCESS !=
-			sme_ll_stats_get_req(hdd_ctx->hHal, req, cookie)) {
-		hdd_err("sme_ll_stats_get_req Failed");
-		ret = -EINVAL;
-		goto exit;
-	}
-
-	ret = hdd_request_wait_for_response(request);
-	if (ret) {
-		hdd_err("Target response timed out request id %d request bitmap 0x%x",
-			priv->request_id, priv->request_bitmap);
-		ret = -ETIMEDOUT;
-		goto exit;
-	}
-	EXIT();
-
-exit:
-	hdd_request_put(request);
-	return ret;
-}
-
-int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
-			  uint32_t req_mask)
-{
-	int ret;
-	tSirLLStatsGetReq get_req;
-	hdd_station_ctx_t *hddstactx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-	hdd_context_t *hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-
-	ENTER();
-
-	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_warn("Command not allowed in FTM mode");
-		return -EPERM;
-	}
-
-	ret = wlan_hdd_validate_context(hdd_ctx);
-	if (0 != ret)
-		return -EINVAL;
-
-	if (hddstactx->hdd_ReassocScenario) {
-		hdd_err("Roaming in progress, cannot process the request");
-		return -EBUSY;
-	}
-
-	if (!adapter->isLinkLayerStatsSet) {
-		hdd_info("LL_STATs not set");
-		return -EINVAL;
-	}
-
-	get_req.reqId = req_id;
-	get_req.paramIdMask = req_mask;
-	get_req.staId = adapter->sessionId;
-
-	if (wlan_hdd_validate_session_id(adapter->sessionId)) {
-		hdd_err("invalid session id: %d", adapter->sessionId);
-		return -EINVAL;
-	}
-
-	rtnl_lock();
-	ret = wlan_hdd_send_ll_stats_req(hdd_ctx, &get_req);
-	rtnl_unlock();
-	if (0 != ret)
-		hdd_err("Send LL stats req failed, id:%u, mask:%d, session:%d",
-			req_id, req_mask, adapter->sessionId);
-
-	EXIT();
-	return ret;
-
-}
-
-/**
  * __wlan_hdd_cfg80211_ll_stats_get() - get link layer stats
  * @wiphy: Pointer to wiphy
  * @wdev: Pointer to wdev
@@ -1589,7 +1484,7 @@ __wlan_hdd_cfg80211_ll_stats_get(struct wiphy *wiphy,
 	/* ENTER() intentionally not used in a frequently invoked API */
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_warn("Command not allowed in FTM mode");
+		hdd_err("Command not allowed in FTM mode");
 		return -EPERM;
 	}
 
@@ -1710,7 +1605,7 @@ __wlan_hdd_cfg80211_ll_stats_clear(struct wiphy *wiphy,
 	hdd_enter_dev(dev);
 
 	if (QDF_GLOBAL_FTM_MODE == hdd_get_conparam()) {
-		hdd_warn("Command not allowed in FTM mode");
+		hdd_err("Command not allowed in FTM mode");
 		return -EPERM;
 	}
 
@@ -6003,7 +5898,6 @@ int wlan_hdd_get_station_stats(struct hdd_adapter *adapter)
 		wlan_cfg80211_mc_cp_stats_free_stats_event(stats);
 		return ret;
 	}
-	mutex_unlock(&pHddCtx->chan_info_lock);
 
 	/* save summary stats to legacy location */
 	qdf_mem_copy(adapter->hdd_stats.summary_stat.retry_cnt,
@@ -6312,235 +6206,4 @@ void wlan_hdd_display_txrx_stats(struct hdd_context *ctx)
 			  total_rx_delv,
 			  total_rx_refused);
 	}
-}
-
-/**
- * hdd_is_rcpi_applicable() - validates RCPI request
- * @adapter: adapter upon which the measurement is requested
- * @mac_addr: peer addr for which measurement is requested
- * @rcpi_value: pointer to where the RCPI should be returned
- * @reassoc: used to return cached RCPI during reassoc
- *
- * Return: true for success, false for failure
- */
-
-static bool hdd_is_rcpi_applicable(hdd_adapter_t *adapter,
-				   struct qdf_mac_addr *mac_addr,
-				   int32_t *rcpi_value,
-				   bool *reassoc)
-{
-	hdd_station_ctx_t *hdd_sta_ctx;
-
-	if (adapter->device_mode == QDF_STA_MODE ||
-	    adapter->device_mode == QDF_P2P_CLIENT_MODE) {
-		hdd_sta_ctx = WLAN_HDD_GET_STATION_CTX_PTR(adapter);
-		if (hdd_sta_ctx->conn_info.connState !=
-		    eConnectionState_Associated)
-			return false;
-
-		if (hdd_sta_ctx->hdd_ReassocScenario) {
-			/* return the cached rcpi, if mac addr matches */
-			hdd_debug("Roaming in progress, return cached RCPI");
-			if (!qdf_mem_cmp(&adapter->rcpi.mac_addr,
-			    mac_addr, sizeof(*mac_addr))) {
-				*rcpi_value = adapter->rcpi.rcpi;
-				*reassoc = true;
-				return true;
-			}
-			return false;
-		}
-
-		if (qdf_mem_cmp(mac_addr, &hdd_sta_ctx->conn_info.bssId,
-		    sizeof(*mac_addr))) {
-			hdd_err("mac addr is different from bssid connected");
-			return false;
-		}
-	} else if (adapter->device_mode == QDF_SAP_MODE ||
-		   adapter->device_mode == QDF_P2P_GO_MODE) {
-		if (!test_bit(SOFTAP_BSS_STARTED, &adapter->event_flags)) {
-			hdd_err("Invalid rcpi request, softap not started");
-			return false;
-		}
-
-		/* check if peer mac addr is associated to softap */
-		if (!hdd_is_peer_associated(adapter, mac_addr)) {
-			hdd_err("invalid peer mac-addr: not associated");
-			return false;
-		}
-	} else {
-		hdd_err("Invalid rcpi request");
-		return false;
-	}
-
-	*reassoc = false;
-	return true;
-}
-
-/**
- * wlan_hdd_get_rcpi_cb() - callback function for rcpi response
- * @context: used to refer cookie in hdd request manager
- * @mac_addr: destination mac address for which RCPI is computed
- * @rcpi: RCPI value from firmware
- * @status: status of RCPI computation
- *
- * Return: None
- */
-static void wlan_hdd_get_rcpi_cb(void *context, struct qdf_mac_addr mac_addr,
-				 int32_t rcpi, QDF_STATUS status)
-{
-	struct hdd_request *request;
-	struct rcpi_info *priv;
-
-	request = hdd_request_get(context);
-	if (!request) {
-		hdd_err("Obsolete RCPI request");
-		return;
-	}
-
-	priv = hdd_request_priv(request);
-	priv->mac_addr = mac_addr;
-
-	if (!QDF_IS_STATUS_SUCCESS(status)) {
-		priv->rcpi = 0;
-		hdd_err("Error in computing RCPI");
-	} else {
-		priv->rcpi = rcpi;
-	}
-
-	hdd_request_complete(request);
-	hdd_request_put(request);
-}
-
-/**
- * __wlan_hdd_get_rcpi() - local function to get RCPI
- * @adapter: adapter upon which the measurement is requested
- * @mac: peer addr for which measurement is requested
- * @rcpi_value: pointer to where the RCPI should be returned
- * @measurement_type: type of rcpi measurement
- *
- * Return: 0 for success, non-zero for failure
- */
-static int __wlan_hdd_get_rcpi(hdd_adapter_t *adapter,
-			       uint8_t *mac,
-			       int32_t *rcpi_value,
-			       enum rcpi_measurement_type measurement_type)
-{
-	hdd_context_t *hdd_ctx;
-	int status = 0, ret = 0;
-	struct qdf_mac_addr mac_addr;
-	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
-	struct sme_rcpi_req *rcpi_req;
-	void *cookie;
-	struct rcpi_info *priv;
-	struct hdd_request *request;
-	static const struct hdd_request_params params = {
-		.priv_size = sizeof(*priv),
-		.timeout_ms = WLAN_WAIT_TIME_RCPI,
-	};
-	bool reassoc;
-
-	ENTER();
-
-	/* initialize the rcpi value to zero, useful in error cases */
-	*rcpi_value = 0;
-
-	if (hdd_get_conparam() == QDF_GLOBAL_FTM_MODE) {
-		hdd_err("Command not allowed in FTM mode");
-		return -EINVAL;
-	}
-
-	if (!adapter) {
-		hdd_err("adapter context is NULL");
-		return -EINVAL;
-	}
-
-	hdd_ctx = WLAN_HDD_GET_CTX(adapter);
-	status = wlan_hdd_validate_context(hdd_ctx);
-	if (status)
-		return -EINVAL;
-
-	if (!hdd_ctx->rcpi_enabled) {
-		hdd_warn("RCPI not supported");
-		return -EINVAL;
-	}
-
-	if (!mac) {
-		hdd_err("RCPI peer mac-addr is NULL");
-		return -EINVAL;
-	}
-
-	qdf_mem_copy(&mac_addr, mac, QDF_MAC_ADDR_SIZE);
-
-	if (!hdd_is_rcpi_applicable(adapter, &mac_addr, rcpi_value, &reassoc))
-		return -EINVAL;
-	if (reassoc)
-		return 0;
-
-	rcpi_req = qdf_mem_malloc(sizeof(*rcpi_req));
-	if (!rcpi_req) {
-		hdd_err("unable to allocate memory for RCPI req");
-		return -EINVAL;
-	}
-
-	request = hdd_request_alloc(&params);
-	if (!request) {
-		hdd_err("Request allocation failure");
-		qdf_mem_free(rcpi_req);
-		return -ENOMEM;
-	}
-	cookie = hdd_request_cookie(request);
-
-	rcpi_req->mac_addr = mac_addr;
-	rcpi_req->session_id = adapter->sessionId;
-	rcpi_req->measurement_type = measurement_type;
-	rcpi_req->rcpi_callback = wlan_hdd_get_rcpi_cb;
-	rcpi_req->rcpi_context = cookie;
-
-	qdf_status = sme_get_rcpi(hdd_ctx->hHal, rcpi_req);
-	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
-		hdd_err("Unable to retrieve RCPI");
-		status = qdf_status_to_os_return(qdf_status);
-		goto out;
-	}
-
-	/* request was sent -- wait for the response */
-	ret = hdd_request_wait_for_response(request);
-	if (ret) {
-		hdd_err("SME timed out while retrieving RCPI");
-		status = -EINVAL;
-		goto out;
-	}
-
-	/* update the adapter with the fresh results */
-	priv = hdd_request_priv(request);
-	adapter->rcpi.mac_addr = priv->mac_addr;
-	adapter->rcpi.rcpi = priv->rcpi;
-
-	if (qdf_mem_cmp(&mac_addr, &priv->mac_addr, sizeof(mac_addr))) {
-		hdd_err("mis match of mac addr from call-back");
-		status = -EINVAL;
-		goto out;
-	}
-
-	*rcpi_value = adapter->rcpi.rcpi;
-	hdd_debug("RCPI = %d", *rcpi_value);
-out:
-	qdf_mem_free(rcpi_req);
-	hdd_request_put(request);
-
-	EXIT();
-	return status;
-}
-
-int wlan_hdd_get_rcpi(hdd_adapter_t *adapter, uint8_t *mac,
-		      int32_t *rcpi_value,
-		      enum rcpi_measurement_type measurement_type)
-{
-	int ret;
-
-	cds_ssr_protect(__func__);
-	ret = __wlan_hdd_get_rcpi(adapter, mac, rcpi_value, measurement_type);
-	cds_ssr_unprotect(__func__);
-
-	return ret;
 }

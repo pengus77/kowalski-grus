@@ -18,7 +18,6 @@
 
 #ifndef _PKTLOG_FMT_H_
 #define _PKTLOG_FMT_H_
-#ifndef REMOVE_PKT_LOG
 
 #ifndef REMOVE_PKT_LOG
 
@@ -353,7 +352,6 @@ enum tx_pkt_fate {
 	TX_PKT_FATE_DRV_DROP_NOBUFS,
 	TX_PKT_FATE_DRV_DROP_OTHER,
 };
-#endif /* REMOVE_PKT_LOG */
 
 /**
  * enum rx_pkt_fate - rx packet fate
@@ -396,23 +394,4 @@ enum rx_pkt_fate {
 	RX_PKT_FATE_DRV_DROP_OTHER,
 };
 
-/**
- * enum pkt_type - packet type
- * @START_MONITOR: indicates parser to start packetdump parsing
- * @STOP_MONITOR: indicates parser to stop packetdump parsing
- * @TX_MGMT_PKT: TX management Packet
- * @TX_DATA_PKT: TX data Packet
- * @RX_MGMT_PKT: RX management Packet
- * @RX_DATA_PKT: RX data Packet
- *
- * This enum has packet types
- */
-enum pkt_type {
-	START_MONITOR = 1,
-	STOP_MONITOR,
-	TX_MGMT_PKT,
-	TX_DATA_PKT,
-	RX_MGMT_PKT,
-	RX_DATA_PKT,
-};
 #endif /* _PKTLOG_FMT_H_ */

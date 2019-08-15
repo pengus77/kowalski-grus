@@ -1737,11 +1737,6 @@ struct wmi_probe_resp_params {
 	uint32_t prb_rsp_template_len;
 };
 
-struct key_seq_counter {
-    uint32_t key_seq_counter_l;
-    uint32_t key_seq_counter_h;
-};
-
 /* struct set_key_params: structure containing
  *                        installation key parameters
  * @vdev_id: vdev id
@@ -1756,7 +1751,6 @@ struct key_seq_counter {
  * @key_rsc_counter:  key rx sc counter
  * @rx_iv: receive IV, applicable only in case of WAPI
  * @tx_iv: transmit IV, applicable only in case of WAPI
- * @key_rsc_counter: RSC key counter
  * @key_data: key data
  */
 struct set_key_params {
@@ -1775,7 +1769,6 @@ struct set_key_params {
 	uint8_t tx_iv[16];
 #endif
 	uint8_t key_data[WMI_MAC_MAX_KEY_LENGTH];
-	struct key_seq_counter key_rsc_counter;
 };
 
 /**
@@ -1962,8 +1955,6 @@ struct roam_fils_params {
  * @prefer_5ghz: prefer select 5G candidate
  * @roam_rssi_cat_gap: gap for every category bucket
  * @select_5ghz_margin: select 5 Ghz margin
- * @min_delay_btw_roam_scans: Delay btw two roam scans
- * @roam_trigger_reason_bitmask: Roam reason bitmark
  * @krk: KRK
  * @btk: BTK
  * @reassoc_failure_timeout: reassoc failure timeout
@@ -3146,7 +3137,6 @@ struct wmi_tdls_params {
 	uint32_t puapsd_rx_frame_threshold;
 	uint32_t teardown_notification_ms;
 	uint32_t tdls_peer_kickout_threshold;
-	uint32_t tdls_discovery_wake_timeout;
 };
 
 #ifndef CONVERGED_TDLS_ENABLE
@@ -6051,28 +6041,6 @@ typedef enum {
 	wmi_services_max,
 } wmi_conv_service_ids;
 #define WMI_SERVICE_UNAVAILABLE 0xFFFF
-
-/**
- * enum WMI_DBG_PARAM - Debug params
- * @WMI_DBGLOG_LOG_LEVEL: Set the loglevel
- * @WMI_DBGLOG_VAP_ENABLE:  Enable VAP level debug
- * @WMI_DBGLOG_VAP_DISABLE: Disable VAP level debug
- * @WMI_DBGLOG_MODULE_ENABLE: Enable MODULE level debug
- * @WMI_DBGLOG_MODULE_DISABLE: Disable MODULE level debug
- * @WMI_DBGLOG_MOD_LOG_LEVEL: Enable MODULE level debug
- * @WMI_DBGLOG_TYPE: set type of the debug output
- * @WMI_DBGLOG_REPORT_ENABLE: Enable Disable debug
- */
-typedef enum {
-	WMI_DBGLOG_LOG_LEVEL = 0x1,
-	WMI_DBGLOG_VAP_ENABLE,
-	WMI_DBGLOG_VAP_DISABLE,
-	WMI_DBGLOG_MODULE_ENABLE,
-	WMI_DBGLOG_MODULE_DISABLE,
-	WMI_DBGLOG_MOD_LOG_LEVEL,
-	WMI_DBGLOG_TYPE,
-	WMI_DBGLOG_REPORT_ENABLE
-} WMI_DBG_PARAM;
 
 /**
  * enum WMI_DBG_PARAM - Debug params

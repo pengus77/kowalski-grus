@@ -172,7 +172,6 @@ enum eWniMsgTypes {
 #endif
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	eWNI_SME_HO_FAIL_IND,   /* Hand Off Failure Ind from WMA to SME */
-	eWNI_SME_SAME_AP_REASSOC_IND, /* Self reassociation using LFR3 */
 #endif
 #ifdef WLAN_FEATURE_NAN
 	eWNI_SME_NAN_EVENT,

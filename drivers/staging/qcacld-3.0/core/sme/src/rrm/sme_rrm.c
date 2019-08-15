@@ -26,7 +26,6 @@
 #include "sme_inside.h"
 #include "sme_api.h"
 #include "cfg_api.h"
-#include "cds_regdomain.h"
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT
 #include "host_diag_core_event.h"
@@ -34,6 +33,7 @@
 #endif /* FEATURE_WLAN_DIAG_SUPPORT */
 
 #include "csr_inside_api.h"
+
 #include "rrm_global.h"
 #include <wlan_scan_ucfg_api.h>
 #include <wlan_scan_utils_api.h>
@@ -943,38 +943,6 @@ free_ch_lst:
 }
 
 /**
- * sme_rrm_calculate_total_scan_time() - calculate total time req for
- * scan for all channels
- * @mac_ctx: The handle returned by mac_open.
- *
- * Return: total rrm scan time
- */
-static uint32_t sme_rrm_calculate_total_scan_time(tpAniSirGlobal mac_ctx)
-{
-	uint32_t dwell_time_active;
-	uint16_t interval;
-	tpRrmSMEContext pSmeRrmContext = &mac_ctx->rrm.rrmSmeContext;
-	uint8_t num_channels;
-	uint32_t rrm_scan_time = 0;
-
-	num_channels = pSmeRrmContext->channelList.numOfChannels;
-
-	interval = pSmeRrmContext->randnIntvl + 10;
-
-	dwell_time_active = pSmeRrmContext->duration[0];
-
-	/*
-	 * Add 1 sec extra in actual total rrm scan time
-	 * to accommodate any delay
-	 */
-	if (num_channels)
-		rrm_scan_time = ((num_channels * dwell_time_active) +
-				 ((num_channels - 1) * interval) + 1000);
-
-	return rrm_scan_time;
-}
-
-/**
  * sme_rrm_process_beacon_report_req_ind() -Process beacon report request
  * @pMac:- Global Mac structure
  * @pMsgBuf:- a pointer to a buffer that maps to various structures base
@@ -1501,8 +1469,6 @@ QDF_STATUS rrm_open(tpAniSirGlobal pMac)
 	QDF_STATUS qdf_ret_status = QDF_STATUS_SUCCESS;
 
 	pSmeRrmContext->rrmConfig.max_randn_interval = 50;        /* ms */
-	qdf_wake_lock_create(&pSmeRrmContext->scan_wake_lock,
-			     "wlan_rrm_scan_wl");
 
 	qdf_status = qdf_mc_timer_init(&pSmeRrmContext->IterMeasTimer,
 				       QDF_TIMER_TYPE_SW,
@@ -1626,6 +1592,7 @@ QDF_STATUS rrm_change_default_config_param(tpAniSirGlobal pMac,
 	qdf_mem_copy(&pMac->rrm.rrmSmeContext.rrmConfig, rrm_config,
 		     sizeof(struct rrm_config_param));
 
+	return QDF_STATUS_SUCCESS;
 }
 
 QDF_STATUS rrm_start(tpAniSirGlobal mac_ctx)

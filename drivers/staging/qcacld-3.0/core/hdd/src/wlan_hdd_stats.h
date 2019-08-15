@@ -184,15 +184,6 @@ int wlan_hdd_ll_stats_get(hdd_adapter_t *adapter, uint32_t req_id,
 	return -EINVAL;
 }
 
-static inline int
-wlan_hdd_cfg80211_ll_stats_ext_set_param(struct wiphy *wiphy,
-					 struct wireless_dev *wdev,
-					 const void *data,
-					 int data_len)
-{
-	return -EINVAL;
-}
-
 #endif /* End of WLAN_FEATURE_LINK_LAYER_STATS */
 
 #ifdef WLAN_FEATURE_STATS_EXT

@@ -93,45 +93,6 @@ struct wma_caps_per_phy {
 #define QPOWER_CMD 6
 #define GTX_CMD  7
 
-/**
- * @DEBUG_PEER_CREATE_SEND: sent peer_create command to firmware
- * @DEBUG_PEER_CREATE_RESP: received peer create response
- * @DEBUG_PEER_DELETE_SEND: sent peer delete command to firmware
- * @DEBUG_PEER_DELETE_RESP: received peer delete response
- * @DEBUG_PEER_MAP_EVENT: received peer map event
- * @DEBUG_PEER_UNMAP_EVENT: received peer unmap event
- * @DEBUG_PEER_UNREF_DELETE: peer reference is decremented
- * @DEBUG_DELETING_PEER_OBJ: peer object is deleted
- * @DEBUG_ROAM_SYNCH_IND: received roam offload sync indication
- * @DEBUG_ROAM_SYNCH_CNF: sent roam offload sync confirmation
- * @DEBUG_ROAM_SYNCH_FAIL: received roam sync failure indication
- * @DEBUG_ROAM_EVENT: received roam event
- * @DEBUG_BUS_SUSPEND: host going into suspend mode
- * @DEBUG_BUS_RESUME: host operation resumed
- */
-
-enum peer_debug_op {
-	DEBUG_PEER_CREATE_SEND = 0,
-	DEBUG_PEER_CREATE_RESP,
-	DEBUG_PEER_DELETE_SEND,
-	DEBUG_PEER_DELETE_RESP,
-	DEBUG_PEER_MAP_EVENT,
-	DEBUG_PEER_UNMAP_EVENT,
-	DEBUG_PEER_UNREF_DELETE,
-	DEBUG_DELETING_PEER_OBJ,
-	DEBUG_ROAM_SYNCH_IND,
-	DEBUG_ROAM_SYNCH_CNF,
-	DEBUG_ROAM_SYNCH_FAIL,
-	DEBUG_ROAM_EVENT,
-	DEBUG_WOW_ROAM_EVENT,
-	DEBUG_BUS_SUSPEND,
-	DEBUG_BUS_RESUME,
-	DEBUG_WOW_REASON,
-};
-
-#define DEBUG_INVALID_PEER_ID 0xffff
-#define DEBUG_INVALID_VDEV_ID 0xff
-
 typedef void (*wma_peer_authorized_fp) (uint32_t vdev_id);
 
 
@@ -289,18 +250,6 @@ void wma_process_pdev_hw_mode_trans_ind(void *wma,
 	wmi_pdev_hw_mode_transition_event_fixed_param *fixed_param,
 	wmi_pdev_set_hw_mode_response_vdev_mac_entry *vdev_mac_entry,
 	struct sir_hw_mode_trans_ind *hw_mode_trans_ind);
-
-/**
- * wma_find_if_fw_supports_dbs() - to check if FW supports DBS
- *
- * Firmware sends supported HW mode as part of service ready and
- * service ready extension WMI message. This API checks through
- * those HW mode list and figures out if DBS is supported by
- * FW/HW.
- *
- * Return: True if FW/HW supports DBS else returns false.
- */
-bool wma_find_if_fw_supports_dbs(void);
 
 /**
  * wma_set_cts2self_for_p2p_go() - set CTS2SELF command for P2P GO.

@@ -33,8 +33,6 @@
    Include Files
    ------------------------------------------------------------------------*/
 #include "qdf_types.h"
-#include "wmi_unified.h"
-
 /**
  * Rx Packet Struct
  * Buffer for the packet received from WMA has pointers to 802.11
@@ -58,7 +56,6 @@
  * @sessionId: PE session
  * @tsf_delta: Delta between tsf in frame and local value of tsf
  * @rssi_raw: rssi based on actual noise floor in hardware.
- * @rssi_per_chain: per chain rssi value for each antenna
  */
 typedef struct {
 	uint8_t channel;
@@ -78,7 +75,6 @@ typedef struct {
 	uint8_t sessionId;
 	uint32_t tsf_delta;
 	uint32_t rssi_raw;
-	uint32_t rssi_per_chain[ATH_MAX_ANTENNA];
 } t_packetmeta, *tp_packetmeta;
 
 /* implementation specific cds packet type */

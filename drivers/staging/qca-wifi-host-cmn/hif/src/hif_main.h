@@ -314,14 +314,4 @@ void hif_uninit_rri_on_ddr(struct hif_softc *scn);
 static inline
 void hif_uninit_rri_on_ddr(struct hif_softc *scn) {}
 #endif
-
-#ifdef HIF_SNOC
-bool hif_is_target_register_access_allowed(struct hif_softc *hif_sc);
-#else
-static inline
-bool hif_is_target_register_access_allowed(struct hif_softc *hif_sc)
-{
-	return true;
-}
-#endif
 #endif /* __HIF_MAIN_H__ */

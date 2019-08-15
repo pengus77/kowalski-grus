@@ -91,41 +91,4 @@ void hdd_modify_indoor_channel_state_flags(
 	struct regulatory_channel *cds_chan,
 	enum channel_enum chan_enum, int chan_num, bool disable);
 
-/**
- * hdd_update_indoor_channel() - enable/disable indoor channel
- * @hdd_ctx: hdd context
- * @disable: whether to enable / disable indoor channel
- *
- * enable/disable indoor channel in wiphy/cds
- *
- * Return: void
- */
-void hdd_update_indoor_channel(hdd_context_t *hdd_ctx,
-					bool disable);
-/**
- * hdd_modify_indoor_channel_state_flags() - modify wiphy flags and cds state
- * @wiphy_chan: wiphy channel number
- * @cds_chan: cds channel structure
- * @chan_enum: channel enum maintain in reg db
- * @chan_num: channel index
- * @disable: Disable/enable the flags
- *
- * Modify wiphy flags and cds state if channel is indoor.
- *
- * Return: void
- */
-void hdd_modify_indoor_channel_state_flags(
-	hdd_context_t *hdd_ctx,
-	struct ieee80211_channel *wiphy_chan,
-	struct regulatory_channel *cds_chan,
-	enum channel_enum chan_enum, int chan_num, bool disable);
-
-/**
- * hdd_apply_cached_country_info() - apply cached ctry info
- * @hdd_ctx: hdd context
- *
- * Return: Error code
- */
-int hdd_apply_cached_country_info(hdd_context_t *hdd_ctx);
-
 #endif

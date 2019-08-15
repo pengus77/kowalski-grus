@@ -72,7 +72,6 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	uint8_t channelNum;
 	uint8_t rxChannel;
 	uint8_t rfBand = 0;
-	uint32_t *rssi_per_chain;
 
 	pHdr = WMA_GET_RX_MAC_HEADER(pRxPacketInfo);
 
@@ -114,62 +113,6 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	pBssDescr->capabilityInfo =
 		lim_get_u16((uint8_t *) &pBPR->capabilityInfo);
 
-	/* HT capability */
-	if (pBPR->HTCaps.present) {
-		pBssDescr->ht_caps_present = 1;
-		if (pBPR->HTCaps.supportedChannelWidthSet) {
-			if (!pBPR->HTInfo.present) {
-				pBssDescr->chan_width =
-						eHT_CHANNEL_WIDTH_40MHZ;
-			} else if (pBPR->HTInfo.recommendedTxWidthSet) {
-				pBssDescr->chan_width =
-						eHT_CHANNEL_WIDTH_40MHZ;
-			}
-		}
-	}
-
-	/* VHT Parameters */
-	if (IS_BSS_VHT_CAPABLE(pBPR->VHTCaps) ||
-	    IS_BSS_VHT_CAPABLE(pBPR->vendor_vht_ie.VHTCaps)) {
-		pBssDescr->vht_caps_present = 1;
-		if ((IS_BSS_VHT_CAPABLE(pBPR->VHTCaps) &&
-		     pBPR->VHTCaps.suBeamFormerCap) ||
-		    (IS_BSS_VHT_CAPABLE(pBPR->vendor_vht_ie.VHTCaps) &&
-		     pBPR->vendor_vht_ie.VHTCaps.suBeamFormerCap))
-			pBssDescr->beacomforming_capable = 1;
-	}
-	if (pBPR->VHTOperation.present)
-		if (pBPR->VHTOperation.chanWidth == 1)
-			pBssDescr->chan_width = eHT_CHANNEL_WIDTH_80MHZ;
-	/*
-	 * If the ESP metric is transmitting multiple airtime fractions, then
-	 * follow the sequence AC_BE, AC_VI, AC_VO, AC_BK and pick whichever is
-	 * the first one available
-	 */
-	if (pBPR->esp_information.is_present) {
-		if (pBPR->esp_information.esp_info_AC_BE.access_category
-				== ESP_AC_BE)
-			pBssDescr->air_time_fraction =
-				pBPR->esp_information.esp_info_AC_BE.
-				estimated_air_fraction;
-		else if (pBPR->esp_information.esp_info_AC_VI.access_category
-				== ESP_AC_VI)
-			pBssDescr->air_time_fraction =
-				pBPR->esp_information.esp_info_AC_VI.
-				estimated_air_fraction;
-		else if (pBPR->esp_information.esp_info_AC_VO.access_category
-				== ESP_AC_VO)
-			pBssDescr->air_time_fraction =
-				pBPR->esp_information.esp_info_AC_VO.
-				estimated_air_fraction;
-		else if (pBPR->esp_information.esp_info_AC_BK.access_category
-				== ESP_AC_BK)
-			pBssDescr->air_time_fraction =
-				pBPR->esp_information.esp_info_AC_BK.
-				estimated_air_fraction;
-	}
-	pBssDescr->nss = lim_get_nss_supported_by_ap(pBPR);
-
 	if (!pBssDescr->beaconInterval) {
 		pe_warn("Beacon Interval is ZERO, making it to default 100 "
 			   MAC_ADDRESS_STR, MAC_ADDR_ARRAY(pHdr->bssId));
@@ -201,12 +144,6 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 	/* Copy RSSI & SINR from BD */
 	pBssDescr->rssi = (int8_t) WMA_GET_RX_RSSI_NORMALIZED(pRxPacketInfo);
 	pBssDescr->rssi_raw = (int8_t) WMA_GET_RX_RSSI_RAW(pRxPacketInfo);
-
-	/* Copy per chain rssi */
-
-	rssi_per_chain = WMA_GET_RX_RSSI_CTL_PTR(pRxPacketInfo);
-	qdf_mem_copy(pBssDescr->rssi_per_chain, rssi_per_chain,
-					sizeof(pBssDescr->rssi_per_chain));
 
 	/* SINR no longer reported by HW */
 	pBssDescr->sinr = 0;
@@ -243,13 +180,14 @@ lim_collect_bss_description(tpAniSirGlobal pMac,
 		pBssDescr->mdie[2] = pBPR->mdie[2];
 	}
 
-	populate_qbss_load_status(pBssDescr, pBPR);
-
-	if (pBPR->oce_wan_present) {
-		pBssDescr->oce_wan_present = 1;
-		pBssDescr->oce_wan_down_cap = pBPR->oce_wan_downlink_av_cap;
+#ifdef FEATURE_WLAN_ESE
+	pBssDescr->QBSSLoad_present = false;
+	pBssDescr->QBSSLoad_avail = 0;
+	if (pBPR->QBSSLoad.present) {
+		pBssDescr->QBSSLoad_present = true;
+		pBssDescr->QBSSLoad_avail = pBPR->QBSSLoad.avail;
 	}
-	lim_update_bss_with_fils_data(pBPR, pBssDescr);
+#endif
 	/* Copy IE fields */
 	qdf_mem_copy((uint8_t *) &pBssDescr->ieFields,
 		     pBody + SIR_MAC_B_PR_SSID_OFFSET, ieLen);

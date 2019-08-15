@@ -947,6 +947,7 @@ void htt_rx_detach(struct htt_pdev_t *pdev)
 	/* destroy the rx-parallelization refill spinlock */
 	qdf_spinlock_destroy(&(pdev->rx_ring.refill_lock));
 }
+#endif
 
 /**
  * htt_rx_mpdu_wifi_hdr_retrieve() - retrieve 802.11 header
@@ -1385,7 +1386,6 @@ htt_rx_amsdu_pop_ll(htt_pdev_handle pdev,
 			  + HTT_RX_PPDU_DESC_SIZE32));
 	}
 	msdu = *head_msdu = htt_rx_netbuf_pop(pdev);
-	*head_mon_msdu = NULL;
 	while (1) {
 		int last_msdu, msdu_len_invalid, msdu_chained;
 		int byte_offset;
@@ -1664,7 +1664,6 @@ htt_rx_amsdu_pop_hl(
 				   (qdf_nbuf_data(rx_ind_msg)));
 
 	qdf_nbuf_set_next(*tail_msdu, NULL);
-	*head_mon_msdu = NULL;
 	return 0;
 }
 
@@ -1688,7 +1687,6 @@ htt_rx_frag_pop_hl(
 	*head_msdu = *tail_msdu = frag_msg;
 
 	qdf_nbuf_set_next(*tail_msdu, NULL);
-	*mon_head_msdu = NULL;
 	return 0;
 }
 
@@ -1872,7 +1870,6 @@ htt_rx_amsdu_rx_in_order_pop_ll(htt_pdev_handle pdev,
 				uint32_t *replenish_cnt)
 {
 	qdf_nbuf_t msdu, next, prev = NULL;
-	qdf_nbuf_t mon_prev = NULL;
 	uint8_t *rx_ind_data;
 	uint32_t *msg_word;
 	uint32_t rx_ctx_id;
@@ -2733,7 +2730,6 @@ qdf_nbuf_t htt_rx_hash_list_lookup(struct htt_pdev_t *pdev,
 
 	return netbuf;
 }
-#endif
 
 /*
  * Initialization function of the rx buffer hash table. This function will
@@ -3153,31 +3149,14 @@ int htt_rx_ipa_uc_attach(struct htt_pdev_t *pdev,
 	return ret;
 }
 
-static int htt_rx_hash_smmu_map(bool map, struct htt_pdev_t *pdev)
+int htt_rx_ipa_uc_detach(struct htt_pdev_t *pdev)
 {
 	qdf_mem_shared_mem_free(pdev->osdev, pdev->ipa_uc_rx_rsc.rx_ind_ring);
 	qdf_mem_shared_mem_free(pdev->osdev,
 				pdev->ipa_uc_rx_rsc.rx_ipa_prc_done_idx);
 
+	htt_rx_ipa_uc_free_wdi2_rsc(pdev);
 	return 0;
-}
-
-int htt_rx_hash_smmu_map_update(struct htt_pdev_t *pdev, bool map)
-{
-	int ret;
-
-	if (NULL == pdev->rx_ring.hash_table)
-		return 0;
-
-	if (!qdf_mem_smmu_s1_enabled(pdev->osdev) || !pdev->is_ipa_uc_enabled)
-		return 0;
-
-	qdf_spin_lock_bh(&(pdev->rx_ring.refill_lock));
-	pdev->rx_ring.smmu_map = map;
-	ret = htt_rx_hash_smmu_map(map, pdev);
-	qdf_spin_unlock_bh(&(pdev->rx_ring.refill_lock));
-
-	return ret;
 }
 #endif /* IPA_OFFLOAD */
 

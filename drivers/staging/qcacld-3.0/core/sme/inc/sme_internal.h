@@ -87,16 +87,6 @@ typedef struct sStatsExtEvent {
 	uint8_t event_data[];
 } tStatsExtEvent, *tpStatsExtEvent;
 
-/**
- * struct stats_ext2_event - stats ext2 event
- * @hole_cnt: hole counter
- * @hole_info_array: hole informaton
- */
-struct stats_ext2_event {
-	uint32_t hole_cnt;
-	uint32_t hole_info_array[];
-};
-
 #define MAX_ACTIVE_CMD_STATS    16
 
 typedef struct sActiveCmdStats {
@@ -333,6 +323,5 @@ typedef struct tagSmeStruct {
 						  wmi_mws_coex_cmd_id cmd_id);
 #endif /* WLAN_MWS_INFO_DEBUGFS */
 } tSmeStruct, *tpSmeStruct;
-
 
 #endif /* #if !defined( __SMEINTERNAL_H ) */

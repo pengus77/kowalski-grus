@@ -322,25 +322,6 @@ wmi_diag_rx_event_log_buffer[WMI_DIAG_RX_EVENT_DEBUG_MAX_ENTRY];
 	h->log_info.wmi_diag_event_log_buf_info.length++;               \
 } while (0);
 
-#define WMI_DIAG_RX_EVENT_RECORD(h, a, b) {				\
-	if (wmi_mgmt_log_max_entry <=					\
-		*(h->log_info.wmi_diag_event_log_buf_info.p_buf_tail_idx))\
-		*(h->log_info.wmi_diag_event_log_buf_info.p_buf_tail_idx) = 0;\
-	((struct wmi_event_debug *)h->log_info.wmi_diag_event_log_buf_info.buf)\
-		[*(h->log_info.wmi_diag_event_log_buf_info.p_buf_tail_idx)]\
-					.event = a;			\
-	qdf_mem_copy(((struct wmi_event_debug *)h->log_info.		\
-				wmi_diag_event_log_buf_info.buf)	\
-		[*(h->log_info.wmi_diag_event_log_buf_info.p_buf_tail_idx)].\
-			data, b, wmi_record_max_length);		\
-	((struct wmi_event_debug *)h->log_info.wmi_diag_event_log_buf_info.buf)\
-		[*(h->log_info.wmi_diag_event_log_buf_info.p_buf_tail_idx)].\
-			time = qdf_get_log_timestamp();			\
-	(*(h->log_info.wmi_diag_event_log_buf_info.p_buf_tail_idx))++;	\
-	h->log_info.wmi_diag_event_log_buf_info.length++;		\
-}
-
-
 /* These are defined to made it as module param, which can be configured */
 uint32_t wmi_log_max_entry = WMI_EVENT_DEBUG_MAX_ENTRY;
 uint32_t wmi_mgmt_log_max_entry = WMI_MGMT_EVENT_DEBUG_MAX_ENTRY;
@@ -619,8 +600,7 @@ static inline void wmi_log_buffer_free(struct wmi_unified *wmi_handle)
 #else
 static inline void wmi_log_buffer_free(struct wmi_unified *wmi_handle)
 {
-	wmi_handle->log_info.wmi_logging_enable = 0;
-	qdf_spinlock_destroy(&wmi_handle->log_info.wmi_record_lock);
+	/* Do Nothing */
 }
 #endif
 
@@ -1407,9 +1387,7 @@ static inline void wmi_log_cmd_id(uint32_t cmd_id, uint32_t tag)
 	WMI_LOGD("Send WMI command:%s command_id:%d htc_tag:%d\n",
 		 wmi_id_to_name(cmd_id), cmd_id, tag);
 }
-#endif
 
-#ifndef WMI_NON_TLV_SUPPORT
 /**
  * wmi_is_pm_resume_cmd() - check if a cmd is part of the resume sequence
  * @cmd_id: command to check
@@ -1917,29 +1895,6 @@ static void wmi_control_rx(void *ctx, HTC_PACKET *htc_packet)
 				((uint8_t *) data +
 				wmi_handle->log_info.buf_offset_event));
 		} else if (wmi_handle->ops->is_management_record(id)) {
-			WMI_MGMT_RX_EVENT_RECORD(wmi_handle, id,
-				((uint8_t *) data +
-				wmi_handle->log_info.buf_offset_event));
-		} else {
-			WMI_RX_EVENT_RECORD(wmi_handle, id, ((uint8_t *) data +
-				wmi_handle->log_info.buf_offset_event));
-		}
-		qdf_spin_unlock_bh(&wmi_handle->log_info.wmi_record_lock);
-	}
-#endif
-
-#ifdef WMI_INTERFACE_EVENT_LOGGING
-	if (wmi_handle->log_info.wmi_logging_enable) {
-		uint8_t *data;
-		data = qdf_nbuf_data(evt_buf);
-
-		qdf_spin_lock_bh(&wmi_handle->log_info.wmi_record_lock);
-		/* Exclude 4 bytes of TLV header */
-		if (wmi_handle->log_info.is_diag_event(id)) {
-			WMI_DIAG_RX_EVENT_RECORD(wmi_handle, id,
-				((uint8_t *) data +
-				wmi_handle->log_info.buf_offset_event));
-		} else if (wmi_handle->log_info.is_management_record(id)) {
 			WMI_MGMT_RX_EVENT_RECORD(wmi_handle, id,
 				((uint8_t *) data +
 				wmi_handle->log_info.buf_offset_event));
@@ -2732,36 +2687,15 @@ wmi_stop(wmi_unified_t wmi_handle)
 
 #ifndef CONFIG_MCL
 /**
- * WMI API to set crash injection state
- * @param wmi_handle:	handle to WMI.
- * @param val:		crash injection state boolean.
- */
-void wmi_tag_crash_inject(wmi_unified_t wmi_handle, A_BOOL flag)
-{
-	wmi_handle->tag_crash_inject = flag;
-}
-
-/**
- * WMI API to set bus suspend state
- * @param wmi_handle:	handle to WMI.
- * @param val:		suspend state boolean.
- */
-void wmi_set_is_wow_bus_suspended(wmi_unified_t wmi_handle, A_BOOL val)
-{
-	qdf_atomic_set(&wmi_handle->is_wow_bus_suspended, val);
-}
-
-/**
- * wmi_set_tgt_assert() - set target assert configuration
+ * API to flush all the previous packets  associated with the wmi endpoint
  *
- * @wmi_handle      : handle to WMI.
- * @val             : target assert config value
- *
- * @Return: none.
+ * @param wmi_handle      : handle to WMI.
  */
-void wmi_set_tgt_assert(wmi_unified_t wmi_handle, bool val)
+void
+wmi_flush_endpoint(wmi_unified_t wmi_handle)
 {
-	wmi_handle->tgt_force_assert_enable = val;
+	htc_flush_endpoint(wmi_handle->htc_handle,
+		wmi_handle->wmi_endpoint_id, 0);
 }
 qdf_export_symbol(wmi_flush_endpoint);
 

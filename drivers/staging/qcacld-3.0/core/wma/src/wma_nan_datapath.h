@@ -88,11 +88,13 @@ static inline bool wma_is_ndi_active(tp_wma_handle wma_handle)
 static inline void wma_update_hdd_cfg_ndp(tp_wma_handle wma_handle,
 					struct wma_tgt_cfg *tgt_cfg)
 {
+	return;
 }
 
 static inline void wma_add_bss_ndi_mode(tp_wma_handle wma,
 					tpAddBssParams add_bss)
 {
+	return;
 }
 
 static inline void wma_delete_sta_req_ndi_mode(tp_wma_handle wma,

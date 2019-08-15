@@ -845,6 +845,7 @@ __lim_handle_sme_start_bss_request(tpAniSirGlobal mac_ctx, uint32_t *msg_buf)
 				session->ch_center_freq_seg1 = 0;
 			}
 		}
+
 		if (session->vhtCapability &&
 			(session->ch_width > CH_WIDTH_80MHZ)) {
 			session->nss = 1;
@@ -1162,30 +1163,6 @@ static inline void lim_update_sae_config(tpPESession session,
 {}
 #endif
 
-
-#ifdef WLAN_FEATURE_SAE
-/**
- * lim_update_sae_config()- This API update SAE session info to csr config
- * from join request.
- * @session: PE session
- * @sme_join_req: pointer to join request
- *
- * Return: None
- */
-static void lim_update_sae_config(tpPESession session,
-		tpSirSmeJoinReq sme_join_req)
-{
-	session->sae_pmk_cached = sme_join_req->sae_pmk_cached;
-
-	pe_debug("pmk_cached %d for BSSID=" MAC_ADDRESS_STR,
-		session->sae_pmk_cached,
-		MAC_ADDR_ARRAY(sme_join_req->bssDescription.bssId));
-}
-#else
-static inline void lim_update_sae_config(tpPESession session,
-		tpSirSmeJoinReq sme_join_req)
-{}
-#endif
 
 /**
  * __lim_process_sme_join_req() - process SME_JOIN_REQ message
@@ -3676,48 +3653,6 @@ static void lim_process_sme_update_config(tpAniSirGlobal mac_ctx,
 	}
 }
 
-static void lim_process_sme_update_config(tpAniSirGlobal mac_ctx,
-					  struct update_config *msg)
-{
-	tpPESession pe_session;
-
-	pe_debug("received eWNI_SME_UPDATE_HT_CONFIG message");
-	if (msg == NULL) {
-		pe_err("Buffer is Pointing to NULL");
-		return;
-	}
-
-	pe_session = pe_find_session_by_sme_session_id(mac_ctx,
-						       msg->sme_session_id);
-	if (pe_session == NULL) {
-		pe_warn("Session does not exist for given BSSID");
-		return;
-	}
-
-	switch (msg->capab) {
-	case WNI_CFG_HT_CAP_INFO_ADVANCE_CODING:
-		pe_session->htConfig.ht_rx_ldpc = msg->value;
-		break;
-	case WNI_CFG_HT_CAP_INFO_TX_STBC:
-		pe_session->htConfig.ht_tx_stbc = msg->value;
-		break;
-	case WNI_CFG_HT_CAP_INFO_RX_STBC:
-		pe_session->htConfig.ht_rx_stbc = msg->value;
-		break;
-	case WNI_CFG_HT_CAP_INFO_SHORT_GI_20MHZ:
-		pe_session->htConfig.ht_sgi20 = msg->value;
-		break;
-	case WNI_CFG_HT_CAP_INFO_SHORT_GI_40MHZ:
-		pe_session->htConfig.ht_sgi40 = msg->value;
-		break;
-	}
-
-	if (LIM_IS_AP_ROLE(pe_session)) {
-		sch_set_fixed_beacon_fields(mac_ctx, pe_session);
-		lim_send_beacon_ind(mac_ctx, pe_session, REASON_CONFIG_UPDATE);
-	}
-}
-
 void
 lim_send_vdev_restart(tpAniSirGlobal pMac,
 		      tpPESession psessionEntry, uint8_t sessionId)
@@ -4059,7 +3994,6 @@ static void __lim_process_sme_set_ht2040_mode(tpAniSirGlobal pMac,
 			qdf_mem_copy(pHtOpMode->peer_mac, &pStaDs->staAddr,
 				     sizeof(tSirMacAddr));
 			pHtOpMode->smesessionId = sessionId;
-			pHtOpMode->dot11_mode = psessionEntry->dot11mode;
 
 			msg.type = WMA_UPDATE_OP_MODE;
 			msg.reserved = 0;
@@ -4553,42 +4487,6 @@ static void lim_process_set_vdev_ies_per_band(tpAniSirGlobal mac_ctx,
 			QDF_STATUS_SUCCESS)
 		pe_err("Unable to send HT/VHT Cap to FW");
 }
-
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
-/**
- * lim_process_roam_invoke() - process the Roam Invoke req
- * @mac_ctx: Pointer to Global MAC structure
- * @msg_buf: Pointer to the SME message buffer
- *
- * This function is called by limProcessMessageQueue(). This function sends the
- * ROAM_INVOKE command to WMA.
- *
- * Return: None
- */
-static void lim_process_roam_invoke(tpAniSirGlobal mac_ctx,
-				uint32_t *msg_buf)
-{
-	cds_msg_t msg = {0};
-	QDF_STATUS status;
-
-	msg.type = SIR_HAL_ROAM_INVOKE;
-	msg.bodyptr = msg_buf;
-	msg.reserved = 0;
-
-	status = cds_mq_post_message(QDF_MODULE_ID_WMA, &msg);
-	if (QDF_STATUS_SUCCESS != status) {
-		pe_err("Not able to post SIR_HAL_ROAM_INVOKE to WMA");
-		return;
-	}
-
-	return;
-}
-#else
-static void lim_process_roam_invoke(tpAniSirGlobal mac_ctx,
-				uint32_t *msg_buf)
-{
-}
-#endif
 
 /**
  * lim_process_set_pdev_IEs() - process the set pdev IE req
@@ -5478,9 +5376,23 @@ end:
 	update_ie->pAdditionIEBuffer = NULL;
 }
 
-void lim_send_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
-			uint16_t new_channel, uint8_t ch_bandwidth,
-			tpPESession session_entry)
+/**
+ * send_extended_chan_switch_action_frame()- function to send ECSA
+ * action frame for each sta connected to SAP/GO and AP in case of
+ * STA .
+ * @mac_ctx: pointer to global mac structure
+ * @new_channel: new channel to switch to.
+ * @ch_bandwidth: BW of channel to calculate op_class
+ * @session_entry: pe session
+ *
+ * This function is called to send ECSA frame for STA/CLI and SAP/GO.
+ *
+ * Return: void
+ */
+
+static void send_extended_chan_switch_action_frame(tpAniSirGlobal mac_ctx,
+				uint16_t new_channel, uint8_t ch_bandwidth,
+						tpPESession session_entry)
 {
 	uint16_t op_class;
 	uint8_t switch_mode = 0, i;
@@ -5742,7 +5654,7 @@ static void lim_process_ext_change_channel(tpAniSirGlobal mac_ctx,
 		pe_err("not an STA/CLI session");
 		return;
 	}
-	lim_send_chan_switch_action_frame(mac_ctx,
+	send_extended_chan_switch_action_frame(mac_ctx,
 			ext_chng_channel->new_channel,
 				0, session_entry);
 }

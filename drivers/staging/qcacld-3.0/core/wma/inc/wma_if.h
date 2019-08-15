@@ -341,6 +341,7 @@ typedef struct {
  * struct tSetStaKeyParams - set key params
  * @staIdx: station id
  * @encType: encryption type
+ * @wepType: WEP type
  * @defWEPIdx: Default WEP key, valid only for static WEP, must between 0 and 3
  * @key: valid only for non-static WEP encyrptions
  * @singleTidRc: 1=Single TID based Replay Count, 0=Per TID based RC
@@ -358,6 +359,7 @@ typedef struct {
 typedef struct {
 	uint16_t staIdx;
 	tAniEdType encType;
+	tAniWepType wepType;
 	uint8_t defWEPIdx;
 	tSirKeys key[SIR_MAC_MAX_NUM_OF_DEFAULT_KEYS];
 	uint8_t singleTidRc;
@@ -816,7 +818,6 @@ typedef struct {
  */
 typedef struct {
 	uint16_t opMode;
-	uint16_t dot11_mode;
 	uint16_t staId;
 	uint16_t smesessionId;
 	tSirMacAddr peer_mac;
@@ -863,6 +864,23 @@ typedef struct {
 	uint16_t smesessionId;
 	tSirMacAddr peer_mac;
 } tUpdateUserPos, *tpUpdateUserPos;
+
+/**
+ * struct tUpdateCFParams -CF parameters
+ * @bssIdx: BSSID index
+ * @cfpCount: CFP count
+ * @cfpPeriod: the number of DTIM intervals between the start of CFPs
+ */
+typedef struct {
+	uint8_t bssIdx;
+	/*
+	 * cfpCount indicates how many DTIMs (including the current frame)
+	 * appear before the next CFP start. A CFPCount of 0 indicates that
+	 * the current DTIM marks the start of the CFP.
+	 */
+	uint8_t cfpCount;
+	uint8_t cfpPeriod;
+} tUpdateCFParams, *tpUpdateCFParams;
 
 /**
  * struct tSwitchChannelParams - switch channel request parameter

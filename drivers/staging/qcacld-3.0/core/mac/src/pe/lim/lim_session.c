@@ -223,7 +223,6 @@ static void pe_reset_protection_callback(void *ptr)
 		lim_send_beacon_params(mac_ctx, &beacon_params, pe_session_entry);
 	}
 
-
 	pe_session_entry->old_protection_state = current_protection_state;
 restart_timer:
 	if (qdf_mc_timer_start(&pe_session_entry->
@@ -496,124 +495,6 @@ void lim_update_bcn_probe_filter(tpAniSirGlobal mac_ctx,
 		filter->num_sap_sessions);
 }
 
-#ifdef WLAN_FEATURE_FILS_SK
-/**
- * pe_delete_fils_info: API to delete fils session info
- * @session: pe session
- *
- * Return: void
- */
-void pe_delete_fils_info(tpPESession session)
-{
-	struct pe_fils_session *fils_info;
-
-	if (!session || (session && !session->valid)) {
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			  FL("session is not valid"));
-		return;
-	}
-	fils_info = session->fils_info;
-	if (!fils_info) {
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			  FL("fils info not found"));
-		return;
-	}
-	if (fils_info->keyname_nai_data)
-		qdf_mem_free(fils_info->keyname_nai_data);
-	if (fils_info->fils_erp_reauth_pkt)
-		qdf_mem_free(fils_info->fils_erp_reauth_pkt);
-	if (fils_info->fils_rrk)
-		qdf_mem_free(fils_info->fils_rrk);
-	if (fils_info->fils_rik)
-		qdf_mem_free(fils_info->fils_rik);
-	if (fils_info->fils_eap_finish_pkt)
-		qdf_mem_free(fils_info->fils_eap_finish_pkt);
-	if (fils_info->fils_rmsk)
-		qdf_mem_free(fils_info->fils_rmsk);
-	if (fils_info->fils_pmk)
-		qdf_mem_free(fils_info->fils_pmk);
-	if (fils_info->auth_info.keyname)
-		qdf_mem_free(fils_info->auth_info.keyname);
-	if (fils_info->auth_info.domain_name)
-		qdf_mem_free(fils_info->auth_info.domain_name);
-	if (fils_info->hlp_data)
-		qdf_mem_free(fils_info->hlp_data);
-
-	qdf_mem_free(fils_info);
-	session->fils_info = NULL;
-}
-/**
- * pe_init_fils_info: API to initialize fils session info elements to null
- * @session: pe session
- *
- * Return: void
- */
-static void pe_init_fils_info(tpPESession session)
-{
-	struct pe_fils_session *fils_info;
-
-	if (!session || (session && !session->valid)) {
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			  FL("session is not valid"));
-		return;
-	}
-
-	session->fils_info = qdf_mem_malloc(sizeof(struct pe_fils_session));
-	fils_info = session->fils_info;
-	if (!fils_info) {
-		QDF_TRACE(QDF_MODULE_ID_PE, QDF_TRACE_LEVEL_DEBUG,
-			  FL("fils info not found"));
-		return;
-	}
-	fils_info->keyname_nai_data = NULL;
-	fils_info->fils_erp_reauth_pkt = NULL;
-	fils_info->fils_rrk = NULL;
-	fils_info->fils_rik = NULL;
-	fils_info->fils_eap_finish_pkt = NULL;
-	fils_info->fils_rmsk = NULL;
-	fils_info->fils_pmk = NULL;
-	fils_info->auth_info.keyname = NULL;
-	fils_info->auth_info.domain_name = NULL;
-}
-#else
-static void pe_delete_fils_info(tpPESession session) { }
-static void pe_init_fils_info(tpPESession session) { }
-#endif
-
-/**
- * lim_get_peer_idxpool_size: get number of peer idx pool size
- * @num_sta: Max number of STA
- * @bss_type: BSS type
- *
- * The peer index start from 1 and thus index 0 is not used, so
- * add 1 to the max sta. For STA if TDLS is enabled add 2 as
- * index 1 is reserved for peer BSS.
- *
- * Return: number of peer idx pool size
- */
-#ifdef FEATURE_WLAN_TDLS
-static inline uint8_t
-lim_get_peer_idxpool_size(uint16_t num_sta, tSirBssType bss_type)
-{
-	/*
-	 * In station role, index 1 is reserved for peer
-	 * corresponding to AP. For TDLS the index should
-	 * start from 2
-	 */
-	if (bss_type == eSIR_INFRASTRUCTURE_MODE)
-		return num_sta + 2;
-	else
-		return num_sta + 1;
-
-}
-#else
-static inline uint8_t
-lim_get_peer_idxpool_size(uint16_t num_sta, tSirBssType bss_type)
-{
-	return num_sta + 1;
-}
-#endif
-
 /**
  * pe_create_session() creates a new PE session given the BSSID
  * @param pMac:        pointer to global adapter context
@@ -706,7 +587,6 @@ pe_create_session(tpAniSirGlobal pMac, uint8_t *bssid, uint8_t *sessionId,
 		    sizeof(session_ptr->peerAIDBitmap));
 	session_ptr->tdls_prohibited = false;
 	session_ptr->tdls_chan_swit_prohibited = false;
-	session_ptr->is_tdls_csa = false;
 #endif
 	lim_update_tdls_set_state_for_fw(session_ptr, true);
 	session_ptr->fWaitForProbeRsp = 0;
@@ -1090,8 +970,6 @@ void pe_delete_session(tpAniSirGlobal mac_ctx, tpPESession session)
 		qdf_mem_free(session->access_policy_vendor_ie);
 
 	session->access_policy_vendor_ie = NULL;
-	session->deauthmsgcnt = 0;
-	session->disassocmsgcnt = 0;
 
 	if (LIM_IS_AP_ROLE(session))
 		lim_check_and_reset_protection_params(mac_ctx);

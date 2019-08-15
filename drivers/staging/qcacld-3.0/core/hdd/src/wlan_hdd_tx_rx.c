@@ -41,7 +41,6 @@
 #include <net/cfg80211.h>
 #include <net/ieee80211_radiotap.h>
 #include "sap_api.h"
-#include "sme_power_save_api.h"
 #include "wlan_hdd_wmm.h"
 #include "wlan_hdd_tdls.h"
 #include "wlan_hdd_ocb.h"
@@ -353,6 +352,7 @@ uint32_t hdd_txrx_get_tx_ack_count(struct hdd_adapter *adapter)
 				    adapter->session_id);
 }
 
+#ifdef FEATURE_WLAN_DIAG_SUPPORT
 /**
  * qdf_event_eapol_log() - send event to wlan diag
  * @skb: skb ptr
@@ -396,7 +396,6 @@ void hdd_event_eapol_log(struct sk_buff *skb, enum qdf_proto_dir dir)
 }
 #endif
 
-
 /**
  * wlan_hdd_classify_pkt() - classify packet
  * @skb - sk buff
@@ -434,7 +433,6 @@ void wlan_hdd_classify_pkt(struct sk_buff *skb)
 		QDF_NBUF_CB_GET_PACKET_TYPE(skb) =
 			QDF_NBUF_CB_PACKET_TYPE_ICMPv6;
 }
-#endif
 
 /**
  * hdd_get_transmit_sta_id() - function to retrieve station id to be used for
@@ -1406,66 +1404,6 @@ static bool hdd_is_mcast_replay(struct sk_buff *skb)
 	return false;
 }
 
-/**
- * hdd_is_arp_local() - check if local or non local arp
- * @skb: pointer to sk_buff
- *
- * Return: true if local arp or false otherwise.
- */
-static bool hdd_is_arp_local(struct sk_buff *skb)
-{
-	struct arphdr *arp;
-	struct in_ifaddr **ifap = NULL;
-	struct in_ifaddr *ifa = NULL;
-	struct in_device *in_dev;
-	unsigned char *arp_ptr;
-	__be32 tip;
-
-	arp = (struct arphdr *)skb->data;
-	if (arp->ar_op == htons(ARPOP_REQUEST)) {
-		in_dev = __in_dev_get_rtnl(skb->dev);
-		if (in_dev) {
-			for (ifap = &in_dev->ifa_list; (ifa = *ifap) != NULL;
-				ifap = &ifa->ifa_next) {
-				if (!strcmp(skb->dev->name, ifa->ifa_label))
-					break;
-			}
-		}
-
-		if (ifa && ifa->ifa_local) {
-			arp_ptr = (unsigned char *)(arp + 1);
-			arp_ptr += (skb->dev->addr_len + 4 +
-					skb->dev->addr_len);
-			memcpy(&tip, arp_ptr, 4);
-			hdd_debug("ARP packet: local IP: %x dest IP: %x",
-				ifa->ifa_local, tip);
-			if (ifa->ifa_local == tip)
-				return true;
-		}
-	}
-
-	return false;
-}
-
-/**
- * hdd_is_rx_wake_lock_needed() - check if wake lock is needed
- * @skb: pointer to sk_buff
- *
- * RX wake lock is needed for:
- * 1) Unicast data packet OR
- * 2) Local ARP data packet
- *
- * Return: true if wake lock is needed or false otherwise.
- */
-static bool hdd_is_rx_wake_lock_needed(struct sk_buff *skb)
-{
-	if ((skb->pkt_type != PACKET_BROADCAST &&
-	     skb->pkt_type != PACKET_MULTICAST) || hdd_is_arp_local(skb))
-		return true;
-
-	return false;
-}
-
 #ifdef RECEIVE_OFFLOAD
 /**
  * hdd_resolve_rx_ol_mode() - Resolve Rx offload method, LRO or GRO
@@ -1802,7 +1740,6 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 	struct hdd_station_ctx *sta_ctx = NULL;
 	unsigned int cpu_index;
 	struct qdf_mac_addr *mac_addr, *dest_mac_addr;
-	bool wake_lock = false;
 	uint8_t pkt_type = 0;
 	bool track_arp = false;
 	struct wlan_objmgr_vdev *vdev;
@@ -1918,21 +1855,6 @@ QDF_STATUS hdd_rx_packet_cbk(void *context, qdf_nbuf_t rxBuf)
 			continue;
 		}
 
-		/* hold configurable wakelock for unicast traffic */
-		if (!hdd_is_current_high_throughput(hdd_ctx) &&
-		    hdd_ctx->config->rx_wakelock_timeout &&
-		    sta_ctx->conn_info.uIsAuthenticated)
-			wake_lock = hdd_is_rx_wake_lock_needed(skb);
-
-		if (wake_lock) {
-			cds_host_diag_log_work(&hdd_ctx->rx_wake_lock,
-						   hdd_ctx->config->rx_wakelock_timeout,
-						   WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
-			qdf_wake_lock_timeout_acquire(&hdd_ctx->rx_wake_lock,
-							  hdd_ctx->config->
-								  rx_wakelock_timeout);
-		}
-
 		/* Remove SKB from internal tracking table before submitting
 		 * it to stack
 		 */
@@ -2030,6 +1952,8 @@ const char *hdd_action_type_to_string(enum netif_action_type action)
 	CASE_RETURN_STRING(WLAN_WAKE_ALL_NETIF_QUEUE);
 	CASE_RETURN_STRING(WLAN_STOP_ALL_NETIF_QUEUE_N_CARRIER);
 	CASE_RETURN_STRING(WLAN_START_ALL_NETIF_QUEUE_N_CARRIER);
+	CASE_RETURN_STRING(WLAN_NETIF_TX_DISABLE);
+	CASE_RETURN_STRING(WLAN_NETIF_TX_DISABLE_N_CARRIER);
 	CASE_RETURN_STRING(WLAN_NETIF_CARRIER_ON);
 	CASE_RETURN_STRING(WLAN_NETIF_CARRIER_OFF);
 	CASE_RETURN_STRING(WLAN_NETIF_PRIORITY_QUEUE_ON);
@@ -2340,7 +2264,6 @@ void wlan_hdd_netif_queue_control(struct hdd_adapter *adapter,
 	adapter->queue_oper_history[index].netif_reason = reason;
 	adapter->queue_oper_history[index].pause_map = adapter->pause_map;
 }
-#endif /* WLAN_FEATURE_PKT_CAPTURE */
 
 #ifdef FEATURE_MONITOR_MODE_SUPPORT
 /**

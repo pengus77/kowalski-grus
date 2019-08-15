@@ -869,7 +869,7 @@ static void wma_data_tx_ack_work_handler(void *ack_work)
 	wma_handle->umac_data_ota_ack_cb = NULL;
 	wma_handle->last_umac_data_nbuf = NULL;
 	qdf_mem_free(work);
-	wma_handle->data_ack_work_ctx = NULL;
+	wma_handle->ack_work_ctx = NULL;
 }
 
 /**
@@ -920,7 +920,7 @@ wma_data_tx_ack_comp_hdlr(void *wma_context, qdf_nbuf_t netbuf, int32_t status)
 		struct wma_tx_ack_work_ctx *ack_work;
 
 		ack_work = qdf_mem_malloc(sizeof(struct wma_tx_ack_work_ctx));
-		wma_handle->data_ack_work_ctx = ack_work;
+		wma_handle->ack_work_ctx = ack_work;
 		if (ack_work) {
 			ack_work->wma_handle = wma_handle;
 			ack_work->sub_type = 0;
@@ -1835,7 +1835,7 @@ static void wma_set_thermal_level_ind(u_int8_t level)
 	QDF_STATUS qdf_status = QDF_STATUS_SUCCESS;
 	struct scheduler_msg sme_msg = {0};
 
-	WMA_LOGD(FL("Thermal level: %d"), level);
+	WMA_LOGI(FL("Thermal level: %d"), level);
 
 	sme_msg.type = eWNI_SME_SET_THERMAL_LEVEL_IND;
 	sme_msg.bodyptr = NULL;
@@ -2334,9 +2334,6 @@ static uint32_t rate_mcs[] = {WMI_MAX_CCK_TX_RATE_1M, WMI_MAX_CCK_TX_RATE_2M,
 #define WMA_TX_SEND_MGMT_TYPE 0
 #define WMA_TX_SEND_DATA_TYPE 1
 
-/* WMI MGMT TX wake lock timeout in milli seconds */
-#define WMI_MGMT_TX_WAKE_LOCK_DURATION 300
-
 /**
  * wma_update_tx_send_params() - Update tx_send_params TLV info
  * @tx_param: Pointer to tx_send_params
@@ -2404,8 +2401,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	uint8_t *pFrame = NULL;
 	void *pPacket = NULL;
 	uint16_t newFrmLen = 0;
-	uint8_t action_category = 0;
-	bool deauth_disassoc = false;
 #endif /* WLAN_FEATURE_11W */
 	struct wma_txrx_node *iface;
 	tpAniSirGlobal pMac;
@@ -2472,12 +2467,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 	     pFc->subType == SIR_MAC_MGMT_ACTION)) {
 		struct ieee80211_frame *wh =
 			(struct ieee80211_frame *)qdf_nbuf_data(tx_frame);
-		if (pFc->subType == SIR_MAC_MGMT_ACTION)
-			action_category =
-					*((uint8_t *)(qdf_nbuf_data(tx_frame)) +
-					  sizeof(struct ieee80211_frame));
-		else
-			deauth_disassoc = true;
 		if (!IEEE80211_IS_BROADCAST(wh->i_addr1) &&
 		    !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 			if (pFc->wep) {
@@ -2532,8 +2521,7 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 				pFc = (tpSirMacFrameCtl)
 						(qdf_nbuf_data(tx_frame));
 			}
-		} else if (deauth_disassoc ||
-			   wma_is_rmf_mgmt_action_frame(action_category)) {
+		} else {
 			/* Allocate extra bytes for MMIE */
 			newFrmLen = frmLen + IEEE80211_MMIE_LEN;
 			qdf_status = cds_packet_alloc((uint16_t) newFrmLen,
@@ -2574,13 +2562,6 @@ QDF_STATUS wma_tx_packet(void *wma_context, void *tx_frame, uint16_t frmLen,
 			frmLen = newFrmLen;
 			pFc = (tpSirMacFrameCtl) (qdf_nbuf_data(tx_frame));
 		}
-		/*
-		 * Some target which support sending mgmt frame based on htt
-		 * would DMA write this PMF tx frame buffer, it may cause smmu
-		 * check permission fault, set a flag to do bi-direction DMA
-		 * map, normal tx unmap is enough for this case.
-		 */
-		QDF_NBUF_CB_TX_DMA_BI_MAP((qdf_nbuf_t)tx_frame) = 1;
 	}
 #endif /* WLAN_FEATURE_11W */
 	mHdr = (tpSirMacMgmtHdr)qdf_nbuf_data(tx_frame);

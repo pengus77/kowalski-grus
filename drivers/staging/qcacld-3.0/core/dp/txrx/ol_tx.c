@@ -229,7 +229,6 @@ uint8_t ol_tx_prepare_tso(ol_txrx_vdev_handle vdev,
  * ol_tx_data() - send data frame
  * @vdev: virtual device handle
  * @skb: skb
- * @notify_tx_comp: whether OTA to be notified
  *
  * Return: skb/NULL for success
  */
@@ -260,7 +259,7 @@ qdf_nbuf_t ol_tx_data(void *data_vdev, qdf_nbuf_t skb)
 
 	/* Terminate the (single-element) list of tx frames */
 	qdf_nbuf_set_next(skb, NULL);
-	ret = OL_TX_SEND(vdev, skb, notify_tx_comp);
+	ret = OL_TX_SEND(vdev, skb);
 	if (ret) {
 		ol_txrx_dbg("%s: Failed to tx", __func__);
 		return ret;
@@ -359,12 +358,7 @@ uint32_t ol_tx_tso_get_stats_idx(struct ol_txrx_pdev_t *pdev)
 
 #ifdef QCA_LL_LEGACY_TX_FLOW_CONTROL
 
-#ifdef FEATURE_WLAN_LL_LEGACY_TX_FLOW_CT
-#define OL_TX_VDEV_PAUSE_QUEUE_SEND_MARGIN 0
-#else
 #define OL_TX_VDEV_PAUSE_QUEUE_SEND_MARGIN 400
-#endif
-
 #define OL_TX_VDEV_PAUSE_QUEUE_SEND_PERIOD_MS 5
 static void ol_tx_vdev_ll_pause_queue_send_base(struct ol_txrx_vdev_t *vdev)
 {
@@ -403,7 +397,7 @@ static void ol_tx_vdev_ll_pause_queue_send_base(struct ol_txrx_vdev_t *vdev)
 			qdf_nbuf_set_next(tx_msdu, NULL);
 			QDF_NBUF_UPDATE_TX_PKT_COUNT(tx_msdu,
 						QDF_NBUF_TX_PKT_TXRX_DEQUEUE);
-			tx_msdu = ol_tx_ll_wrapper(vdev, tx_msdu, 0);
+			tx_msdu = ol_tx_ll_wrapper(vdev, tx_msdu);
 			/*
 			 * It is unexpected that ol_tx_ll would reject the frame
 			 * since we checked that there's room for it, though
@@ -481,8 +475,7 @@ ol_tx_vdev_pause_queue_append(struct ol_txrx_vdev_t *vdev,
  * Store up the tx frame in the vdev's tx queue if the vdev is paused.
  * If there are too many frames in the tx queue, reject it.
  */
-qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
-			  bool notify_tx_comp)
+qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 {
 	uint16_t eth_type;
 	uint32_t paused_reason;
@@ -501,8 +494,7 @@ qdf_nbuf_t ol_tx_ll_queue(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
 				   (((struct ethernet_hdr_t *)
 				     qdf_nbuf_data(msdu_list))->ethertype[1]);
 			if (ETHERTYPE_IS_EAPOL_WAPI(eth_type)) {
-				msdu_list =
-					ol_tx_ll_wrapper(vdev, msdu_list, 0);
+				msdu_list = ol_tx_ll_wrapper(vdev, msdu_list);
 				return msdu_list;
 			}
 		}
@@ -600,7 +592,7 @@ void ol_tx_pdev_ll_pause_queue_send_all(struct ol_txrx_pdev_t *pdev)
 					vdev->ll_pause.txq.tail = NULL;
 
 				qdf_nbuf_set_next(tx_msdu, NULL);
-				tx_msdu = ol_tx_ll_wrapper(vdev, tx_msdu, 0);
+				tx_msdu = ol_tx_ll_wrapper(vdev, tx_msdu);
 				/*
 				 * It is unexpected that ol_tx_ll would reject
 				 * the frame, since we checked that there's
@@ -639,7 +631,7 @@ void ol_tx_pdev_ll_pause_queue_send_all(struct ol_txrx_pdev_t *pdev)
 	}
 }
 
-void ol_tx_vdev_ll_pause_queue_send(unsigned long context)
+void ol_tx_vdev_ll_pause_queue_send(void *context)
 {
 	struct ol_txrx_vdev_t *vdev = (struct ol_txrx_vdev_t *)context;
 	struct ol_txrx_pdev_t *pdev = vdev->pdev;
@@ -787,7 +779,6 @@ static bool parse_ocb_tx_header(qdf_nbuf_t msdu,
 {
 	struct ether_header *eth_hdr_p;
 	struct ocb_tx_ctrl_hdr_t *tx_ctrl_hdr;
-	*tx_ctrl_header_found = false;
 
 	/* Check if TX control header is present */
 	eth_hdr_p = (struct ether_header *)qdf_nbuf_data(msdu);
@@ -802,7 +793,6 @@ static bool parse_ocb_tx_header(qdf_nbuf_t msdu,
 	tx_ctrl_hdr = (struct ocb_tx_ctrl_hdr_t *)qdf_nbuf_data(msdu);
 
 	if (tx_ctrl_hdr->version == OCB_HEADER_VERSION) {
-		*tx_ctrl_header_found = true;
 		if (tx_ctrl)
 			qdf_mem_copy(tx_ctrl, tx_ctrl_hdr,
 				     sizeof(*tx_ctrl_hdr));
@@ -815,50 +805,6 @@ static bool parse_ocb_tx_header(qdf_nbuf_t msdu,
 	qdf_nbuf_pull_head(msdu, tx_ctrl_hdr->length);
 	return true;
 }
-
-/**
- * merge_ocb_tx_ctrl_hdr() - merge the default TX ctrl parameters into
- * @tx_ctrl: The destination TX control header.
- * @def_ctrl_hdr: The default TX control header.
- *
- * For each parameter in tx_ctrl, if the parameter is unspecified, the
- * equivalent parameter in def_ctrl_hdr will be copied to tx_ctrl.
- */
-static void merge_ocb_tx_ctrl_hdr(struct ocb_tx_ctrl_hdr_t *tx_ctrl,
-			struct ocb_tx_ctrl_hdr_t *def_ctrl_hdr)
-{
-	if (!tx_ctrl || !def_ctrl_hdr)
-		return;
-
-	if (!tx_ctrl->channel_freq && def_ctrl_hdr->channel_freq)
-		tx_ctrl->channel_freq = def_ctrl_hdr->channel_freq;
-	if (!tx_ctrl->valid_pwr && def_ctrl_hdr->valid_pwr) {
-		tx_ctrl->pwr = def_ctrl_hdr->pwr;
-		tx_ctrl->valid_pwr = 1;
-	}
-	if (!tx_ctrl->valid_datarate && def_ctrl_hdr->valid_datarate) {
-		tx_ctrl->datarate = def_ctrl_hdr->datarate;
-		tx_ctrl->valid_datarate = 1;
-	}
-	if (!tx_ctrl->valid_retries && def_ctrl_hdr->valid_retries) {
-		tx_ctrl->retry_limit = def_ctrl_hdr->retry_limit;
-		tx_ctrl->valid_retries = 1;
-	}
-	if (!tx_ctrl->valid_chain_mask && def_ctrl_hdr->valid_chain_mask) {
-		tx_ctrl->chain_mask = def_ctrl_hdr->chain_mask;
-		tx_ctrl->valid_chain_mask = 1;
-	}
-	if (!tx_ctrl->valid_expire_tsf && def_ctrl_hdr->valid_expire_tsf) {
-		tx_ctrl->expire_tsf_hi = def_ctrl_hdr->expire_tsf_hi;
-		tx_ctrl->expire_tsf_lo = def_ctrl_hdr->expire_tsf_lo;
-		tx_ctrl->valid_expire_tsf = 1;
-	}
-	if (!tx_ctrl->valid_tid && def_ctrl_hdr->valid_tid) {
-		tx_ctrl->ext_tid = def_ctrl_hdr->ext_tid;
-		tx_ctrl->valid_tid = 1;
-	}
-}
-
 
 
 #if defined(CONFIG_HL_SUPPORT) && defined(CONFIG_TX_DESC_HI_PRIO_RESERVE)
@@ -1166,30 +1112,12 @@ ol_tx_hl_base(
 			 * parse the tx control header.
 			 */
 			if (vdev->opmode == wlan_op_mode_ocb) {
-				bool tx_ctrl_header_found = false;
-
-				if (!parse_ocb_tx_header(msdu, &tx_ctrl,
-					&tx_ctrl_header_found)) {
+				if (!parse_ocb_tx_header(msdu, &tx_ctrl)) {
 					/* There was an error parsing
 					 * the header.Skip this packet.
 					 */
 					goto MSDU_LOOP_BOTTOM;
 				}
-			/*
-			 * If the TX control header was not found,
-			 * just use the defaults
-			 */
-			if (!tx_ctrl_header_found && vdev->ocb_def_tx_param)
-				qdf_mem_copy(&tx_ctrl, vdev->ocb_def_tx_param,
-				sizeof(tx_ctrl));
-			/*
-			 * If the TX control header was found, merge the
-			 * defaults into it
-			 */
-			else if (tx_ctrl_header_found && vdev->ocb_def_tx_param)
-				merge_ocb_tx_ctrl_hdr(&tx_ctrl,
-						vdev->ocb_def_tx_param);
-
 			}
 
 			txq = ol_tx_classify(vdev, tx_desc, msdu,
@@ -1207,14 +1135,12 @@ ol_tx_hl_base(
 					vdev->opmode == wlan_op_mode_ocb);
 
 			if ((!txq) || TX_FILTER_CHECK(&tx_msdu_info)) {
-				/*
-				 * drop this frame,
+				/* drop this frame,
 				 * but try sending subsequent frames
 				 */
 				/*TXRX_STATS_MSDU_LIST_INCR(pdev,
-				 *			tx.dropped.no_txq,
-				 *			msdu);
-				 */
+							tx.dropped.no_txq,
+							msdu);*/
 				qdf_atomic_inc(&pdev->tx_queue.rsrc_cnt);
 				ol_tx_desc_frame_free_nonstd(pdev, tx_desc, 1);
 				if (tx_msdu_info.peer) {
@@ -1284,6 +1210,16 @@ ol_tx_hl_base(
 						&tx_msdu_info))
 				goto MSDU_LOOP_BOTTOM;
 
+			/* initialize the HW tx descriptor */
+			htt_tx_desc_init(
+					pdev->htt_pdev, tx_desc->htt_tx_desc,
+					tx_desc->htt_tx_desc_paddr,
+					ol_tx_desc_id(pdev, tx_desc),
+					msdu,
+					&tx_msdu_info.htt,
+					&tx_msdu_info.tso_info,
+					&tx_ctrl,
+					vdev->opmode == wlan_op_mode_ocb);
 			/*
 			 * If debug display is enabled, show the meta-data
 			 * being downloaded to the target via the
@@ -1308,8 +1244,7 @@ MSDU_LOOP_BOTTOM:
 }
 
 qdf_nbuf_t
-ol_tx_hl(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list,
-	 bool notify_tx_comp)
+ol_tx_hl(ol_txrx_vdev_handle vdev, qdf_nbuf_t msdu_list)
 {
 	struct ol_txrx_pdev_t *pdev = vdev->pdev;
 	int tx_comp_req = pdev->cfg.default_tx_comp_req;

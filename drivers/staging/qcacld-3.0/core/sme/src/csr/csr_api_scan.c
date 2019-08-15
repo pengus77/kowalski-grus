@@ -71,7 +71,7 @@
 #define MAX_ACTIVE_SCAN_FOR_ONE_CHANNEL_FASTREASSOC 30
 #define MIN_ACTIVE_SCAN_FOR_ONE_CHANNEL_FASTREASSOC 20
 
-#define PCL_ADVANTAGE 20
+#define PCL_ADVANTAGE 30
 #define PCL_RSSI_THRESHOLD -75
 
 static void csr_set_cfg_valid_channel_list(tpAniSirGlobal pMac, uint8_t
@@ -2763,17 +2763,6 @@ static QDF_STATUS csr_parse_scan_list(tpAniSirGlobal mac_ctx,
 		next_node = NULL;
 	}
 
-	/*
-	 * If we are not able to find command for scan id in
-	 * pending list, check active list. Also if the session
-	 * id is valid then we have to check below active list.
-	 */
-	if (ret != QDF_STATUS_SUCCESS ||
-			sessionId != CSR_SESSION_ID_INVALID) {
-		status = csr_abort_scan_from_active_list(pMac,
-			&pMac->sme.smeScanCmdActiveList, sessionId, scan_id,
-			eSmeCommandScan, reason);
-	}
 	return status;
 }
 

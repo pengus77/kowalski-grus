@@ -64,9 +64,6 @@
 #define WMA_GET_RX_MPDU_DATA(pRxMeta) \
 	(((t_packetmeta *)pRxMeta)->mpdu_data_ptr)
 
-#define WMA_GET_RX_RSSI_CTL_PTR(pRxMeta) \
-		(((t_packetmeta *)pRxMeta)->rssi_per_chain)
-
 #define WMA_GET_RX_MPDU_HEADER_OFFSET(pRxMeta) 0
 
 #define WMA_GET_RX_UNKNOWN_UCAST(pRxMeta) 0
@@ -157,6 +154,7 @@
 #define WMA_UPDATE_EDCA_PROFILE_IND    SIR_HAL_UPDATE_EDCA_PROFILE_IND
 
 #define WMA_UPDATE_BEACON_IND          SIR_HAL_UPDATE_BEACON_IND
+#define WMA_UPDATE_CF_IND              SIR_HAL_UPDATE_CF_IND
 #define WMA_CHNL_SWITCH_REQ            SIR_HAL_CHNL_SWITCH_REQ
 #define WMA_ADD_TS_REQ                 SIR_HAL_ADD_TS_REQ
 #define WMA_DEL_TS_REQ                 SIR_HAL_DEL_TS_REQ
@@ -234,9 +232,6 @@
 #ifdef WLAN_NS_OFFLOAD
 #define WMA_SET_NS_OFFLOAD             SIR_HAL_SET_NS_OFFLOAD
 #endif /* WLAN_NS_OFFLOAD */
-
-#define WMA_CONF_HW_FILTER             SIR_HAL_CONF_HW_FILTER
-
 #define WMA_ADD_STA_SELF_REQ           SIR_HAL_ADD_STA_SELF_REQ
 #define WMA_DEL_STA_SELF_REQ           SIR_HAL_DEL_STA_SELF_REQ
 
@@ -712,8 +707,6 @@ wma_ds_peek_rx_packet_info
 
 
 void wma_tx_abort(uint8_t vdev_id);
-
-bool wma_is_rmf_mgmt_action_frame(uint8_t action_category);
 
 QDF_STATUS wma_tx_packet(void *pWMA,
 			 void *pFrmBuf,

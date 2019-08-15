@@ -45,6 +45,7 @@
 
 #include "cds_utils.h"
 
+#if !defined(REMOVE_PKT_LOG)
 #include "pktlog_ac.h"
 #else
 #include "pktlog_ac_fmt.h"
@@ -1172,58 +1173,6 @@ static void wma_objmgr_set_peer_mlme_phymode(tp_wma_handle wma,
 	wlan_objmgr_peer_release_ref(peer, WLAN_LEGACY_WMA_ID);
 }
 
-#define CFG_CTRL_MASK              0xFF00
-#define CFG_DATA_MASK              0x00FF
-
-/**
- * wma_mask_tx_ht_rate() - mask tx ht rate based on config
- * @wma:     wma handle
- * @mcs_set  mcs set buffer
- *
- * Return: None
- */
-static void wma_mask_tx_ht_rate(tp_wma_handle wma, uint8_t *mcs_set)
-{
-	uint32_t mcs_limit, i, j;
-	uint8_t *rate_pos = mcs_set;
-
-	/*
-	 * Get MCS limit from ini configure, and map it to rate parameters
-	 * This will limit HT rate upper bound. CFG_CTRL_MASK is used to
-	 * check whether ini config is enabled and CFG_DATA_MASK to get the
-	 * MCS value.
-	 */
-	if (wlan_cfg_get_int(wma->mac_context, WNI_CFG_MAX_HT_MCS_TX_DATA,
-			   &mcs_limit) != eSIR_SUCCESS) {
-		mcs_limit = WNI_CFG_MAX_HT_MCS_TX_DATA_STADEF;
-	}
-
-	if (mcs_limit & CFG_CTRL_MASK) {
-		WMA_LOGD("%s: set mcs_limit %x", __func__, mcs_limit);
-
-		mcs_limit &= CFG_DATA_MASK;
-		for (i = 0, j = 0; i < MAX_SUPPORTED_RATES;) {
-			if (j < mcs_limit / 8) {
-				rate_pos[j] = 0xff;
-				j++;
-				i += 8;
-			} else if (j < mcs_limit / 8 + 1) {
-				if (i <= mcs_limit)
-					rate_pos[i / 8] |= 1 << (i % 8);
-				else
-					rate_pos[i / 8] &= ~(1 << (i % 8));
-				i++;
-
-				if (i >= (j + 1) * 8)
-					j++;
-			} else {
-				rate_pos[j++] = 0;
-				i += 8;
-			}
-		}
-	}
-}
-
 /**
  * wmi_unified_send_peer_assoc() - send peer assoc command to fw
  * @wma: wma handle
@@ -1548,6 +1497,7 @@ QDF_STATUS wma_send_peer_assoc(tp_wma_handle wma,
 
 	wma_populate_peer_he_cap(cmd, params);
 
+	intr->nss = cmd->peer_nss;
 	cmd->peer_phymode = phymode;
 	WMA_LOGD("%s: vdev_id %d associd %d peer_flags %x rate_caps %x peer_caps %x",
 		 __func__,  cmd->vdev_id, cmd->peer_associd, cmd->peer_flags,
@@ -1640,7 +1590,7 @@ wma_update_beacon_interval(tp_wma_handle wma, uint8_t vdev_id,
 	if (QDF_IS_STATUS_ERROR(ret))
 		WMA_LOGE("Failed to update beacon interval");
 	else
-		WMA_LOGD("Updated beacon interval %d for vdev %d",
+		WMA_LOGI("Updated beacon interval %d for vdev %d",
 			 beaconInterval, vdev_id);
 }
 
@@ -2033,9 +1983,6 @@ static QDF_STATUS wma_setup_install_key_cmd(tp_wma_handle wma_handle,
 					     CMAC_IPN_LEN);
 		}
 	}
-
-	if (key_params->unicast && iface)
-		iface->ucast_key_cipher = params.key_cipher;
 #endif /* WLAN_FEATURE_11W */
 
 	if (key_params->unicast)
@@ -3107,10 +3054,6 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
 		WMA_LOGE("%s: wma handle is NULL", __func__);
 		return -EINVAL;
 	}
-	if (desc_id >= WMI_DESC_POOL_MAX) {
-		WMA_LOGE("%s: Invalid desc id %d", __func__, desc_id);
-		return -EINVAL;
-	}
 
 	WMA_LOGD("%s: status: %s wmi_desc_id: %d", __func__,
 		wma_get_status_str(status), desc_id);
@@ -3151,16 +3094,13 @@ static int wma_process_mgmt_tx_completion(tp_wma_handle wma_handle,
  *
  * Return: 0 on success; error number otherwise
  */
+
 int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 				   uint32_t len)
 {
 	tp_wma_handle wma_handle = (tp_wma_handle)handle;
 	WMI_MGMT_TX_COMPLETION_EVENTID_param_tlvs *param_buf;
 	wmi_mgmt_tx_compl_event_fixed_param	*cmpl_params;
-	wmi_mgmt_hdr *mgmt_hdr = NULL;
-	ol_txrx_pdev_handle pdev;
-
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
 
 	param_buf = (WMI_MGMT_TX_COMPLETION_EVENTID_param_tlvs *)
 		cmpl_event_params;
@@ -3169,16 +3109,7 @@ int wma_mgmt_tx_completion_handler(void *handle, uint8_t *cmpl_event_params,
 		return -EINVAL;
 	}
 	cmpl_params = param_buf->fixed_param;
-	if (pdev && cds_get_pktcap_mode_enable() &&
-	    (ol_cfg_pktcapture_mode(pdev->ctrl_pdev) &
-	     PKT_CAPTURE_MODE_MGMT_ONLY) &&
-	    pdev->mon_cb) {
-		mgmt_hdr = (wmi_mgmt_hdr *)(param_buf->mgmt_hdr);
-		wma_process_mon_mgmt_tx_completion(
-			wma_handle,
-			cmpl_params->desc_id,
-			cmpl_params->status, mgmt_hdr);
-	}
+
 	wma_process_mgmt_tx_completion(wma_handle,
 		cmpl_params->desc_id, cmpl_params->status);
 
@@ -3275,31 +3206,8 @@ void wma_process_update_opmode(tp_wma_handle wma_handle,
 			   update_vht_opmode->smesessionId);
 	WMA_LOGD("%s: opMode = %d", __func__, update_vht_opmode->opMode);
 	wma_set_peer_param(wma_handle, update_vht_opmode->peer_mac,
-			WMI_PEER_CHWIDTH, update_vht_opmode->opMode,
-			update_vht_opmode->smesessionId);
-}
-
-/**
- * wma_update_txrx_chainmask() - process txrx chainmask
- * @num_rf_chains: rf chains
- * @cmd_value: rx nss value
- *
- * Return: none
- */
-static void wma_update_txrx_chainmask(int num_rf_chains, int *cmd_value)
-{
-	int tmp;
-
-	tmp = WMA_MAX_RF_CHAINS(num_rf_chains);
-	if (*cmd_value > tmp) {
-		WMA_LOGE("%s: exceed the maximum! Request %d, Update %d",
-			 __func__, *cmd_value, tmp);
-		*cmd_value = tmp;
-	} else if (*cmd_value < WMA_MIN_RF_CHAINS) {
-		WMA_LOGE("%s: less than the minimum! Request %d Update %d",
-			 __func__, *cmd_value, WMA_MIN_RF_CHAINS);
-		*cmd_value = WMA_MIN_RF_CHAINS;
-	}
+			   WMI_PEER_CHWIDTH, update_vht_opmode->opMode,
+			   update_vht_opmode->smesessionId);
 }
 
 /**
@@ -3327,9 +3235,6 @@ void wma_process_update_rx_nss(tp_wma_handle wma_handle,
 	num_rf_chains = target_if_get_num_rf_chains(tgt_hdl);
 	if (rx_nss > num_rf_chains || rx_nss > WMA_MAX_NSS)
 		rx_nss = QDF_MIN(num_rf_chains, WMA_MAX_NSS);
-
-	if (rx_nss > WMA_MAX_NSS)
-		rx_nss = WMA_MAX_NSS;
 
 	intr->nss = (uint8_t)rx_nss;
 	update_rx_nss->rxNss = (uint32_t)rx_nss;
@@ -3787,13 +3692,6 @@ int wma_process_rmf_frame(tp_wma_handle wma_handle,
 			cds_pkt_return_packet(rx_pkt);
 			return -EINVAL;
 		}
-	if (qdf_nbuf_len(wbuf) < (sizeof(*wh) + IEEE80211_CCMP_HEADERLEN +
-						IEEE80211_CCMP_MICLEN)) {
-		WMA_LOGE("Buffer length less than expected %d ",
-						(int)qdf_nbuf_len(wbuf));
-		cds_pkt_return_packet(rx_pkt);
-		return -EINVAL;
-	}
 
 		pdev_id = wlan_objmgr_pdev_get_pdev_id(wma_handle->pdev);
 		status = mlme_get_peer_mic_len(wma_handle->psoc, pdev_id,
@@ -3822,13 +3720,6 @@ int wma_process_rmf_frame(tp_wma_handle wma_handle,
 			return -EINVAL;
 		}
 
-		if (iface->ucast_key_cipher == WMI_CIPHER_AES_GCM) {
-			hdr_len = WLAN_IEEE80211_GCMP_HEADERLEN;
-			mic_len = WLAN_IEEE80211_GCMP_MICLEN;
-		} else {
-			hdr_len = IEEE80211_CCMP_HEADERLEN;
-			mic_len = IEEE80211_CCMP_MICLEN;
-		}
 		/* Strip privacy headers (and trailer)
 		 * for a received frame
 		 */
@@ -3900,58 +3791,6 @@ static inline int wma_process_rmf_frame(tp_wma_handle wma_handle,
 #endif
 
 /**
- * wma_process_mon_mgmt_rx_data(): process management rx packets
- * for pkt capture mode
- * @hdr: wmi_mgmt_rx_hdr
- * @nbuf: netbuf
- *
- * Return: true if pkt is post to thread else false
- */
-static bool
-wma_process_mon_mgmt_rx_data(wmi_mgmt_rx_hdr *hdr,
-			     qdf_nbuf_t nbuf)
-{
-	struct ol_txrx_pdev_t *pdev_ctx;
-	ol_txrx_mon_callback_fp data_rx = NULL;
-	struct mon_rx_status txrx_status = {0};
-	uint16_t channel_flags = 0;
-	struct ieee80211_frame *wh;
-
-	pdev_ctx = cds_get_context(QDF_MODULE_ID_TXRX);
-	if (!pdev_ctx) {
-		WMA_LOGE(FL("Failed to get the context"));
-		return false;
-	}
-
-	data_rx = pdev_ctx->mon_cb;
-	if (!data_rx)
-		return false;
-
-	txrx_status.tsft = (u_int64_t)hdr->rx_tsf_l32;
-	txrx_status.chan_num = hdr->channel;
-	txrx_status.chan_freq = cds_chan_to_freq(txrx_status.chan_num);
-	/* hdr->rate is in Kbps, convert into Mbps */
-	txrx_status.rate = (hdr->rate / 1000);
-	txrx_status.ant_signal_db = hdr->snr;
-	txrx_status.nr_ant = 1;
-	txrx_status.rtap_flags |=
-		((txrx_status.rate == 6 /* Mbps */) ? BIT(1) : 0);
-	channel_flags |=
-		((txrx_status.rate == 6 /* Mbps */) ?
-		IEEE80211_CHAN_OFDM : IEEE80211_CHAN_CCK);
-	channel_flags |=
-		(cds_chan_to_band(txrx_status.chan_num) == CDS_BAND_2GHZ ?
-		IEEE80211_CHAN_2GHZ : IEEE80211_CHAN_5GHZ);
-	txrx_status.chan_flags = channel_flags;
-	txrx_status.rate = ((txrx_status.rate == 6 /* Mbps */) ? 0x0c : 0x02);
-
-	wh = (struct ieee80211_frame *)qdf_nbuf_data(nbuf);
-	wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
-
-	return ol_txrx_mon_mgmt_process(&txrx_status, nbuf, 0);
-}
-
-/**
  * wma_is_pkt_drop_candidate() - check if the mgmt frame should be droppped
  * @wma_handle: wma handle
  * @peer_addr: peer MAC address
@@ -3977,8 +3816,6 @@ static bool wma_is_pkt_drop_candidate(tp_wma_handle wma_handle,
 			goto end;
 	}
 end:
-	if (peer)
-		OL_TXRX_PEER_UNREF_DELETE(peer);
 	return should_drop;
 }
 
@@ -3992,7 +3829,6 @@ int wma_form_rx_packet(qdf_nbuf_t buf,
 	uint8_t vdev_id = WMA_INVALID_VDEV_ID;
 	struct ieee80211_frame *wh;
 	uint8_t mgt_type, mgt_subtype;
-	struct wma_txrx_node *iface = NULL;
 	int status;
 	tp_wma_handle wma_handle = (tp_wma_handle)
 				cds_get_context(QDF_MODULE_ID_WMA);
@@ -4147,17 +3983,6 @@ int wma_form_rx_packet(qdf_nbuf_t buf,
 
 	rx_pkt->pkt_meta.sessionId =
 		(vdev_id == WMA_INVALID_VDEV_ID ? 0 : vdev_id);
-	if (mgt_type == IEEE80211_FC0_TYPE_MGT &&
-	    (mgt_subtype == IEEE80211_FC0_SUBTYPE_BEACON ||
-	     mgt_subtype == IEEE80211_FC0_SUBTYPE_PROBE_RESP)) {
-		if (hdr->buf_len <=
-			(sizeof(struct ieee80211_frame) +
-			offsetof(struct sSirProbeRespBeacon, ssId))) {
-			WMA_LOGD("Dropping frame from "MAC_ADDRESS_STR, MAC_ADDR_ARRAY(wh->i_addr3));
-			cds_pkt_return_packet(rx_pkt);
-			return -EINVAL;
-		}
-	}
 
 	if (mgt_type == IEEE80211_FC0_TYPE_MGT &&
 	    (mgt_subtype == IEEE80211_FC0_SUBTYPE_BEACON ||

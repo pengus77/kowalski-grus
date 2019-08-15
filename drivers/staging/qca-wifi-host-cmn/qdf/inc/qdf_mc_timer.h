@@ -72,7 +72,6 @@ typedef struct qdf_mc_timer_s {
 	qdf_mutex_t lock;
 	QDF_TIMER_TYPE type;
 	QDF_TIMER_STATE state;
-	uint32_t cookie;
 } qdf_mc_timer_t;
 
 

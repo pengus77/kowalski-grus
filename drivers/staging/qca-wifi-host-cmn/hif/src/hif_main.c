@@ -934,29 +934,6 @@ void *hif_get_lro_info(int ctx_id, struct hif_opaque_softc *hif_hdl)
 }
 #endif
 
-#if defined(FEATURE_LRO)
-/**
- * hif_get_lro_info - Returns LRO instance for instance ID
- * @ctx_id: LRO instance ID
- * @hif_hdl: HIF Context
- *
- * Return: Pointer to LRO instance.
- */
-void *hif_get_lro_info(int ctx_id, struct hif_opaque_softc *hif_hdl)
-{
-	void *data;
-
-	if (hif_napi_enabled(hif_hdl, -1))
-		data = hif_napi_get_lro_info(hif_hdl, ctx_id);
-	else
-		data = hif_ce_get_lro_ctx(hif_hdl, ctx_id);
-
-	return data;
-}
-
-
-#endif
-
 /**
  * hif_get_target_status - API to get target status
  * @hif_ctx: HIF Context

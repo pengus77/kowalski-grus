@@ -459,10 +459,6 @@ static int hdd_soc_reinit(struct device *dev, void *bdev,
 
 	hdd_soc_load_unlock(dev);
 
-	probe_fail_cnt = 0;
-	re_init_fail_cnt = 0;
-	hdd_stop_driver_ops_timer();
-	mutex_unlock(&hdd_init_deinit_lock);
 	return 0;
 
 assert_fail_count:
@@ -510,8 +506,6 @@ static int wlan_hdd_probe(struct device *dev, void *bdev,
  */
 static void wlan_hdd_remove(struct device *dev)
 {
-	hdd_context_t *hdd_ctx;
-
 	pr_info("%s: Removing driver v%s\n", WLAN_MODULE_NAME,
 		QWLAN_VERSIONSTR);
 
@@ -534,9 +528,6 @@ static void wlan_hdd_remove(struct device *dev)
 	}
 	hdd_stop_driver_ops_timer();
 	mutex_unlock(&hdd_init_deinit_lock);
-
-	cds_set_driver_in_bad_state(false);
-	cds_set_unload_in_progress(false);
 
 	cds_set_driver_in_bad_state(false);
 	cds_set_unload_in_progress(false);
@@ -612,12 +603,6 @@ static void wlan_hdd_shutdown(void)
 	/* mask the host controller interrupts */
 	hif_mask_interrupt_call(hif_ctx);
 
-	if (!hif_ctx) {
-		hdd_err("Failed to get HIF context, ignore SSR shutdown");
-		return;
-	}
-	/* mask the host controller interrupts */
-	hif_mask_interrupt_call(hif_ctx);
 	if (cds_is_load_or_unload_in_progress()) {
 		hdd_err("Load/unload in progress, ignore SSR shutdown");
 		return;
@@ -922,11 +907,6 @@ static int __wlan_hdd_bus_suspend_noirq(void)
 	if (errno) {
 		hdd_err("Invalid HDD context: errno %d", errno);
 		return errno;
-	}
-
-	if (hdd_ctx->driver_status == DRIVER_MODULES_OPENED) {
-		hdd_err("Driver open state,  can't suspend");
-		return -EAGAIN;
 	}
 
 	if (hdd_ctx->driver_status != DRIVER_MODULES_ENABLED) {
@@ -1335,12 +1315,6 @@ static int wlan_hdd_pld_probe(struct device *dev,
 			pld_bus_type, bus_type);
 		return -EINVAL;
 	}
-
-	/*
-	 * If PLD_RECOVERY is received before probe then clear
-	 * CDS_DRIVER_STATE_RECOVERING.
-	 */
-	cds_set_recovery_in_progress(false);
 
 	return wlan_hdd_probe(dev, bdev, id, bus_type, false);
 }

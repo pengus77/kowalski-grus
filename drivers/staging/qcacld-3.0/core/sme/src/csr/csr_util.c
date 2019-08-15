@@ -267,7 +267,6 @@ const char *get_e_roam_cmd_status_str(eRoamCmdStatus val)
 #ifdef FEATURE_WLAN_TDLS
 		CASE_RETURN_STR(eCSR_ROAM_TDLS_STATUS_UPDATE);
 		CASE_RETURN_STR(eCSR_ROAM_RESULT_MGMT_TX_COMPLETE_IND);
-		CASE_RETURN_STR(eCSR_ROAM_TDLS_SET_STATE_DISABLE);
 #endif
 		CASE_RETURN_STR(eCSR_ROAM_DISCONNECT_ALL_P2P_CLIENTS);
 		CASE_RETURN_STR(eCSR_ROAM_SEND_P2P_STOP_BSS);
@@ -1641,7 +1640,6 @@ QDF_STATUS csr_get_parsed_bss_description_ies(tpAniSirGlobal mac_ctx,
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				qdf_mem_free(*ppIEStruct);
 				*ppIEStruct = NULL;
-				sme_debug("parse bss description ies failed");
 			}
 		} else {
 			sme_err("failed to allocate memory");
@@ -2194,7 +2192,7 @@ enum csr_cfgdot11mode csr_find_best_phy_mode(tpAniSirGlobal pMac,
 			cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11AX;
 		} else if (IS_FEATURE_SUPPORTED_BY_FW(DOT11AC)) {
 			cfgDot11ModeToUse = eCSR_CFG_DOT11_MODE_11AC;
-		else
+		} else {
 			/* Default to 11N mode if user has configured 11ac mode
 			 * and FW doesn't supports 11ac mode .
 			 */
@@ -3833,13 +3831,7 @@ static bool csr_lookup_pmkid(tpAniSirGlobal pMac, uint32_t sessionId,
 	sme_debug("match = %d NumPmkidCache = %d",
 		fRC, pSession->NumPmkidCache);
 
-}
-#else
-static inline bool csr_update_pmksa_for_cache_id(tSirBssDescription *bss_desc,
-				tCsrRoamProfile *profile,
-				tPmkidCacheInfo *pmkid_cache)
-{
-	return false;
+	return fRC;
 }
 
 #ifdef WLAN_FEATURE_FILS_SK

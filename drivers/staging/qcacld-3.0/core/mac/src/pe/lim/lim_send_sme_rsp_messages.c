@@ -1216,45 +1216,6 @@ QDF_STATUS lim_prepare_disconnect_done_ind(tpAniSirGlobal mac_ctx,
 	return QDF_STATUS_SUCCESS;
 }
 
-QDF_STATUS lim_prepare_disconnect_done_ind(tpAniSirGlobal mac_ctx,
-					   uint32_t **msg,
-					   uint8_t session_id,
-					   tSirResultCodes reason_code,
-					   uint8_t *peer_mac_addr)
-{
-	struct sir_sme_discon_done_ind *sir_sme_dis_ind;
-
-	sir_sme_dis_ind = qdf_mem_malloc(sizeof(*sir_sme_dis_ind));
-	if (!sir_sme_dis_ind) {
-		pe_err("Failed to allocate memory");
-		return QDF_STATUS_E_FAILURE;
-	}
-
-	pe_debug("Prepare eWNI_SME_DISCONNECT_DONE_IND withretCode: %d",
-		 reason_code);
-
-	sir_sme_dis_ind->message_type = eWNI_SME_DISCONNECT_DONE_IND;
-	sir_sme_dis_ind->length = sizeof(*sir_sme_dis_ind);
-	sir_sme_dis_ind->session_id = session_id;
-	if (peer_mac_addr)
-		qdf_mem_copy(sir_sme_dis_ind->peer_mac,
-			     peer_mac_addr, ETH_ALEN);
-
-	/*
-	 * Instead of sending deauth reason code as 505 which is
-	 * internal value(eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-	 * Send reason code as zero to Supplicant
-	 */
-	if (reason_code == eSIR_SME_LOST_LINK_WITH_PEER_RESULT_CODE)
-		sir_sme_dis_ind->reason_code = 0;
-	else
-		sir_sme_dis_ind->reason_code = reason_code;
-
-	*msg = (uint32_t *)sir_sme_dis_ind;
-
-	return QDF_STATUS_SUCCESS;
-}
-
 /**
  * lim_send_sme_deauth_ntf()
  *
@@ -1520,15 +1481,15 @@ lim_send_sme_set_context_rsp(tpAniSirGlobal pMac,
 	pSirSmeSetContextRsp->sessionId = smesessionId;
 	pSirSmeSetContextRsp->transactionId = smetransactionId;
 
-	msg.type = eWNI_SME_SETCONTEXT_RSP;
-	msg.bodyptr = pSirSmeSetContextRsp;
-	msg.bodyval = 0;
+	mmhMsg.type = eWNI_SME_SETCONTEXT_RSP;
+	mmhMsg.bodyptr = pSirSmeSetContextRsp;
+	mmhMsg.bodyval = 0;
 	if (NULL == psessionEntry) {
 		MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-				 NO_SESSION, msg.type));
+				 NO_SESSION, mmhMsg.type));
 	} else {
 		MTRACE(mac_trace(pMac, TRACE_CODE_TX_SME_MSG,
-				 psessionEntry->peSessionId, msg.type));
+				 psessionEntry->peSessionId, mmhMsg.type));
 	}
 
 #ifdef FEATURE_WLAN_DIAG_SUPPORT_LIM    /* FEATURE_WLAN_DIAG_SUPPORT */
@@ -1768,8 +1729,8 @@ void lim_send_sme_pe_ese_tsm_rsp(tpAniSirGlobal pMac,
 	tpPESession pPeSessionEntry = NULL;
 
 	/* Get the Session Id based on Sta Id */
-	pPeSessionEntry = pe_find_session_by_bssid(pMac, pPeStats->bssid.bytes,
-						   &sessionId);
+	pPeSessionEntry =
+		pe_find_session_by_sta_id(pMac, pPeStats->staId, &sessionId);
 
 	/* Fill the Session Id */
 	if (NULL != pPeSessionEntry) {

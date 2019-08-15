@@ -91,7 +91,7 @@ lim_process_deauth_frame(tpAniSirGlobal pMac, uint8_t *pRxPacketInfo,
 				"Dropping this.. Deauth Failed %d",
 				       ++pMac->lim.deauthMsgCnt);
 		} else {
-			psessionEntry->deauthmsgcnt++;
+			pMac->lim.deauthMsgCnt++;
 		}
 		return;
 	}

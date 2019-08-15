@@ -108,7 +108,6 @@ typedef struct {
 	uint32_t puapsd_rx_frame_threshold;
 	uint32_t teardown_notification_ms;
 	uint32_t tdls_peer_kickout_threshold;
-	uint32_t tdls_discovery_wake_timeout;
 } tdlsInfo_t;
 
 int wlan_hdd_tdls_set_params(struct net_device *dev,

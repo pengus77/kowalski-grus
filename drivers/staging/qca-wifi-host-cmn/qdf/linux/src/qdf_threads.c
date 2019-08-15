@@ -25,7 +25,6 @@
 #include <qdf_threads.h>
 #include <qdf_types.h>
 #include <qdf_trace.h>
-#include <qdf_module.h>
 #include <linux/jiffies.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
 #include <linux/sched.h>

@@ -257,8 +257,7 @@ enum hdd_driver_flags {
 /* rcpi request timeout in milli seconds */
 #define WLAN_WAIT_TIME_RCPI 500
 
-/* Maximum time(ms) to wait for RSO CMD status event */
-#define WAIT_TIME_RSO_CMD_STATUS 2000
+#define MAX_CFG_STRING_LEN  255
 
 /* Maximum time(ms) to wait for external acs response */
 #define WLAN_VENDOR_ACS_WAIT_TIME 1000
@@ -771,10 +770,9 @@ struct action_pkt_buffer {
  * @adapter: Adapter address
  * @scan_request: scan request holder
  * @scan_id: scan identifier used across host layers which is generated at WMI
+ * @cookie: scan request identifier sent to userspace
  * @source: scan request originator (NL/Vendor scan)
  * @timestamp: scan request timestamp
- * @inactivity_timer: scan inactivity timer
- * @scan_req_flags: scan request flags
  *
  * Scan request linked list element
  */
@@ -1124,36 +1122,12 @@ struct hdd_scan_info {
 	tSirScanType scan_mode;
 };
 
-#define WLAN_HDD_MAX_MC_ADDR_LIST TGT_MAX_MULTICAST_FILTER_ENTRIES
+#define WLAN_HDD_MAX_MC_ADDR_LIST CFG_TGT_MAX_MULTICAST_FILTER_ENTRIES
 
 #ifdef WLAN_FEATURE_PACKET_FILTERING
 struct hdd_multicast_addr_list {
 	uint8_t mc_cnt;
 	uint8_t addr[WLAN_HDD_MAX_MC_ADDR_LIST][ETH_ALEN];
-};
-#endif
-
-/**
- * struct hdd_arp_offload_info - arp offloads set in firmware
- * @offload: currently enabled or disabled
- * @ipv4: IPv4 address set
- */
-struct hdd_arp_offload_info {
-	bool offload;
-	uint8_t ipv4[SIR_IPV4_ADDR_LEN];
-};
-
-#ifdef WLAN_NS_OFFLOAD
-/**
- * struct hdd_ns_offload_info - ns offloads set in firmware
- * @offload: currently enabled or disabled
- * @num_ns_offload_count: count of addresses configured
- * @nsOffloadInfo: addresses are formatted using @tSirNsOffloadReq
- */
-struct hdd_ns_offload_info {
-	bool offload;
-	uint32_t num_ns_offload_count;
-	tSirNsOffloadReq nsOffloadInfo;
 };
 #endif
 
@@ -1206,37 +1180,14 @@ struct hdd_runtime_pm_context {
 	qdf_runtime_lock_t connect;
 };
 
-/*
- * WLAN_HDD_ADAPTER_MAGIC is a magic number used to identify net devices
- * belonging to this driver from net devices belonging to other devices.
- * Therefore, the magic number must be unique relative to the numbers for
- * other drivers in the system. If WLAN_HDD_ADAPTER_MAGIC is already defined
- * (e.g. by compiler argument), then use that. If it's not already defined,
- * then use the first 4 characters of MULTI_IF_NAME to construct the magic
- * number. If MULTI_IF_NAME is not defined, then use a default magic number.
- */
-#ifndef WLAN_HDD_ADAPTER_MAGIC
-#ifdef MULTI_IF_NAME
-#define WLAN_HDD_ADAPTER_MAGIC                                          \
-	(MULTI_IF_NAME[0] == 0 ? 0x574c414e :                           \
-	(MULTI_IF_NAME[1] == 0 ? (MULTI_IF_NAME[0] << 24) :             \
-	(MULTI_IF_NAME[2] == 0 ? (MULTI_IF_NAME[0] << 24) |             \
-		(MULTI_IF_NAME[1] << 16) :                              \
-	(MULTI_IF_NAME[0] << 24) | (MULTI_IF_NAME[1] << 16) |           \
-	(MULTI_IF_NAME[2] << 8) | MULTI_IF_NAME[3])))
-#else
-#define WLAN_HDD_ADAPTER_MAGIC 0x574c414e       /* ASCII "WLAN" */
-#endif
-#endif
-
 /**
- * struct rcpi_info - rcpi info
- * @rcpi: computed value in dB
- * @mac_addr: peer mac addr for which rcpi is computed
+ * struct hdd_connect_pm_context - Runtime PM connect context per adapter
+ * @connect: Runtime Connect Context
+ *
+ * Structure to hold runtime pm connect context for each adapter.
  */
-struct rcpi_info {
-	int32_t rcpi;
-	struct qdf_mac_addr mac_addr;
+struct hdd_connect_pm_context {
+	qdf_runtime_lock_t connect;
 };
 
 /*
@@ -1610,14 +1561,6 @@ enum smps_mode {
 	HDD_SMPS_MODE_MAX
 };
 
-/**
- * struct hdd_chain_rssi_priv - hdd chain rssi private
- * @result: chain rssi array
- */
-struct hdd_chain_rssi_priv {
-	struct chain_rssi_result result;
-};
-
 #ifdef WLAN_FEATURE_OFFLOAD_PACKETS
 /**
  * struct hdd_offloaded_packets - request id to pattern id mapping
@@ -1868,13 +1811,9 @@ struct hdd_context {
 	uint8_t no_of_open_sessions[QDF_MAX_NO_OF_MODE];
 	uint8_t no_of_active_sessions[QDF_MAX_NO_OF_MODE];
 
-	/* Check if dbs scan duty cycle is enabled */
-	bool is_dbs_scan_duty_cycle_enabled;
-
 	/** P2P Device MAC Address for the adapter  */
 	struct qdf_mac_addr p2p_device_address;
 
-	qdf_wake_lock_t rx_wake_lock;
 	qdf_wake_lock_t sap_wake_lock;
 
 	void *hdd_ipa;
@@ -2852,28 +2791,6 @@ int hdd_process_pktlog_command(struct hdd_context *hdd_ctx,
 }
 #endif /* REMOVE_PKT_LOG */
 
-#if defined(FEATURE_SG) && !defined(CONFIG_HL_SUPPORT)
-/**
- * hdd_set_sg_flags() - enable SG flag in the network device
- * @hdd_ctx: HDD context
- * @wlan_dev: network device structure
- *
- * This function enables the SG feature flag in the
- * given network device.
- *
- * Return: none
- */
-static inline void hdd_set_sg_flags(hdd_context_t *hdd_ctx,
-	 struct net_device *wlan_dev)
-{
-	hdd_debug("SG Enabled");
-	wlan_dev->features |= NETIF_F_SG;
-}
-#else
-static inline void hdd_set_sg_flags(hdd_context_t *hdd_ctx,
-	 struct net_device *wlan_dev){}
-#endif
-
 #ifdef FEATURE_TSO
 /**
  * hdd_set_tso_flags() - enable TSO flags in the network device
@@ -3043,35 +2960,6 @@ bool hdd_local_unsafe_channel_updated(struct hdd_context *hdd_ctx,
 int hdd_enable_disable_ca_event(struct hdd_context *hddctx,
 				uint8_t set_value);
 void wlan_hdd_undo_acs(struct hdd_adapter *adapter);
-
-/**
- * hdd_clone_local_unsafe_chan() - clone hdd ctx unsafe chan list
- * @hdd_ctx: hdd context pointer
- * @local_unsafe_list: copied unsafe chan list array
- * @local_unsafe_list_count: channel number in returned local_unsafe_list
- *
- * The function will allocate memory and make a copy the current unsafe
- * channels from hdd ctx. The caller need to free the local_unsafe_list
- * memory after use.
- *
- * Return: 0 if successfully clone unsafe chan list.
- */
-int hdd_clone_local_unsafe_chan(hdd_context_t *hdd_ctx,
-	uint16_t **local_unsafe_list, uint16_t *local_unsafe_list_count);
-
-/**
- * hdd_local_unsafe_channel_updated() - check unsafe chan list same or not
- * @hdd_ctx: hdd context pointer
- * @local_unsafe_list: unsafe chan list to be compared with hdd_ctx's list
- * @local_unsafe_list_count: channel number in local_unsafe_list
- *
- * The function checked the input channel is same as current unsafe chan
- * list in hdd_ctx.
- *
- * Return: true if input channel list is same as the list in hdd_ctx
- */
-bool hdd_local_unsafe_channel_updated(hdd_context_t *hdd_ctx,
-	uint16_t *local_unsafe_list, uint16_t local_unsafe_list_count);
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 7, 0))
 static inline int

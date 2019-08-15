@@ -2606,7 +2606,6 @@ static int wlan_hdd_get_link_status(struct hdd_adapter *adapter)
 		hdd_warn("Not associated!");
 		return 0;
 	}
-	cookie = hdd_request_cookie(request);
 
 	request = osif_request_alloc(&params);
 	if (!request) {
@@ -3142,12 +3141,6 @@ static inline int drv_cmd_country(struct hdd_adapter *adapter,
 				  struct hdd_priv_data *priv_data)
 {
 	char *country_code;
-	int32_t cc_from_db;
-
-	country_code = strnchr(command, strlen(command), ' ');
-	/* no argument after the command*/
-	if (!country_code)
-		return -EINVAL;
 
 	country_code = strnchr(command, strlen(command), ' ');
 	/* no argument after the command */

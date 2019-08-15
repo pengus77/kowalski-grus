@@ -35,7 +35,6 @@
 #include "mac_trace.h"
 #include "wlan_policy_mgr_api.h"
 
-#ifdef WLAN_DEBUG
 static const char *lfr_get_config_item_string(uint8_t reason)
 {
 	switch (reason) {
@@ -49,7 +48,6 @@ static const char *lfr_get_config_item_string(uint8_t reason)
 		return "unknown";
 	}
 }
-#endif
 
 static void csr_neighbor_roam_reset_channel_info(tpCsrNeighborRoamChannelInfo
 						 rChInfo);
@@ -1021,7 +1019,7 @@ static void csr_neighbor_roam_info_ctx_init(
 			FL("isESEAssoc is = %d ft = %d"),
 			ngbr_roam_info->isESEAssoc, init_ft_flag);
 #endif
-	/* If "FastRoamEnabled" ini is enabled */
+	/* If "Legacy Fast Roaming" is enabled */
 	if (csr_roam_is_fast_roam_enabled(pMac, session_id))
 		init_ft_flag = true;
 	if (init_ft_flag == false)

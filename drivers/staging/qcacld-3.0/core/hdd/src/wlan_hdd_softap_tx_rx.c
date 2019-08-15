@@ -67,16 +67,16 @@ static void hdd_softap_dump_sk_buff(struct sk_buff *skb)
 		  "%s: end = %pK ", __func__, skb->end);
 	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_ERROR,
 		  "%s: len = %d ", __func__, skb->len);
-	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_ERROR,
 		  "%s: data_len = %d ", __func__, skb->data_len);
-	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_ERROR,
 		  "%s: mac_len = %d", __func__, skb->mac_len);
 
-	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_ERROR,
 		  "0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x ", skb->data[0],
 		  skb->data[1], skb->data[2], skb->data[3], skb->data[4],
 		  skb->data[5], skb->data[6], skb->data[7]);
-	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_INFO,
+	QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA, QDF_TRACE_LEVEL_ERROR,
 		  "0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x", skb->data[8],
 		  skb->data[9], skb->data[10], skb->data[11], skb->data[12],
 		  skb->data[13], skb->data[14], skb->data[15]);
@@ -532,13 +532,6 @@ static netdev_tx_t __hdd_softap_hard_start_xmit(struct sk_buff *skb,
 				  "%s: STA %d deauth in progress", __func__,
 				  sta_id);
 			goto drop_pkt;
-		} else if (true == pAdapter->aStaInfo[STAId].
-							isDeauthInProgress) {
-			QDF_TRACE(QDF_MODULE_ID_HDD_SAP_DATA,
-				  QDF_TRACE_LEVEL_INFO_HIGH,
-				  "%s: STA %d deauth in progress", __func__,
-				  STAId);
-			goto drop_pkt;
 		}
 
 		if ((OL_TXRX_PEER_STATE_CONN !=
@@ -930,19 +923,6 @@ QDF_STATUS hdd_softap_rx_packet_cbk(void *context, qdf_nbuf_t rx_buf)
 
 		skb->protocol = eth_type_trans(skb, skb->dev);
 
-		/* hold configurable wakelock for unicast traffic */
-		if (!hdd_is_current_high_throughput(hdd_ctx) &&
-		    hdd_ctx->config->rx_wakelock_timeout &&
-		    skb->pkt_type != PACKET_BROADCAST &&
-		    skb->pkt_type != PACKET_MULTICAST) {
-			cds_host_diag_log_work(&hdd_ctx->rx_wake_lock,
-						   hdd_ctx->config->rx_wakelock_timeout,
-						   WIFI_POWER_EVENT_WAKELOCK_HOLD_RX);
-			qdf_wake_lock_timeout_acquire(&hdd_ctx->rx_wake_lock,
-							  hdd_ctx->config->
-								  rx_wakelock_timeout);
-		}
-
 		/* Remove SKB from internal tracking table before submitting
 		 * it to stack
 		 */
@@ -1054,9 +1034,6 @@ QDF_STATUS hdd_softap_register_sta(struct hdd_adapter *adapter,
 		hdd_err("Error: Invalid sta_id: %u", sta_id);
 		return qdf_status;
 	}
-
-	hdd_info("STA:%u, Auth:%u, Priv:%u, WMM:%u",
-		 staId, fAuthRequired, fPrivacyBit, fWmmEnabled);
 
 	/*
 	 * Clean up old entry if it is not cleaned up properly

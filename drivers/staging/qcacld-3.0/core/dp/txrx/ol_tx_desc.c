@@ -612,10 +612,6 @@ void ol_tx_desc_free(struct ol_txrx_pdev_t *pdev, struct ol_tx_desc_t *tx_desc)
 		break;
 	case FLOW_POOL_NON_PRIO_PAUSED:
 		if (pool->avail_desc > pool->start_th) {
-			/* unpause priority queue */
-			pdev->pause_cb(pool->member_flow_id,
-				       WLAN_NETIF_PRIORITY_QUEUE_ON,
-				       WLAN_DATA_FLOW_CONTROL_PRIORITY);
 			pdev->pause_cb(pool->member_flow_id,
 				       WLAN_WAKE_NON_PRIORITY_QUEUE,
 				       WLAN_DATA_FLOW_CONTROL);

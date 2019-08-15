@@ -18,7 +18,6 @@
 
 #include "i_bmi.h"
 #include "cds_api.h"
-#include "hif.h"
 
 /* APIs visible to the driver */
 
@@ -415,8 +414,8 @@ QDF_STATUS bmi_sign_stream_start(uint32_t address, uint8_t *buffer,
 		src = &buffer[length - remaining];
 		if (remaining < (BMI_DATASZ_MAX - header)) {
 			if (remaining & 0x3) {
-				memcpy(aligned_buf, src, remaining);
 				remaining = remaining + (4 - (remaining & 0x3));
+				memcpy(aligned_buf, src, remaining);
 				src = aligned_buf;
 			}
 			txlen = remaining;

@@ -46,23 +46,6 @@
 #define ATH_MODULE_NAME hif
 #include "a_debug.h"
 
-#define BUS_REQ_RECORD_SIZE 100
-u_int32_t g_bus_req_buf_idx = 0;
-qdf_spinlock_t g_bus_request_record_lock;
-struct bus_request_record bus_request_record_buf[BUS_REQ_RECORD_SIZE];
-
-#define BUS_REQUEST_RECORD(r, a, l) { \
-	qdf_spin_lock_irqsave(&g_bus_request_record_lock); \
-	if (g_bus_req_buf_idx == BUS_REQ_RECORD_SIZE) \
-		g_bus_req_buf_idx = 0; \
-	bus_request_record_buf[g_bus_req_buf_idx].request = r;  \
-	bus_request_record_buf[g_bus_req_buf_idx].address = a;  \
-	bus_request_record_buf[g_bus_req_buf_idx].len = l; \
-	bus_request_record_buf[g_bus_req_buf_idx].time = qdf_get_monotonic_boottime(); \
-	g_bus_req_buf_idx++; \
-	qdf_spin_unlock_irqrestore(&g_bus_request_record_lock); \
-}
-
 #if HIF_USE_DMA_BOUNCE_BUFFER
 /* macro to check if DMA buffer is WORD-aligned and DMA-able.
  * Most host controllers assume the
@@ -625,8 +608,7 @@ hif_read_write(struct hif_sdio_dev *device,
 					("no async bus requests available (%s, addr:0x%X, len:%d)\n",
 					 request & HIF_SDIO_READ ? "READ" :
 					 "WRITE", address, length));
-				BUS_REQUEST_RECORD(request, address, length);
-				return QDF_STATUS_E_CANCELED;
+				return QDF_STATUS_E_FAILURE;
 			}
 			busrequest->address = address;
 			busrequest->buffer = buffer;
@@ -698,7 +680,6 @@ static int async_task(void *param)
 	struct hif_sdio_dev *device;
 	struct bus_request *request;
 	QDF_STATUS status;
-	bool claimed = false;
 
 	device = (struct hif_sdio_dev *) param;
 	set_current_state(TASK_INTERRUPTIBLE);
@@ -735,10 +716,6 @@ static int async_task(void *param)
 				("%s: async_task processing req: 0x%lX\n",
 				 __func__, (unsigned long)request));
 
-			if (!claimed) {
-				sdio_claim_host(device->func);
-				claimed = true;
-			}
 			if (request->scatter_req != NULL) {
 				A_ASSERT(device->scatter_enabled);
 				/* pass the request to scatter routine which
@@ -786,10 +763,7 @@ static int async_task(void *param)
 			qdf_spin_lock_irqsave(&device->asynclock);
 		}
 		qdf_spin_unlock_irqrestore(&device->asynclock);
-		if (claimed) {
-			sdio_release_host(device->func);
-			claimed = false;
-		}
+		sdio_release_host(device->func);
 	}
 
 	complete_and_exit(&device->async_completion, 0);
@@ -1388,7 +1362,7 @@ void hif_sdio_shutdown(struct hif_softc *hif_ctx)
  */
 static void hif_irq_handler(struct sdio_func *func)
 {
-	QDF_STATUS status = QDF_STATUS_SUCCESS;
+	QDF_STATUS status;
 	struct hif_sdio_dev *device;
 
 	AR_DEBUG_PRINTF(ATH_DEBUG_TRACE,
@@ -1400,8 +1374,7 @@ static void hif_irq_handler(struct sdio_func *func)
 	 * it when we process cmds
 	 */
 	sdio_release_host(device->func);
-	if (device->htc_callbacks.dsrHandler)
-		status = device->htc_callbacks.dsrHandler(device->htc_callbacks
+	status = device->htc_callbacks.dsrHandler(device->htc_callbacks
 						  .context);
 	sdio_claim_host(device->func);
 	atomic_set(&device->irq_handling, 0);
@@ -1797,8 +1770,8 @@ static int hif_device_inserted(struct sdio_func *func,
 	}
 
 	qdf_spinlock_create(&device->lock);
+
 	qdf_spinlock_create(&device->asynclock);
-	qdf_spinlock_create(&g_bus_request_record_lock);
 
 	DL_LIST_INIT(&device->scatter_req_head);
 
@@ -2435,18 +2408,7 @@ int hif_device_resume(struct device *dev)
 	} else if (device->device_state == HIF_DEVICE_STATE_DEEPSLEEP) {
 		hif_un_mask_interrupt(device);
 	} else if (device->device_state == HIF_DEVICE_STATE_WOW) {
-		config = HIF_DEVICE_POWER_UP;
-		status = hif_configure_device(device,
-					      HIF_DEVICE_POWER_STATE_CHANGE,
-					      &config,
-					      sizeof(enum
-						 HIF_DEVICE_POWER_CHANGE_TYPE));
-		if (status) {
-			AR_DEBUG_PRINTF(ATH_DEBUG_ERROR,
-				("%s: hif_configure_device failed\n",
-				 __func__));
-			return status;
-		}
+		/*TODO:WOW support */
 		hif_un_mask_interrupt(device);
 	}
 

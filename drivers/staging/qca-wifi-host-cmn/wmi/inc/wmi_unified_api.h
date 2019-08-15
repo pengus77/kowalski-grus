@@ -906,16 +906,6 @@ QDF_STATUS wmi_unified_process_ll_stats_get_cmd
 QDF_STATUS wmi_unified_congestion_request_cmd(void *wmi_hdl,
 		uint8_t vdev_id);
 
-/**
- * wmi_unified_congestion_request_cmd() - send request to fw to get CCA
- * @wmi_hdl: wma handle
- * @vdev_id: vdev id
- *
- * Return: QDF_STATUS_SUCCESS on success and QDF_STATUS_E_FAILURE for failure
- */
-QDF_STATUS wmi_unified_congestion_request_cmd(void *wmi_hdl,
-		uint8_t vdev_id);
-
 QDF_STATUS wmi_unified_snr_request_cmd(void *wmi_hdl);
 
 QDF_STATUS wmi_unified_snr_cmd(void *wmi_hdl, uint8_t vdev_id);
@@ -936,14 +926,8 @@ QDF_STATUS wmi_unified_egap_conf_params_cmd(void *wmi_hdl,
 		struct wlan_green_ap_egap_params *egap_params);
 #endif
 
-QDF_STATUS wmi_unified_action_frame_patterns_cmd(void *wmi_hdl,
-			struct action_wakeup_set_param *action_params);
-
 QDF_STATUS wmi_unified_fw_profiling_data_cmd(void *wmi_hdl,
 			uint32_t cmd, uint32_t value1, uint32_t value2);
-
-QDF_STATUS wmi_unified_wow_timer_pattern_cmd(void *wmi_hdl, uint8_t vdev_id,
-					     uint32_t cookie, uint32_t time);
 
 QDF_STATUS wmi_unified_wow_timer_pattern_cmd(void *wmi_hdl, uint8_t vdev_id,
 					     uint32_t cookie, uint32_t time);
@@ -1085,21 +1069,6 @@ QDF_STATUS wmi_unified_soc_set_hw_mode_cmd(void *wmi_hdl,
 
 QDF_STATUS wmi_unified_pdev_set_dual_mac_config_cmd(void *wmi_hdl,
 		struct policy_mgr_dual_mac_config *msg);
-
-/**
- * wmi_unified_conf_hw_filter_mode_cmd() - Configure hardware filter
- * @wmi_hdl: wmi handle
- * @req: HW filter request parameters
- *
- * The hardware filter is only effective in DTIM mode. Use this configuration
- * to blanket drop broadcast/multicast packets at the hardware level, without
- * waking up the firmware
- *
- * Return: QDF_STATUS
- */
-QDF_STATUS
-wmi_unified_conf_hw_filter_mode_cmd(void *wmi_hdl,
-				    struct wmi_hw_filter_req_params *req);
 
 QDF_STATUS wmi_unified_set_led_flashing_cmd(void *wmi_hdl,
 				struct flashing_req_params *flashing);

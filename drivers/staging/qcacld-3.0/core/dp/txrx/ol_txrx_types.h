@@ -521,7 +521,6 @@ struct ol_tx_flow_pool_t {
 /*
  * struct ol_txrx_peer_id_map - Map of firmware peer_ids to peers on host
  * @peer: Pointer to peer object
- * @peer_ref: Pointer to peer marked as stale
  * @peer_id_ref_cnt: No. of firmware references to the peer_id
  * @del_peer_id_ref_cnt: No. of outstanding unmap events for peer_id
  *                       after the peer object is deleted on the host.
@@ -530,7 +529,6 @@ struct ol_tx_flow_pool_t {
  */
 struct ol_txrx_peer_id_map {
 	struct ol_txrx_peer_t *peer;
-	struct ol_txrx_peer_t *peer_ref;
 	qdf_atomic_t peer_id_ref_cnt;
 	qdf_atomic_t del_peer_id_ref_cnt;
 	qdf_atomic_t peer_id_unmap_cnt;
@@ -555,47 +553,6 @@ struct ol_txrx_fw_stats_desc_t {
 struct ol_txrx_fw_stats_desc_elem_t {
 	struct ol_txrx_fw_stats_desc_elem_t *next;
 	struct ol_txrx_fw_stats_desc_t desc;
-};
-
-/**
- * ol_txrx_stats_req_internal - specifications of the requested
- * statistics internally
- */
-struct ol_txrx_stats_req_internal {
-    struct ol_txrx_stats_req base;
-    TAILQ_ENTRY(ol_txrx_stats_req_internal) req_list_elem;
-    int serviced; /* state of this request */
-    int offset;
-};
-
-struct ol_txrx_fw_stats_desc_t {
-	struct ol_txrx_stats_req_internal *req;
-	unsigned char desc_id;
-};
-
-struct ol_txrx_fw_stats_desc_elem_t {
-	struct ol_txrx_fw_stats_desc_elem_t *next;
-	struct ol_txrx_fw_stats_desc_t desc;
-};
-
-/**
- * ol_txrx_mon_hdr_elem_t - tx packets header struture to update radiotap header
- * for packet capture mode
- */
-struct ol_txrx_mon_hdr_elem_t {
-	uint32_t timestamp;
-	uint8_t preamble;
-	uint8_t mcs;
-	uint8_t rate;
-	uint8_t rssi_comb;
-	uint8_t nss;
-	uint8_t bw;
-	bool stbc;
-	bool sgi;
-	bool ldpc;
-	bool beamformed;
-	bool dir; /* rx:0 , tx:1 */
-	uint8_t status; /* tx status */
 };
 
 /*
@@ -657,9 +614,6 @@ struct ol_txrx_pdev_t {
 
 	/* osdev - handle for mem alloc / free, map / unmap */
 	qdf_device_t osdev;
-
-	void *mon_osif_dev;
-	ol_txrx_mon_callback_fp mon_cb;
 
 	htt_pdev_handle htt_pdev;
 
@@ -1225,9 +1179,6 @@ struct ol_txrx_vdev_t {
 	/* Information about the schedules in the schedule */
 	struct ol_txrx_ocb_chan_info *ocb_channel_info;
 	uint32_t ocb_channel_count;
-	/* Default OCB TX parameter */
-	struct ocb_tx_ctrl_hdr_t *ocb_def_tx_param;
-
 
 #ifdef QCA_LL_TX_FLOW_CONTROL_V2
 	struct ol_tx_flow_pool_t *pool;
@@ -1427,12 +1378,5 @@ struct ol_fw_data {
 #define INVALID_REORDER_INDEX 0xFFFF
 
 #define SPS_DESC_SIZE 8
-
-struct ol_fw_data {
-	void *data;
-	uint32_t len;
-};
-
-#define INVALID_REORDER_INDEX 0xFFFF
 
 #endif /* _OL_TXRX_TYPES__H_ */

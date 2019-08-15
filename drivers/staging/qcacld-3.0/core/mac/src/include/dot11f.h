@@ -2582,9 +2582,6 @@ uint32_t dot11f_get_packed_ie_GTK(
 #ifdef __cplusplus
 }; /* End extern "C". */
 #endif /* C++ */
-/*********************************************************************
- * Information Elements                                              *
- ********************************************************************/
 
 /* EID 4 (0x04) */
 typedef struct sDot11fIEIGTK {

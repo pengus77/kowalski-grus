@@ -83,14 +83,4 @@ typedef struct sAniSirCfg {
 	uint32_t *gParamList;
 } tAniSirCfg, *tpAniSirCfg;
 
-/**
- * enum size_of_len_field: IE length size
- * @ONE_BYTE: one byte IE length
- * @TWO_BYTE: two byte IE length
- */
-enum size_of_len_field {
-	ONE_BYTE = 1,
-	TWO_BYTE = 2
-};
-
 #endif

@@ -2522,48 +2522,6 @@ ol_txrx_vdev_attach(struct cdp_pdev *ppdev,
 }
 
 /**
- * ol_txrx_mon_cb_deregister() - Deregister pkt capture mode callback
- * @void:
- *
- * Return: None
- */
-void ol_txrx_mon_cb_deregister(void)
-{
-	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-
-	if (qdf_unlikely(!pdev)) {
-		qdf_print("%s: pdev is NULL!\n", __func__);
-		qdf_assert(0);
-		return;
-	}
-
-	pdev->mon_osif_dev = NULL;
-	pdev->mon_cb = NULL;
-}
-
-/**
- * ol_txrx_mon_cb_register() - Register pkt capture mode callback
- * @osif_vdev: the virtual device's OS shim object
- * @mon_cb: callback to register
- *
- * Return: None
- */
-void ol_txrx_mon_cb_register(void *osif_vdev,
-			     ol_txrx_mon_callback_fp mon_cb)
-{
-	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-
-	if (qdf_unlikely(!pdev)) {
-		qdf_print("%s: pdev is NULL!\n", __func__);
-		qdf_assert(0);
-		return;
-	}
-
-	pdev->mon_osif_dev = osif_vdev;
-	pdev->mon_cb = mon_cb;
-}
-
-/**
  *ol_txrx_vdev_register - Link a vdev's data object with the
  * matching OS shim vdev object.
  *
@@ -2920,52 +2878,6 @@ static void ol_txrx_dump_peer_access_list(ol_txrx_peer_handle peer)
 }
 
 /**
- * ol_txrx_peer_dec_ref_cnt() - decrease peer ref_cnt
- * @peer: peer
- *
- * if ref_cnt is 1, need to take care peer cleanup.
- * otherwise, decrease ref_cnt silently when called from rx_thread.
- *
- * Note: This is expected to be used only for rx_thread.
- *
- * Return: None
- */
-static void ol_txrx_peer_dec_ref_cnt(struct ol_txrx_peer_t *peer)
-{
-	struct ol_txrx_pdev_t *pdev = peer->vdev->pdev;
-
-	qdf_spin_lock_bh(&pdev->peer_ref_mutex);
-	if (qdf_atomic_read(&peer->ref_cnt) == 1) {
-		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
-		OL_TXRX_PEER_UNREF_DELETE(peer);
-	} else {
-		OL_TXRX_PEER_DEC_REF_CNT_SILENT(peer);
-		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
-	}
-}
-
-void ol_txrx_flush_cache_rx_queue(void)
-{
-	uint8_t sta_id;
-	struct ol_txrx_peer_t *peer;
-	struct ol_txrx_pdev_t *pdev;
-
-	pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	if (!pdev)
-		return;
-
-	for (sta_id = 0; sta_id < WLAN_MAX_STA_COUNT; sta_id++) {
-		peer = ol_txrx_peer_find_by_local_id(pdev, sta_id);
-		if (!peer)
-			continue;
-		ol_txrx_flush_rx_frames(peer, 1);
-	}
-}
-
-/* Define short name to use in cds_trigger_recovery */
-#define PEER_DEL_TIMEOUT CDS_PEER_DELETION_TIMEDOUT
-
-/**
  * ol_txrx_peer_attach - Allocate and set up references for a
  * data peer object.
  * @data_pdev: data physical device object that will indirectly
@@ -3181,7 +3093,6 @@ ol_txrx_peer_attach(struct cdp_vdev *pvdev, uint8_t *peer_mac_addr)
 
 	return (void *)peer;
 }
-#undef PEER_DEL_TIMEOUT
 
 #undef PEER_DEL_TIMEOUT
 
@@ -3635,7 +3546,6 @@ ol_txrx_peer_update(ol_txrx_vdev_handle vdev,
 		    enum ol_txrx_peer_update_select_t select)
 {
 	struct ol_txrx_peer_t *peer;
-	int    peer_ref_cnt;
 
 	peer = ol_txrx_peer_find_hash_find_get_ref(vdev->pdev, peer_mac, 0, 1,
 						   PEER_DEBUG_ID_OL_INTERNAL);
@@ -3977,32 +3887,7 @@ int ol_txrx_peer_release_ref(ol_txrx_peer_handle peer,
 		    pdev->self_peer == peer)
 			pdev->self_peer = NULL;
 
-		qdf_spin_lock_bh(&pdev->peer_map_unmap_lock);
-		if (ol_txrx_is_peer_eligible_for_deletion(peer, pdev)) {
-			qdf_mem_free(peer);
-		} else {
-			/*
-			 * Mark this PEER as a stale peer, to be deleted
-			 * during PEER UNMAP. Remove this peer from
-			 * roam_stale_peer_list during UNMAP.
-			 */
-			struct ol_txrx_roam_stale_peer_t *roam_stale_peer;
-
-			roam_stale_peer = qdf_mem_malloc(
-				sizeof(struct ol_txrx_roam_stale_peer_t));
-			if (roam_stale_peer) {
-				roam_stale_peer->peer = peer;
-				TAILQ_INSERT_TAIL(&pdev->roam_stale_peer_list,
-						  roam_stale_peer,
-						  next_stale_entry);
-			} else {
-				QDF_TRACE(QDF_MODULE_ID_TXRX,
-					  QDF_TRACE_LEVEL_ERROR,
-					  "[%s][%d]: No memory allocated",
-					  fname, line);
-			}
-		}
-		qdf_spin_unlock_bh(&pdev->peer_map_unmap_lock);
+		qdf_mem_free(peer);
 	} else {
 		access_list = qdf_atomic_read(&peer->access_list[debug_id]);
 		qdf_spin_unlock_bh(&pdev->peer_ref_mutex);
@@ -5559,7 +5444,7 @@ static void ol_txrx_clear_stats(uint16_t value)
 	if (!pdev) {
 		QDF_TRACE(QDF_MODULE_ID_TXRX, QDF_TRACE_LEVEL_ERROR,
 			  "%s: pdev is NULL", __func__);
-		return QDF_STATUS_E_NULL_VALUE;
+		return;
 	}
 
 	switch (value) {
@@ -5805,7 +5690,6 @@ void ol_rx_data_process(struct ol_txrx_peer_t *peer,
 	 */
 	ol_txrx_rx_fp data_rx = NULL;
 	ol_txrx_pdev_handle pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-	uint8_t drop_count;
 
 	if ((!peer) || (!pdev)) {
 		ol_txrx_err("peer/pdev is NULL");
@@ -5996,105 +5880,6 @@ bool ol_txrx_get_ocb_peer(struct ol_txrx_pdev_t *pdev,
 exit:
 	return rc;
 }
-#define MAX_TID		15
-#define MAX_DATARATE	7
-#define OCB_HEADER_VERSION 1
-
-/**
- * ol_txrx_set_ocb_def_tx_param() - Set the default OCB TX parameters
- * @vdev: The OCB vdev that will use these defaults.
- * @_def_tx_param: The default TX parameters.
- * @def_tx_param_size: The size of the _def_tx_param buffer.
- *
- * Return: true if the default parameters were set correctly, false if there
- * is an error, for example an invalid parameter. In the case that false is
- * returned, see the kernel log for the error description.
- */
-bool ol_txrx_set_ocb_def_tx_param(ol_txrx_vdev_handle vdev,
-	void *_def_tx_param, uint32_t def_tx_param_size)
-{
-	struct ocb_tx_ctrl_hdr_t *def_tx_param =
-		(struct ocb_tx_ctrl_hdr_t *)_def_tx_param;
-
-		if (def_tx_param) {
-			/*
-			 * Default TX parameters are provided.
-			 * Validate the contents and
-			 * save them in the vdev.
-			 */
-			if (def_tx_param_size !=
-				sizeof(struct ocb_tx_ctrl_hdr_t)) {
-				QDF_TRACE(QDF_MODULE_ID_TXRX,
-					QDF_TRACE_LEVEL_ERROR,
-					"%sInvalid size of OCB default TX params",
-					__func__);
-				return false;
-			}
-
-			if (def_tx_param->version != OCB_HEADER_VERSION) {
-				QDF_TRACE(QDF_MODULE_ID_TXRX,
-					QDF_TRACE_LEVEL_ERROR,
-					"%sInvalid version of OCB default TX params",
-					__func__);
-				return false;
-			}
-
-			if (def_tx_param->channel_freq) {
-				int i;
-
-				for (i = 0; i < vdev->ocb_channel_count; i++) {
-					if (vdev->ocb_channel_info[i].
-						chan_freq ==
-						def_tx_param->channel_freq)
-						break;
-				}
-				if (i == vdev->ocb_channel_count) {
-					QDF_TRACE(QDF_MODULE_ID_TXRX,
-						QDF_TRACE_LEVEL_ERROR,
-						"%sInvalid default channel frequency",
-						__func__);
-					return false;
-				}
-			}
-
-			if (def_tx_param->valid_datarate &&
-				def_tx_param->datarate > MAX_DATARATE) {
-					QDF_TRACE(QDF_MODULE_ID_TXRX,
-						QDF_TRACE_LEVEL_ERROR,
-						"%sInvalid default datarate",
-						__func__);
-				return false;
-			}
-
-			if (def_tx_param->valid_tid &&
-				def_tx_param->ext_tid > MAX_TID) {
-					QDF_TRACE(QDF_MODULE_ID_TXRX,
-						QDF_TRACE_LEVEL_ERROR,
-						"%sInvalid default TID",
-						__func__);
-				return false;
-			}
-
-			if (vdev->ocb_def_tx_param == NULL)
-				vdev->ocb_def_tx_param =
-					qdf_mem_malloc(
-						sizeof(*vdev->ocb_def_tx_param)
-						);
-			qdf_mem_copy(vdev->ocb_def_tx_param, def_tx_param,
-				sizeof(*vdev->ocb_def_tx_param));
-		} else {
-		/*
-		 * Default TX parameters are not provided.
-		 * Delete the old defaults.
-		 */
-		if (vdev->ocb_def_tx_param) {
-			qdf_mem_free(vdev->ocb_def_tx_param);
-			vdev->ocb_def_tx_param = NULL;
-		}
-	}
-
-	return true;
-}
 
 /**
  * ol_txrx_register_pause_cb() - register pause callback
@@ -6184,36 +5969,6 @@ static void ol_txrx_offld_flush(void *data)
 	}
 }
 
-void ol_register_offld_flush_cb(void (offld_flush_cb)(void *),
-			      void *(offld_init_cb)(void))
-{
-	struct hif_opaque_softc *hif_device;
-	struct ol_txrx_pdev_t *pdev = cds_get_context(QDF_MODULE_ID_TXRX);
-
-	if (pdev == NULL) {
-		ol_txrx_err("%s: pdev NULL!", __func__);
-		TXRX_ASSERT2(0);
-		goto out;
-	}
-	pdev->rx_offld_info.offld_flush_cb = offld_flush_cb;
-	hif_device = (struct hif_opaque_softc *)
-				cds_get_context(QDF_MODULE_ID_HIF);
-
-	if (qdf_unlikely(hif_device == NULL)) {
-		ol_txrx_err(
-			"%s: hif_device NULL!", __func__);
-		qdf_assert(0);
-		goto out;
-	}
-
-	hif_offld_flush_cb_register(hif_device, ol_txrx_offld_flush,
-				    offld_init_cb);
-
-out:
-	return;
-}
-
-
 /**
  * ol_register_offld_flush_cb() - register the offld flush callback
  * @offld_flush_cb: flush callback function
@@ -6222,7 +5977,7 @@ out:
  * Store the offld flush callback provided and in turn
  * register OL's offld flush handler with CE
  *
- * Return: QDF_STATUS Enumeration
+ * Return: none
  */
 static void ol_register_offld_flush_cb(void (offld_flush_cb)(void *))
 {
@@ -6265,7 +6020,7 @@ out:
  * Remove the offld flush callback provided and in turn
  * deregister OL's offld flush handler with CE
  *
- * Return: QDF_STATUS Enumeration
+ * Return: none
  */
 static void ol_deregister_offld_flush_cb(void)
 {

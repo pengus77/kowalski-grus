@@ -53,7 +53,7 @@ QDF_STATUS hdd_lro_set_reset(struct hdd_context *hdd_ctx,
 #else
 static inline int hdd_lro_init(struct hdd_context *hdd_ctx)
 {
-	return -EOPNOTSUPP;
+	return 0;
 }
 
 static inline QDF_STATUS hdd_lro_rx(struct hdd_adapter *adapter,

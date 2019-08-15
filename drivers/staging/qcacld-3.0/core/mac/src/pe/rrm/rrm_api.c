@@ -43,8 +43,6 @@
 #include "rrm_global.h"
 #include "rrm_api.h"
 
-#define MAX_RRM_TX_PWR_CAP 22
-
 uint8_t
 rrm_get_min_of_max_tx_power(tpAniSirGlobal pMac,
 			    int8_t regMax, int8_t apTxPower)
@@ -693,17 +691,13 @@ rrm_process_beacon_report_req(tpAniSirGlobal pMac,
  * @param pIesMaxSize - Max size of the buffer pIes.
  * @param eids - pointer to array of eids. If NULL, all ies will be populated.
  * @param numEids - number of elements in array eids.
- * @start_offset: Offset from where the IEs in the bss_desc should be parsed
  * @param pBssDesc - pointer to Bss Description.
- *
- * Returns: Remaining length of IEs in current bss_desc which are not included
- *	    in pIes.
+ * @return None
  */
-static uint8_t
+static void
 rrm_fill_beacon_ies(tpAniSirGlobal pMac,
 		    uint8_t *pIes, uint8_t *pNumIes, uint8_t pIesMaxSize,
-		    uint8_t *eids, uint8_t numEids, uint8_t start_offset,
-		    tpSirBssDescription pBssDesc)
+		    uint8_t *eids, uint8_t numEids, tpSirBssDescription pBssDesc)
 {
 	uint8_t len, *pBcnIes, count = 0, i;
 	uint16_t BcnNumIes;
@@ -715,48 +709,28 @@ rrm_fill_beacon_ies(tpAniSirGlobal pMac,
 	/* Make sure that if eid is null, numEids is set to zero. */
 	numEids = (eids == NULL) ? 0 : numEids;
 
-	total_ies_len = GET_IE_LEN_IN_BSS(pBssDesc->length);
-	BcnNumIes = total_ies_len;
-	if (start_offset > BcnNumIes) {
-		pe_err("Invalid start offset %d Bcn IE len %d",
-		       start_offset, total_ies_len);
-		return 0;
-	}
-
 	pBcnIes = (uint8_t *) &pBssDesc->ieFields[0];
 	BcnNumIes = GET_IE_LEN_IN_BSS(pBssDesc->length);
 
 	*pNumIes = 0;
 
-	/*
-	 * If start_offset is 0, this is the first fragment of the current
-	 * beacon. Include the Beacon Fixed Fields of length 12 bytes
-	 * (BEACON_FRAME_IES_OFFSET) in the first fragment.
-	 */
-	if (start_offset == 0) {
-		*((uint32_t *)pIes) = pBssDesc->timeStamp[0];
-		*pNumIes += sizeof(uint32_t);
-		pIes += sizeof(uint32_t);
-		*((uint32_t *)pIes) = pBssDesc->timeStamp[1];
-		*pNumIes += sizeof(uint32_t);
-		pIes += sizeof(uint32_t);
-		*((uint16_t *)pIes) = pBssDesc->beaconInterval;
-		*pNumIes += sizeof(uint16_t);
-		pIes += sizeof(uint16_t);
-		*((uint16_t *)pIes) = pBssDesc->capabilityInfo;
-		*pNumIes += sizeof(uint16_t);
-		pIes += sizeof(uint16_t);
-	}
+	*((uint32_t *) pIes) = pBssDesc->timeStamp[0];
+	*pNumIes += sizeof(uint32_t);
+	pIes += sizeof(uint32_t);
+	*((uint32_t *) pIes) = pBssDesc->timeStamp[1];
+	*pNumIes += sizeof(uint32_t);
+	pIes += sizeof(uint32_t);
+	*((uint16_t *) pIes) = pBssDesc->beaconInterval;
+	*pNumIes += sizeof(uint16_t);
+	pIes += sizeof(uint16_t);
+	*((uint16_t *) pIes) = pBssDesc->capabilityInfo;
+	*pNumIes += sizeof(uint16_t);
+	pIes += sizeof(uint16_t);
 
 	while (BcnNumIes > 0) {
 		len = *(pBcnIes + 1) + 2;       /* element id + length. */
 		pe_debug("EID = %d, len = %d total = %d",
 			*pBcnIes, *(pBcnIes + 1), len);
-
-		if (!len) {
-			pe_err("Invalid length");
-			break;
-		}
 
 		i = 0;
 		do {
@@ -773,9 +747,6 @@ rrm_fill_beacon_ies(tpAniSirGlobal pMac,
 			}
 			i++;
 		} while (i < numEids);
-
-		if (rem_len)
-			break;
 
 		pBcnIes += len;
 		BcnNumIes -= len;
@@ -833,7 +804,8 @@ rrm_process_beacon_report_xmit(tpAniSirGlobal mac_ctx,
 			goto end;
 		}
 
-		report = qdf_mem_malloc(MAX_BEACON_REPORTS * sizeof(*report));
+		report = qdf_mem_malloc(beacon_xmit_ind->numBssDesc *
+			 sizeof(*report));
 
 		if (NULL == report) {
 			pe_err("RRM Report is NULL, allocation failed");
@@ -841,23 +813,22 @@ rrm_process_beacon_report_xmit(tpAniSirGlobal mac_ctx,
 			goto end;
 		}
 
-		for (i = 0; i < MAX_BEACON_REPORTS &&
-		     bss_desc_count < beacon_xmit_ind->numBssDesc; i++) {
+		for (bss_desc_count = 0; bss_desc_count <
+		     beacon_xmit_ind->numBssDesc; bss_desc_count++) {
 			beacon_report =
-				&report[i].report.beaconReport;
+				&report[bss_desc_count].report.beaconReport;
 			/*
 			 * If the scan result is NULL then send report request
 			 * with option subelement as NULL.
 			 */
-			pe_debug("report %d bss %d", i, bss_desc_count);
 			bss_desc = beacon_xmit_ind->
 				   pBssDescription[bss_desc_count];
 			/* Prepare the beacon report and send it to the peer.*/
-			report[i].token =
+			report[bss_desc_count].token =
 				beacon_xmit_ind->uDialogToken;
-			report[i].refused = 0;
-			report[i].incapable = 0;
-			report[i].type = SIR_MAC_RRM_BEACON_TYPE;
+			report[bss_desc_count].refused = 0;
+			report[bss_desc_count].incapable = 0;
+			report[bss_desc_count].type = SIR_MAC_RRM_BEACON_TYPE;
 
 			/*
 			 * Valid response is included if the size of
@@ -892,17 +863,16 @@ rrm_process_beacon_report_xmit(tpAniSirGlobal mac_ctx,
 				/* 1: Include all FFs and Requested Ies. */
 				pe_debug("Only requested IEs in reporting detail requested");
 
-				if (!bss_desc)
-					break;
-
-				rem_len = rrm_fill_beacon_ies(mac_ctx,
-					    (uint8_t *)&beacon_report->Ies[0],
-					    (uint8_t *)&beacon_report->numIes,
+				if (bss_desc) {
+					rrm_fill_beacon_ies(mac_ctx,
+					    (uint8_t *) &beacon_report->Ies[0],
+					    (uint8_t *) &beacon_report->numIes,
 					    BEACON_REPORT_MAX_IES,
 					    curr_req->request.Beacon.reqIes.
 					    pElementIds,
 					    curr_req->request.Beacon.reqIes.num,
-					    offset, bss_desc);
+					    bss_desc);
+				}
 				break;
 			case BEACON_REPORTING_DETAIL_ALL_FF_IE:
 				/* 2: default - Include all FFs and all Ies. */
@@ -915,38 +885,11 @@ rrm_process_beacon_report_xmit(tpAniSirGlobal mac_ctx,
 					    BEACON_REPORT_MAX_IES,
 					    NULL,
 					    0,
-					    offset, bss_desc);
+					    bss_desc);
+				}
 				break;
 			}
-			beacon_report->frame_body_frag_id.id = bss_desc_count;
-			beacon_report->frame_body_frag_id.frag_id = frag_id;
-			/*
-			 * If remaining length is non-zero, the beacon needs to
-			 * be fragmented only if the current request supports
-			 * last beacon report indication.
-			 * If last beacon report indication is not supported,
-			 * truncate and move on to the next beacon.
-			 */
-			if (rem_len &&
-			    curr_req->request.Beacon.
-			    last_beacon_report_indication) {
-				offset = GET_IE_LEN_IN_BSS(
-						bss_desc->length) - rem_len;
-				pe_debug("offset %d ie_len %lu rem_len %d frag_id %d",
-					 offset,
-					 GET_IE_LEN_IN_BSS(bss_desc->length),
-					 rem_len, frag_id);
-				frag_id++;
-				beacon_report->frame_body_frag_id.more_frags =
-									true;
-			} else {
-				offset = 0;
-				beacon_report->frame_body_frag_id.more_frags =
-									false;
-				frag_id = 0;
-				bss_desc_count++;
-				pe_debug("No remaining IEs");
-			}
+		}
 
 
 		qdf_mem_zero(&last_beacon_report_params,

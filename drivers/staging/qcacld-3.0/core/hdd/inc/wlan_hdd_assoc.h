@@ -235,15 +235,6 @@ bool hdd_is_connecting(struct hdd_station_ctx *hdd_sta_ctx);
  */
 bool hdd_is_fils_connection(struct hdd_adapter *adapter);
 
-/*
- * hdd_is_fils_connection: API to determine if connection is FILS
- * @adapter: hdd adapter
- *
- * Return: true if fils connection else false
- */
-bool hdd_is_fils_connection(hdd_adapter_t *adapter);
-
-
 /**
  * hdd_conn_is_connected() - Function to check connection status
  * @sta_ctx:    pointer to global HDD Station context
@@ -426,12 +417,6 @@ hdd_wma_send_fastreassoc_cmd(struct hdd_adapter *adapter,
 }
 static inline void hdd_save_gtk_params(struct hdd_adapter *adapter,
 				       struct csr_roam_info *csr_roam_info,
-				       bool is_reassoc)
-{
-	return QDF_STATUS_SUCCESS;
-}
-static inline void hdd_save_gtk_params(hdd_adapter_t *adapter,
-				       tCsrRoamInfo *csr_roam_info,
 				       bool is_reassoc)
 {
 }
