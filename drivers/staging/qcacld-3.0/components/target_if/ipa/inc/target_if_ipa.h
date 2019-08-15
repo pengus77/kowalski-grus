@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -17,15 +17,25 @@
  */
 
 /**
- * DOC: cds_mc_timer.h
- *
- * Connectivity driver services public API
- *
+ * DOC: Declare various api/struct which shall be used
+ * by ipa component for wmi cmd (tx path)
  */
 
-#if !defined(__CDS_MC_TIMER_H)
-#define __CDS_MC_TIMER_H
+#ifndef _TARGET_IF_IPA_H_
+#define _TARGET_IF_IPA_H_
 
-void cds_linux_timer_callback(unsigned long data);
+#ifdef IPA_OFFLOAD
 
-#endif /* __CDS_MC_TIMER_H */
+#include "wlan_ipa_public_struct.h"
+
+/**
+ * target_if_ipa_register_tx_ops() - Register IPA component TX OPS
+ * @ipa_tx_op: IPA if transmit op
+ *
+ * Return: None
+ */
+void target_if_ipa_register_tx_ops(ipa_uc_offload_control_req *ipa_tx_op);
+
+#endif /* IPA_OFFLOAD */
+#endif /* _TARGET_IF_IPA_H_ */
+

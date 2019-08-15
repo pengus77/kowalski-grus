@@ -51,8 +51,7 @@ extern void lim_send_set_sta_key_req(tpAniSirGlobal pMac,
 void lim_ft_open(tpAniSirGlobal pMac, tpPESession psessionEntry)
 {
 	if (psessionEntry)
-		qdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext),
-			    0);
+		qdf_mem_zero(&psessionEntry->ftPEContext, sizeof(tftPEContext));
 }
 
 void lim_ft_cleanup_all_ft_sessions(tpAniSirGlobal pMac)
@@ -107,7 +106,7 @@ void lim_ft_cleanup(tpAniSirGlobal pMac, tpPESession psessionEntry)
 	}
 
 	/* The session is being deleted, cleanup the contents */
-	qdf_mem_set(&psessionEntry->ftPEContext, sizeof(tftPEContext), 0);
+	qdf_mem_zero(&psessionEntry->ftPEContext, sizeof(tftPEContext));
 }
 
 #if defined(WLAN_FEATURE_HOST_ROAM) || defined(WLAN_FEATURE_ROAM_OFFLOAD)
@@ -365,6 +364,11 @@ void lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 				    pftSessionEntry->vht_config.su_beam_former)
 					sta_ctx->enable_su_tx_bformer = 1;
 			}
+			if (lim_is_session_he_capable(pftSessionEntry) &&
+				pBeaconStruct->he_cap.present)
+				lim_intersect_ap_he_caps(pftSessionEntry,
+					pAddBssParams, pBeaconStruct, NULL);
+
 			if ((pBeaconStruct->HTCaps.supportedChannelWidthSet) &&
 			    (chanWidthSupp)) {
 				sta_ctx->ch_width = (uint8_t)
@@ -424,7 +428,8 @@ void lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 					   supportedRates,
 					   pBeaconStruct->HTCaps.supportedMCSSet,
 					   false, pftSessionEntry,
-					   &pBeaconStruct->VHTCaps);
+					   &pBeaconStruct->VHTCaps,
+					   &pBeaconStruct->he_cap);
 	}
 
 	pAddBssParams->maxTxPower = pftSessionEntry->maxTxPower;
@@ -463,7 +468,7 @@ void lim_ft_prepare_add_bss_req(tpAniSirGlobal pMac,
 }
 #endif
 
-#ifdef WLAN_FEATURE_ROAM_OFFLOAD
+#if defined(WLAN_FEATURE_ROAM_OFFLOAD)
 /**
  * lim_fill_dot11mode() - to fill 802.11 mode in FT session
  * @mac_ctx: pointer to mac ctx
@@ -490,7 +495,7 @@ static void lim_fill_dot11mode(tpAniSirGlobal mac_ctx,
 		pftSessionEntry->dot11mode = self_dot11_mode;
 	}
 }
-#else
+#elif defined(WLAN_FEATURE_HOST_ROAM)
 /**
  * lim_fill_dot11mode() - to fill 802.11 mode in FT session
  * @mac_ctx: pointer to mac ctx
@@ -525,6 +530,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	int8_t regMax;
 	tSchBeaconStruct *pBeaconStruct;
 	ePhyChanBondState cbEnabledMode;
+	struct lim_max_tx_pwr_attr tx_pwr_attr = {0};
 
 	pBeaconStruct = qdf_mem_malloc(sizeof(tSchBeaconStruct));
 	if (NULL == pBeaconStruct) {
@@ -580,7 +586,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->limRFBand = lim_get_rf_band(
 				pftSessionEntry->currentOperChannel);
 
-	if (pftSessionEntry->limRFBand == SIR_BAND_2_4_GHZ) {
+	if (pftSessionEntry->limRFBand == BAND_2G) {
 		cbEnabledMode = pMac->roam.configParam.channelBondingMode24GHz;
 	} else {
 		cbEnabledMode = pMac->roam.configParam.channelBondingMode5GHz;
@@ -682,10 +688,16 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 	pftSessionEntry->isFastRoamIniFeatureEnabled =
 		psessionEntry->isFastRoamIniFeatureEnabled;
 
+	tx_pwr_attr.reg_max = regMax;
+	tx_pwr_attr.ap_tx_power = localPowerConstraint;
+	tx_pwr_attr.ini_tx_power = pMac->roam.configParam.nTxPowerCap;
+	tx_pwr_attr.frequency =
+		wlan_reg_get_channel_freq(pMac->pdev,
+					  pftSessionEntry->currentOperChannel);
+
 #ifdef FEATURE_WLAN_ESE
 	pftSessionEntry->maxTxPower =
-		lim_get_max_tx_power(regMax, localPowerConstraint,
-				     pMac->roam.configParam.nTxPowerCap);
+		lim_get_max_tx_power(pMac, &tx_pwr_attr);
 #else
 	pftSessionEntry->maxTxPower = QDF_MIN(regMax, (localPowerConstraint));
 #endif
@@ -706,7 +718,7 @@ void lim_fill_ft_session(tpAniSirGlobal pMac,
 #ifdef WLAN_FEATURE_11W
 	pftSessionEntry->limRmfEnabled = psessionEntry->limRmfEnabled;
 #endif
-	if ((pftSessionEntry->limRFBand == SIR_BAND_2_4_GHZ) &&
+	if ((pftSessionEntry->limRFBand == BAND_2G) &&
 		(pftSessionEntry->htSupportedChannelWidthSet ==
 		eHT_CHANNEL_WIDTH_40MHZ))
 		lim_init_obss_params(pMac, pftSessionEntry);
@@ -801,7 +813,7 @@ bool lim_process_ft_update_key(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 		qdf_mem_copy((uint8_t *) &pAddBssParams->extSetStaKeyParam.key,
 			     (uint8_t *) &pKeyInfo->keyMaterial.key,
 			     sizeof(tSirKeys));
-		if (eSIR_SUCCESS !=
+		if (QDF_STATUS_SUCCESS !=
 		    wlan_cfg_get_int(pMac, WNI_CFG_SINGLE_TID_RC, &val)) {
 			pe_warn("Unable to read WNI_CFG_SINGLE_TID_RC");
 		}
@@ -820,6 +832,7 @@ bool lim_process_ft_update_key(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 				 &pKeyInfo->bssid);
 
 		pAddBssParams->extSetStaKeyParam.sendRsp = false;
+
 	}
 	return true;
 }
@@ -858,7 +871,8 @@ lim_ft_send_aggr_qos_rsp(tpAniSirGlobal pMac, uint8_t rspReqd,
 	return;
 }
 
-void lim_process_ft_aggr_qo_s_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
+void lim_process_ft_aggr_qo_s_rsp(tpAniSirGlobal pMac,
+				  struct scheduler_msg *limMsg)
 {
 	tpAggrAddTsParams pAggrQosRspMsg = NULL;
 	tAddTsParams addTsParam = { 0 };
@@ -921,9 +935,9 @@ void lim_process_ft_aggr_qo_s_rsp(tpAniSirGlobal pMac, tpSirMsgQ limMsg)
 	return;
 }
 
-tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
+QDF_STATUS lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf)
 {
-	tSirMsgQ msg;
+	struct scheduler_msg msg = {0};
 	tSirAggrQosReq *aggrQosReq = (tSirAggrQosReq *) pMsgBuf;
 	tpAggrAddTsParams pAggrAddTsParam;
 	tpPESession psessionEntry = NULL;
@@ -937,7 +951,7 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 	pAggrAddTsParam = qdf_mem_malloc(sizeof(tAggrAddTsParams));
 	if (NULL == pAggrAddTsParam) {
 		pe_err("AllocateMemory() failed");
-		return eSIR_MEM_ALLOC_FAILED;
+		return QDF_STATUS_E_NOMEM;
 	}
 
 	psessionEntry = pe_find_session_by_bssid(pMac, aggrQosReq->bssid.bytes,
@@ -947,14 +961,14 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 		pe_err("psession Entry Null for sessionId: %d",
 			       aggrQosReq->sessionId);
 		qdf_mem_free(pAggrAddTsParam);
-		return eSIR_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	/* Nothing to be done if the session is not in STA mode */
 	if (!LIM_IS_STA_ROLE(psessionEntry)) {
 		pe_err("psessionEntry is not in STA mode");
 		qdf_mem_free(pAggrAddTsParam);
-		return eSIR_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	pSta = dph_lookup_hash_entry(pMac, aggrQosReq->bssid.bytes, &aid,
@@ -962,7 +976,7 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 	if (pSta == NULL) {
 		pe_err("Station context not found - ignoring AddTsRsp");
 		qdf_mem_free(pAggrAddTsParam);
-		return eSIR_FAILURE;
+		return QDF_STATUS_E_FAILURE;
 	}
 
 	pAggrAddTsParam->staIdx = psessionEntry->staId;
@@ -1034,15 +1048,15 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 
 				lim_send_edca_params(pMac,
 					     psessionEntry->gLimEdcaParamsActive,
-					     pSta->bssId);
+					     pSta->bssId, false);
 
-			if (eSIR_SUCCESS !=
+			if (QDF_STATUS_SUCCESS !=
 			    lim_tspec_add(pMac, pSta->staAddr, pSta->assocId,
 					  pTspec, 0, &tspecInfo)) {
 				pe_err("Adding entry in lim Tspec Table failed");
 				pMac->lim.gLimAddtsSent = false;
 				qdf_mem_free(pAggrAddTsParam);
-				return eSIR_FAILURE;
+				return QDF_STATUS_E_FAILURE;
 			}
 
 			pAggrAddTsParam->tspec[i] =
@@ -1066,17 +1080,17 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 	SET_LIM_PROCESS_DEFD_MESGS(pMac, false);
 	MTRACE(mac_trace_msg_tx(pMac, psessionEntry->peSessionId, msg.type));
 
-	if (eSIR_SUCCESS != wma_post_ctrl_msg(pMac, &msg)) {
+	if (QDF_STATUS_SUCCESS != wma_post_ctrl_msg(pMac, &msg)) {
 			pe_warn("wma_post_ctrl_msg() failed");
 			SET_LIM_PROCESS_DEFD_MESGS(pMac, true);
 			qdf_mem_free(pAggrAddTsParam);
-			return eSIR_FAILURE;
+			return QDF_STATUS_E_FAILURE;
 		}
 	}
 #ifdef WLAN_FEATURE_ROAM_OFFLOAD
 	else {
 		/* Implies it is a LFR3.0 based 11r connection
-		 * so donot send add ts request to fimware since it
+		 * so donot send add ts request to firmware since it
 		 * already has the RIC IEs */
 
 		/* Send the Aggr QoS response to SME */
@@ -1088,5 +1102,5 @@ tSirRetStatus lim_process_ft_aggr_qos_req(tpAniSirGlobal pMac, uint32_t *pMsgBuf
 	}
 #endif
 
-	return eSIR_SUCCESS;
+	return QDF_STATUS_SUCCESS;
 }

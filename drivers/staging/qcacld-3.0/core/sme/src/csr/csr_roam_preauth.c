@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -23,7 +23,6 @@
  */
 
 #include "wma_types.h"
-#include "cds_mq.h"
 #include "csr_inside_api.h"
 #include "sme_qos_internal.h"
 #include "sme_inside.h"
@@ -33,22 +32,11 @@
 #include "sme_api.h"
 #include "csr_neighbor_roam.h"
 #include "mac_trace.h"
-#include "cds_concurrency.h"
+#include "wlan_policy_mgr_api.h"
+#include "sir_api.h"
 
-static void csr_reinit_preauth_cmd(tpAniSirGlobal pMac, tSmeCmd *pCommand);
 static QDF_STATUS csr_neighbor_roam_add_preauth_fail(tpAniSirGlobal mac_ctx,
 			uint8_t session_id, tSirMacAddr bssid);
-
-/**
- * csr_get_dot11_mode() - Derives dot11mode
- * @hal: Global Handle
- * @session_id: SME Session ID
- * @bss_desc: BSS descriptor
- *
- * Return: dot11mode
- */
-static uint32_t csr_get_dot11_mode(tHalHandle hal, uint32_t session_id,
-			      tpSirBssDescription bss_desc);
 
 /**
  * csr_neighbor_roam_state_preauth_done() - Check if state is preauth done
@@ -84,7 +72,7 @@ void csr_neighbor_roam_tranistion_preauth_done_to_disconnected(
 {
 	tpCsrNeighborRoamControlInfo pNeighborRoamInfo =
 		&mac_ctx->roam.neighborRoamInfo[session_id];
-	tCsrRoamSession *session = CSR_GET_SESSION(mac_ctx, session_id);
+	struct csr_roam_session *session = CSR_GET_SESSION(mac_ctx, session_id);
 
 	if (!session) {
 		QDF_TRACE(QDF_MODULE_ID_SME, QDF_TRACE_LEVEL_DEBUG,
@@ -104,33 +92,6 @@ void csr_neighbor_roam_tranistion_preauth_done_to_disconnected(
 }
 
 /**
- * csr_reinit_preauth_cmd() - Cleanup the preauth command
- * @mac_ctx: Global MAC context
- * @command: Command to be cleaned up
- *
- * Return: None
- */
-static void csr_reinit_preauth_cmd(tpAniSirGlobal mac_ctx, tSmeCmd *command)
-{
-	command->u.roamCmd.pLastRoamBss = NULL;
-	command->u.roamCmd.pRoamBssEntry = NULL;
-	qdf_mem_set(&command->u.roamCmd, sizeof(tRoamCmd), 0);
-}
-
-/**
- * csr_release_command_preauth() - Release the preauth command
- * @mac_ctx: Global MAC context
- * @command: Command to be released
- *
- * Return: None
- */
-void csr_release_command_preauth(tpAniSirGlobal mac_ctx, tSmeCmd *command)
-{
-	csr_reinit_preauth_cmd(mac_ctx, command);
-	csr_release_command(mac_ctx, command);
-}
-
-/**
  * csr_roam_enqueue_preauth() - Put the preauth command in the queue
  * @mac_ctx: Global MAC Context
  * @session_id: SME Session ID
@@ -142,7 +103,7 @@ void csr_release_command_preauth(tpAniSirGlobal mac_ctx, tSmeCmd *command)
  */
 QDF_STATUS csr_roam_enqueue_preauth(tpAniSirGlobal mac_ctx,
 		uint32_t session_id, tpSirBssDescription bss_desc,
-		eCsrRoamReason reason, bool immediate)
+		enum csr_roam_reason reason, bool immediate)
 {
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
 	tSmeCmd *command;
@@ -162,7 +123,6 @@ QDF_STATUS csr_roam_enqueue_preauth(tpAniSirGlobal mac_ctx,
 			if (!QDF_IS_STATUS_SUCCESS(status)) {
 				sme_err("fail to queue preauth,status: %d",
 					status);
-				csr_release_command_preauth(mac_ctx, command);
 			}
 		} else {
 			status = QDF_STATUS_E_RESOURCES;
@@ -229,7 +189,7 @@ void csr_neighbor_roam_reset_preauth_control_info(tpAniSirGlobal mac_ctx,
  * csr_neighbor_roam_preauth_rsp_handler() - handle preauth response
  * @mac_ctx: The handle returned by mac_open.
  * @session_id: SME session
- * @lim_status: eSIR_SUCCESS/eSIR_FAILURE/eSIR_LIM_MAX_STA_REACHED_ERROR/
+ * @lim_status: QDF_STATUS_SUCCESS/QDF_STATUS_E_FAILURE/QDF_STATUS_E_NOSPC/
  *              eSIT_LIM_AUTH_RSP_TIMEOUT status from PE
  *
  * This function handle the Preauth response from PE
@@ -244,7 +204,7 @@ void csr_neighbor_roam_reset_preauth_control_info(tpAniSirGlobal mac_ctx,
  */
 QDF_STATUS csr_neighbor_roam_preauth_rsp_handler(tpAniSirGlobal mac_ctx,
 						 uint8_t session_id,
-						 tSirRetStatus lim_status)
+						 QDF_STATUS lim_status)
 {
 	tpCsrNeighborRoamControlInfo neighbor_roam_info =
 		&mac_ctx->roam.neighborRoamInfo[session_id];
@@ -276,12 +236,12 @@ QDF_STATUS csr_neighbor_roam_preauth_rsp_handler(tpAniSirGlobal mac_ctx,
 
 	neighbor_roam_info->FTRoamInfo.preauthRspPending = false;
 
-	if (eSIR_SUCCESS == lim_status)
+	if (QDF_STATUS_SUCCESS == lim_status)
 		preauth_rsp_node =
 			csr_neighbor_roam_next_roamable_ap(
 				mac_ctx, &neighbor_roam_info->roamableAPList,
 				NULL);
-	if ((eSIR_SUCCESS == lim_status) && (NULL != preauth_rsp_node)) {
+	if ((QDF_STATUS_SUCCESS == lim_status) && (NULL != preauth_rsp_node)) {
 		sme_debug("Preauth completed successfully after %d tries",
 			neighbor_roam_info->FTRoamInfo.numPreAuthRetries);
 		sme_debug("After Pre-Auth: BSSID " MAC_ADDRESS_STR ", Ch:%d",
@@ -328,7 +288,7 @@ QDF_STATUS csr_neighbor_roam_preauth_rsp_handler(tpAniSirGlobal mac_ctx,
 		 */
 		if ((neighbor_roam_info->FTRoamInfo.numPreAuthRetries >=
 		     CSR_NEIGHBOR_ROAM_MAX_NUM_PREAUTH_RETRIES) ||
-		    (eSIR_LIM_MAX_STA_REACHED_ERROR == lim_status)) {
+		    (QDF_STATUS_E_NOSPC == lim_status)) {
 			/*
 			 * We are going to remove the node as it fails for
 			 * more than MAX tries. Reset this count to 0
@@ -395,7 +355,7 @@ ABORT_PREAUTH:
 	}
 
 DEQ_PREAUTH:
-	csr_dequeue_roam_command(mac_ctx, eCsrPerformPreauth);
+	csr_dequeue_roam_command(mac_ctx, eCsrPerformPreauth, session_id);
 	return preauth_processed;
 }
 
@@ -540,20 +500,80 @@ uint32_t csr_get_dot11_mode(tHalHandle hal, uint32_t session_id,
 }
 
 /**
- * csr_roam_issue_ft_preauth_req() - Initiate Preauthentication request
- * @hal: Global Handle
+ * csr_get_dot11_mode() - Derives dot11mode
+ * @mac_ctx: Global MAC context
  * @session_id: SME Session ID
  * @bss_desc: BSS descriptor
  *
- * Return: Success or Failure
+ * Return: dot11mode
  */
-QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hal, uint32_t session_id,
-			      tpSirBssDescription bss_desc)
+static uint32_t csr_get_dot11_mode(tpAniSirGlobal mac_ctx,
+				   uint32_t session_id,
+				   tpSirBssDescription bss_desc)
 {
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
+	struct csr_roam_session *csr_session = CSR_GET_SESSION(mac_ctx,
+				session_id);
+	enum csr_cfgdot11mode ucfg_dot11_mode, cfg_dot11_mode;
+	QDF_STATUS status;
+	tDot11fBeaconIEs *ies_local = NULL;
+	uint32_t dot11mode = 0;
+
+	if (!csr_session) {
+		sme_err("Invalid session id %d", session_id);
+		return 0;
+	}
+
+	sme_debug("phyMode %d", csr_session->pCurRoamProfile->phyMode);
+
+	/* Get IE's */
+	status = csr_get_parsed_bss_description_ies(mac_ctx, bss_desc,
+							&ies_local);
+	if (!QDF_IS_STATUS_SUCCESS(status)) {
+		sme_err("csr_get_parsed_bss_description_ies failed");
+		return 0;
+	}
+	if (ies_local == NULL) {
+		sme_err("ies_local is NULL");
+		return 0;
+	}
+
+	if (csr_is_phy_mode_match(mac_ctx,
+			csr_session->pCurRoamProfile->phyMode,
+			bss_desc, csr_session->pCurRoamProfile,
+			&cfg_dot11_mode, ies_local))
+		ucfg_dot11_mode = cfg_dot11_mode;
+	else {
+		sme_err("Can not find match phy mode");
+		if (WLAN_REG_IS_5GHZ_CH(bss_desc->channelId))
+			ucfg_dot11_mode = eCSR_CFG_DOT11_MODE_11A;
+		else
+			ucfg_dot11_mode = eCSR_CFG_DOT11_MODE_11G;
+	}
+
+	/* dot11mode */
+	dot11mode = csr_translate_to_wni_cfg_dot11_mode(mac_ctx,
+							ucfg_dot11_mode);
+	sme_debug("dot11mode %d ucfg_dot11_mode %d",
+			dot11mode, ucfg_dot11_mode);
+
+	if (bss_desc->channelId <= 14 &&
+		false == mac_ctx->roam.configParam.enableVhtFor24GHz &&
+		WNI_CFG_DOT11_MODE_11AC == dot11mode) {
+		/* Need to disable VHT operation in 2.4 GHz band */
+		dot11mode = WNI_CFG_DOT11_MODE_11N;
+	}
+	qdf_mem_free(ies_local);
+	return dot11mode;
+}
+
+QDF_STATUS csr_roam_issue_ft_preauth_req(tpAniSirGlobal mac_ctx,
+					 uint32_t session_id,
+					 tpSirBssDescription bss_desc)
+{
 	tpSirFTPreAuthReq preauth_req;
 	uint16_t auth_req_len = 0;
-	tCsrRoamSession *csr_session = CSR_GET_SESSION(mac_ctx, session_id);
+	struct csr_roam_session *csr_session = CSR_GET_SESSION(mac_ctx,
+				session_id);
 
 	if (NULL == csr_session) {
 		sme_err("Session does not exist for session id: %d",
@@ -575,15 +595,14 @@ QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hal, uint32_t session_id,
 				+ bss_desc->length);
 	if (NULL == preauth_req->pbssDescription) {
 		sme_err("Memory allocation for FT Preauth request failed");
-		qdf_mem_free(preauth_req);
 		return QDF_STATUS_E_NOMEM;
 	}
 
 	preauth_req->messageType = eWNI_SME_FT_PRE_AUTH_REQ;
 
 	preauth_req->preAuthchannelNum = bss_desc->channelId;
-	preauth_req->dot11mode =
-				csr_get_dot11_mode(hal, session_id, bss_desc);
+	preauth_req->dot11mode = csr_get_dot11_mode(mac_ctx, session_id,
+						    bss_desc);
 	if (!preauth_req->dot11mode) {
 		sme_err("preauth_req->dot11mode is zero");
 		qdf_mem_free(preauth_req);
@@ -612,25 +631,18 @@ QDF_STATUS csr_roam_issue_ft_preauth_req(tHalHandle hal, uint32_t session_id,
 	qdf_mem_copy(preauth_req->pbssDescription, bss_desc,
 			sizeof(bss_desc->length) + bss_desc->length);
 	preauth_req->length = auth_req_len;
-	return cds_send_mb_message_to_mac(preauth_req);
+	return umac_send_mb_message_to_mac(preauth_req);
 }
 
-/**
- * csr_roam_ft_pre_auth_rsp_processor() - Handle the preauth response
- * @hal: Global Handle
- * preauth_rsp: Received preauthentication response
- *
- * Return: None
- */
-void csr_roam_ft_pre_auth_rsp_processor(tHalHandle hal,
+void csr_roam_ft_pre_auth_rsp_processor(tpAniSirGlobal mac_ctx,
 					tpSirFTPreAuthRsp preauth_rsp)
 {
-	tpAniSirGlobal mac_ctx = PMAC_STRUCT(hal);
 	QDF_STATUS status = QDF_STATUS_SUCCESS;
-	tCsrRoamInfo roam_info;
+	struct csr_roam_info roam_info;
 	eCsrAuthType conn_Auth_type;
 	uint32_t session_id = preauth_rsp->smeSessionId;
-	tCsrRoamSession *csr_session = CSR_GET_SESSION(mac_ctx, session_id);
+	struct csr_roam_session *csr_session = CSR_GET_SESSION(mac_ctx,
+				session_id);
 	tDot11fAuthentication *p_auth = NULL;
 
 	if (NULL == csr_session) {
@@ -791,7 +803,7 @@ QDF_STATUS csr_neighbor_roam_issue_preauth_req(tpAniSirGlobal mac_ctx,
 				&neighbor_roam_info->roamableAPList, NULL);
 
 	if (NULL == neighbor_bss_node) {
-		sme_err("Roamable AP list is empty..");
+		sme_err("Roamable AP list is empty");
 		return QDF_STATUS_E_FAILURE;
 	}
 	csr_neighbor_roam_send_lfr_metric_event(mac_ctx, session_id,

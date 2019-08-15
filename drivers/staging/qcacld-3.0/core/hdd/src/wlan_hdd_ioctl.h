@@ -26,7 +26,27 @@
 extern struct sock *cesium_nl_srv_sock;
 
 int hdd_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd);
-int wlan_hdd_set_mc_rate(hdd_adapter_t *pAdapter, int targetRate);
+int wlan_hdd_set_mc_rate(struct hdd_adapter *adapter, int targetRate);
+
+/**
+ * hdd_update_smps_antenna_mode() - set smps and antenna mode
+ * @hdd_ctx: Pointer to hdd context
+ * @mode: antenna mode
+ *
+ * This function will set smps and antenna mode.
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS hdd_update_smps_antenna_mode(struct hdd_context *hdd_ctx, int mode);
+
+/**
+ * hdd_set_antenna_mode() - SET ANTENNA MODE command handler
+ * @adapter: Pointer to network adapter
+ * @hdd_ctx: Pointer to hdd context
+ * @mode: new anteena mode
+ */
+int hdd_set_antenna_mode(struct hdd_adapter *adapter,
+			  struct hdd_context *hdd_ctx, int mode);
 
 /**
  * hdd_update_smps_antenna_mode() - set smps and antenna mode

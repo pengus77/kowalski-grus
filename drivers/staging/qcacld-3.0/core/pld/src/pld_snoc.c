@@ -238,7 +238,7 @@ static int pld_snoc_uevent(struct device *dev,
 		return -EINVAL;
 
 	if (!pld_context->ops->uevent)
-		return 0;
+		goto out;
 
 	if (!uevent)
 		return -EINVAL;
@@ -255,10 +255,11 @@ static int pld_snoc_uevent(struct device *dev,
 		data.fw_down.crashed = uevent_data->crashed;
 		break;
 	default:
-		return 0;
+		goto out;
 	}
 
 	pld_context->ops->uevent(dev, &data);
+out:
 	return 0;
 }
 
@@ -390,7 +391,16 @@ int pld_snoc_get_soc_info(struct device *dev, struct pld_soc_info *info)
 	if (0 != ret)
 		return ret;
 
-	memcpy(info, &icnss_info, sizeof(*info));
+	info->v_addr = icnss_info.v_addr;
+	info->p_addr = icnss_info.p_addr;
+	info->chip_id = icnss_info.chip_id;
+	info->chip_family = icnss_info.chip_family;
+	info->board_id = icnss_info.board_id;
+	info->soc_id = icnss_info.soc_id;
+	info->fw_version = icnss_info.fw_version;
+	strlcpy(info->fw_build_timestamp, icnss_info.fw_build_timestamp,
+		sizeof(info->fw_build_timestamp));
+
 	return 0;
 }
 #endif

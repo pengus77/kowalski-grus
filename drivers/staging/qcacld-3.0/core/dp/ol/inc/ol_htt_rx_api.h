@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2011-2018 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -647,13 +647,13 @@ extern int
 (*htt_rx_amsdu_pop)(htt_pdev_handle pdev,
 		    qdf_nbuf_t rx_ind_msg,
 		    qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu,
-		    qdf_nbuf_t *head_mon_msdu, uint32_t *msdu_count);
+		    uint32_t *msdu_count);
 
 extern int
 (*htt_rx_frag_pop)(htt_pdev_handle pdev,
 		   qdf_nbuf_t rx_ind_msg,
 		   qdf_nbuf_t *head_msdu, qdf_nbuf_t *tail_msdu,
-		   qdf_nbuf_t *head_mon_msdu, uint32_t *msdu_count);
+		   uint32_t *msdu_count);
 
 /**
  * @brief Return the maximum number of available msdus currently
@@ -815,6 +815,23 @@ int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
 #endif
 
 /**
+ * @brief Add new MSDU buffers for the target to fill.
+ * @details
+ *  This is full_reorder_offload version of the replenish function.
+ *  In full_reorder, FW sends HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND
+ *  msg to host. It includes the number of MSDUs. Thgis will be fed
+ *  into htt_rx_msdu_buff_in_order_replenish function.
+ *  The reason for creating yet another function is to avoid checks
+ *  in real-time.
+ *
+ * @param pdev - the HTT instance the rx data will be received on
+ * @num        - number of buffers to replenish
+ *
+ * Return: number of buffers actually replenished
+ */
+int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num);
+
+/**
  * @brief Links list of MSDUs into an single MPDU. Updates RX stats
  * @details
  *  When HW MSDU splitting is turned on each MSDU in an AMSDU MPDU occupies
@@ -832,11 +849,22 @@ int htt_rx_msdu_buff_in_order_replenish(htt_pdev_handle pdev, uint32_t num)
  *      list, else operates on a cloned nbuf
  * @return network buffer handle to the MPDU
  */
+#if !defined(QCA6290_HEADERS_DEF) && defined(FEATURE_MONITOR_MODE_SUPPORT)
 qdf_nbuf_t
 htt_rx_restitch_mpdu_from_msdus(htt_pdev_handle pdev,
 				qdf_nbuf_t head_msdu,
 				struct ieee80211_rx_status *rx_status,
 				unsigned clone_not_reqd);
+#else
+static inline qdf_nbuf_t
+htt_rx_restitch_mpdu_from_msdus(htt_pdev_handle pdev,
+				qdf_nbuf_t head_msdu,
+				struct ieee80211_rx_status *rx_status,
+				unsigned clone_not_reqd)
+{
+	return NULL;
+}
+#endif
 
 /**
  * @brief Return the sequence number of MPDUs to flush.
@@ -895,5 +923,26 @@ htt_rx_offload_paddr_msdu_pop_ll(htt_pdev_handle pdev,
 
 uint32_t htt_rx_amsdu_rx_in_order_get_pktlog(qdf_nbuf_t rx_ind_msg);
 
-int htt_rx_hash_smmu_map_update(struct htt_pdev_t *pdev, bool map);
+/**
+ * htt_rx_update_smmu_map() - set smmu map/unmap for rx buffers
+ * @pdev: htt pdev handle
+ * @map: value to set smmu map/unmap for rx buffers
+ *
+ * Return: QDF_STATUS
+ */
+QDF_STATUS htt_rx_update_smmu_map(struct htt_pdev_t *pdev, bool map);
+
+/** htt_tx_enable_ppdu_end
+ * @enable_ppdu_end - set it to 1 if WLAN_FEATURE_TSF_PLUS is defined,
+ *                    else do nothing
+ */
+#ifdef WLAN_FEATURE_TSF_PLUS
+void htt_rx_enable_ppdu_end(int *enable_ppdu_end);
+#else
+static inline
+void htt_rx_enable_ppdu_end(int *enable_ppdu_end)
+{
+}
+#endif
+
 #endif /* _OL_HTT_RX_API__H_ */

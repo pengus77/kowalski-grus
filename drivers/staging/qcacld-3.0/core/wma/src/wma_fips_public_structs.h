@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -16,15 +16,17 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef _PKTLOG_
-#define _PKTLOG_
-#ifndef REMOVE_PKT_LOG
+#ifndef __WMA_FIPS_PUBLIC_STRUCTS_H
+#define __WMA_FIPS_PUBLIC_STRUCTS_H
+
+struct wmi_host_fips_event_param;
 
 /**
- * @typedef ol_pktlog_dev_handle
- * @brief opaque handle for pktlog device object
+ * typedef wma_fips_cb() - FIPS callback function
+ * @context: Opaque context provided by caller in FIPS request
+ * @param: FIPS event parameters
  */
-struct ol_pktlog_dev_t;
-typedef struct ol_pktlog_dev_t *ol_pktlog_dev_handle;
-#endif /* #ifndef REMOVE_PKT_LOG */
-#endif /* _PKTLOG_ */
+typedef void (*wma_fips_cb)(void *context,
+			    struct wmi_host_fips_event_param *param);
+
+#endif /* __WMA_FIPS_PUBLIC_STRUCTS_H */

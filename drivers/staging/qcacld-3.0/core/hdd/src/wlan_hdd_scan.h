@@ -28,51 +28,21 @@
 
 #include "wlan_hdd_main.h"
 #include "csr_inside_api.h"
+#include <wlan_cfg80211_scan.h>
 
 #define MAX_PENDING_LOG 5
 
 /* (30 Mins) */
 #define MIN_TIME_REQUIRED_FOR_NEXT_BUG_REPORT (30 * 60 * 1000)
 
-/* Minimum number of channels for enabling DBS Scan */
-#define HDD_MIN_CHAN_DBS_SCAN_THRESHOLD         8
-
 /* HDD Scan inactivity timeout set to double
- * of the CSR CMD Timeout */
+ * of the CSR CMD Timeout.
+ */
 #define HDD_SCAN_INACTIVITY_TIMEOUT \
 	(CSR_ACTIVE_SCAN_LIST_CMD_TIMEOUT * 2)
-/*
- * enum scan_source - scan request source
- *
- * @NL_SCAN: Scan initiated from NL
- * @VENDOR_SCAN: Scan intiated from vendor command
- */
-enum scan_source {
-	NL_SCAN,
-	VENDOR_SCAN,
-};
 
-/**
- * enum wlan_hdd_scan_type - type of scan
- * @WLAN_HDD_HOST_SCAN: refers to scan request from cfg80211_ops "scan"
- * @WLAN_HDD_PNO_SCAN: refers to scan request is from "sched_scan_start"
- *
- * driver uses this enum to identify source of scan
- *
- */
-enum wlan_hdd_scan_type {
-	WLAN_HDD_HOST_SCAN,
-	WLAN_HDD_PNO_SCAN,
-};
-
-int iw_get_scan(struct net_device *dev, struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra);
-
-int iw_set_scan(struct net_device *dev, struct iw_request_info *info,
-		union iwreq_data *wrqu, char *extra);
-
-int hdd_scan_context_init(hdd_context_t *hdd_ctx);
-void hdd_scan_context_destroy(hdd_context_t *hdd_ctx);
+int hdd_scan_context_init(struct hdd_context *hdd_ctx);
+void hdd_scan_context_destroy(struct hdd_context *hdd_ctx);
 
 int wlan_hdd_cfg80211_scan(struct wiphy *wiphy,
 			   struct cfg80211_scan_request *request);
@@ -112,6 +82,11 @@ int wlan_hdd_cfg80211_sched_scan_stop(struct wiphy *wiphy,
  * Return: 0 for success, non zero for failure
  */
 int wlan_hdd_sched_scan_stop(struct net_device *dev);
+#else
+static inline int wlan_hdd_sched_scan_stop(struct net_device *dev)
+{
+	return 0;
+}
 #endif /* End of FEATURE_WLAN_SCAN_PNO */
 
 int wlan_hdd_cfg80211_vendor_scan(struct wiphy *wiphy,
@@ -134,13 +109,42 @@ int wlan_hdd_vendor_abort_scan(
 	struct wiphy *wiphy, struct wireless_dev *wdev,
 	const void *data, int data_len);
 
-void hdd_cleanup_scan_queue(hdd_context_t *hdd_ctx, hdd_adapter_t *p_adapter);
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 0)) || \
 	defined(CFG80211_ABORT_SCAN)
 void wlan_hdd_cfg80211_abort_scan(struct wiphy *wiphy,
 				  struct wireless_dev *wdev);
 #endif
+
+/**
+ * hdd_init_scan_reject_params() - init scan reject params
+ * @hdd_ctx: hdd contxt
+ *
+ * Return: None
+ */
+void hdd_init_scan_reject_params(struct hdd_context *hdd_ctx);
+
+/**
+ * hdd_reset_scan_reject_params() - reset scan reject params per roam stats
+ * @hdd_ctx: hdd contxt
+ * @roam_status: roam status
+ * @roam_result: roam result
+ *
+ * Return: None
+ */
+void hdd_reset_scan_reject_params(struct hdd_context *hdd_ctx,
+				  eRoamCmdStatus roam_status,
+				  eCsrRoamResult roam_result);
+
+/**
+ * wlan_hdd_cfg80211_scan_block_cb() - scan block work handler
+ * @work: Pointer to work
+ *
+ * This function is used to do scan block work handler
+ *
+ * Return: none
+ */
+void wlan_hdd_cfg80211_scan_block_cb(struct work_struct *work);
+#endif /* end #if !defined(WLAN_HDD_SCAN_H) */
 
 /**
  * wlan_hdd_fill_whitelist_ie_attrs - fill the white list members

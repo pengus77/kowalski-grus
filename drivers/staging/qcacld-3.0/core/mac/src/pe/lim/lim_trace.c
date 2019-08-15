@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2019 The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for
  * any purpose with or without fee is hereby granted, provided that the
@@ -64,12 +64,9 @@ static uint8_t *__lim_trace_get_timer_string(uint16_t timerId)
 		CASE_RETURN_STRING(eLIM_WPS_OVERLAP_TIMER);
 		CASE_RETURN_STRING(eLIM_FT_PREAUTH_RSP_TIMER);
 		CASE_RETURN_STRING(eLIM_REMAIN_CHN_TIMER);
-		CASE_RETURN_STRING(eLIM_PERIODIC_PROBE_REQ_TIMER);
 		CASE_RETURN_STRING(eLIM_DISASSOC_ACK_TIMER);
 		CASE_RETURN_STRING(eLIM_DEAUTH_ACK_TIMER);
 		CASE_RETURN_STRING(eLIM_PERIODIC_JOIN_PROBE_REQ_TIMER);
-		CASE_RETURN_STRING(eLIM_INSERT_SINGLESHOT_NOA_TIMER);
-		CASE_RETURN_STRING(eLIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE);
 		CASE_RETURN_STRING(eLIM_AUTH_RETRY_TIMER);
 	default:
 		return "UNKNOWN";
@@ -280,9 +277,9 @@ void mac_trace_msg_tx(tpAniSirGlobal pMac, uint8_t session, uint32_t data)
 {
 
 	uint16_t msgId = (uint16_t) MAC_TRACE_GET_MSG_ID(data);
-	uint8_t moduleId = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
+	uint8_t module_id = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
 
-	switch (moduleId) {
+	switch (module_id) {
 	case SIR_LIM_MODULE_ID:
 		if (msgId >= SIR_LIM_ITC_MSG_TYPES_BEGIN)
 			mac_trace(pMac, TRACE_CODE_TX_LIM_MSG, session, data);
@@ -296,7 +293,7 @@ void mac_trace_msg_tx(tpAniSirGlobal pMac, uint8_t session, uint32_t data)
 		mac_trace(pMac, TRACE_CODE_TX_CFG_MSG, session, data);
 		break;
 	default:
-		mac_trace(pMac, moduleId, session, data);
+		mac_trace(pMac, module_id, session, data);
 		break;
 	}
 }
@@ -305,9 +302,9 @@ void mac_trace_msg_tx_new(tpAniSirGlobal pMac, uint8_t module, uint8_t session,
 			  uint32_t data)
 {
 	uint16_t msgId = (uint16_t) MAC_TRACE_GET_MSG_ID(data);
-	uint8_t moduleId = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
+	uint8_t module_id = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
 
-	switch (moduleId) {
+	switch (module_id) {
 	case SIR_LIM_MODULE_ID:
 		if (msgId >= SIR_LIM_ITC_MSG_TYPES_BEGIN)
 			mac_trace_new(pMac, module, TRACE_CODE_TX_LIM_MSG,
@@ -323,21 +320,21 @@ void mac_trace_msg_tx_new(tpAniSirGlobal pMac, uint8_t module, uint8_t session,
 		mac_trace_new(pMac, module, TRACE_CODE_TX_CFG_MSG, session, data);
 		break;
 	default:
-		mac_trace(pMac, moduleId, session, data);
+		mac_trace(pMac, module_id, session, data);
 		break;
 	}
 }
 
 /*
- * bit31: Rx message defferred or not
+ * bit31: Rx message deferred or not
  * bit 0-15: message ID:
  */
 void mac_trace_msg_rx(tpAniSirGlobal pMac, uint8_t session, uint32_t data)
 {
 	uint16_t msgId = (uint16_t) MAC_TRACE_GET_MSG_ID(data);
-	uint8_t moduleId = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
+	uint8_t module_id = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
 
-	switch (moduleId) {
+	switch (module_id) {
 	case SIR_LIM_MODULE_ID:
 		if (msgId >= SIR_LIM_ITC_MSG_TYPES_BEGIN)
 			mac_trace(pMac, TRACE_CODE_RX_LIM_MSG, session, data);
@@ -351,22 +348,22 @@ void mac_trace_msg_rx(tpAniSirGlobal pMac, uint8_t session, uint32_t data)
 		mac_trace(pMac, TRACE_CODE_RX_CFG_MSG, session, data);
 		break;
 	default:
-		mac_trace(pMac, moduleId, session, data);
+		mac_trace(pMac, module_id, session, data);
 		break;
 	}
 }
 
 /*
- * bit31: Rx message defferred or not
+ * bit31: Rx message deferred or not
  * bit 0-15: message ID:
  */
 void mac_trace_msg_rx_new(tpAniSirGlobal pMac, uint8_t module, uint8_t session,
 			  uint32_t data)
 {
 	uint16_t msgId = (uint16_t) MAC_TRACE_GET_MSG_ID(data);
-	uint8_t moduleId = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
+	uint8_t module_id = (uint8_t) MAC_TRACE_GET_MODULE_ID(data);
 
-	switch (moduleId) {
+	switch (module_id) {
 	case SIR_LIM_MODULE_ID:
 		if (msgId >= SIR_LIM_ITC_MSG_TYPES_BEGIN)
 			mac_trace_new(pMac, module, TRACE_CODE_RX_LIM_MSG,
@@ -382,7 +379,7 @@ void mac_trace_msg_rx_new(tpAniSirGlobal pMac, uint8_t module, uint8_t session,
 		mac_trace_new(pMac, module, TRACE_CODE_RX_CFG_MSG, session, data);
 		break;
 	default:
-		mac_trace(pMac, moduleId, session, data);
+		mac_trace(pMac, module_id, session, data);
 		break;
 	}
 }
