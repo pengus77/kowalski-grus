@@ -154,7 +154,7 @@ int goodix_cfg_bin_proc(void *data)
 	ts_dev->doze_mode_set_count = 0;
 	mutex_init(&ts_dev->doze_mode_lock);
 
-	
+
 	/*get register address and configuration from cfg bin*/
 	r = goodix_get_reg_and_cfg(ts_dev, cfg_bin);
 	if (r) {
@@ -172,7 +172,7 @@ int goodix_cfg_bin_proc(void *data)
 	/*init i2c_set_doze_mode para*/
 	ts_dev->doze_mode_set_count = 0;
 	mutex_init(&ts_dev->doze_mode_lock);
-	
+
 	/* initialize firmware */
 	r = ts_dev->hw_ops->init(ts_dev);
 	if (-EBUS == r)
@@ -273,7 +273,7 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 
 		r = goodix_i2c_read(ts_dev, addr,
 				&temp_sensor_id, 1);
-		
+
 		if (r < 0) {
 			ts_err("read sensor id FAILED,I2C ERROR, pkg:%d, sensor_id reg:0x%02x", i, addr);
 			goto exit;

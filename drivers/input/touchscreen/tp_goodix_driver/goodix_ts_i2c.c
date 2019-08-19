@@ -506,7 +506,7 @@ int goodix_set_i2c_doze_mode(struct goodix_ts_device *dev, int enable)
 
 	if (enable) {
 		if (dev->doze_mode_set_count != 0)
-			dev->doze_mode_set_count--;			
+			dev->doze_mode_set_count--;
 
 		/*when count equal 0, allow ic enter doze mode*/
 		if (dev->doze_mode_set_count == 0) {
@@ -617,9 +617,9 @@ int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg,
 			ts_err("gtx8 i2c read:0x%04x ERROR, disable doze mode FAILED",
 					reg);
 	}
-	
+
 	r = goodix_i2c_read_trans(dev, reg, data, len);
-	
+
 	if (dev->ic_type == IC_TYPE_NORMANDY) {
 		if (goodix_set_i2c_doze_mode(dev, true) != 0)
 			ts_err("gtx8 i2c read:0x%04x ERROR, enable doze mode FAILED",
@@ -630,7 +630,7 @@ int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg,
 }
 
 /**
- * goodix_i2c_write_trans_once - 
+ * goodix_i2c_write_trans_once -
  * write device register through i2c bus, no retry
  * @dev: pointer to device data
  * @addr: register address
@@ -1462,7 +1462,7 @@ static int goodix_hw_init(struct goodix_ts_device *ts_dev)
 			ts_dev->chip_version.sensor_id);
 	if (r < 0)
 		ts_info("Cann't find customized parameters");
-	
+
 	ts_dev->normal_cfg->delay = 500;
 	/* send normal-cfg to firmware */
 	r = goodix_send_config(ts_dev, ts_dev->normal_cfg);
@@ -1686,7 +1686,7 @@ static int goodix_remap_trace_id(struct goodix_ts_device *dev,
 			}
 			offset += BYTES_PER_COORD;
 		}
-	
+
 	}
 
 	/*realign coor data by new trace ID*/
@@ -1805,6 +1805,8 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 						(buffer[i * BYTES_PER_COORD + 6] << 8);
 		coords->w = buffer[i * BYTES_PER_COORD + 7];
 		coords->p = coords->w;
+		coords->overlapping_area = buffer[8];
+		coords->area = buffer[i * BYTES_PER_COORD + 9];
 
 		/*ts_debug("D:[%d](%d, %d)[%d]", coords->id, coords->x, coords->y,
 				coords->w);*/
@@ -1840,7 +1842,7 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 						(buffer[i * BYTES_PER_COORD + 6] << 8);
 		coords->w = buffer[i * BYTES_PER_COORD + 7];
 		coords->p = coords->w;
-		coords->overlapping_area = buffer[i * BYTES_PER_COORD + 8];
+		coords->overlapping_area = buffer[8];
 		coords->area = buffer[i * BYTES_PER_COORD + 9];
 
 
