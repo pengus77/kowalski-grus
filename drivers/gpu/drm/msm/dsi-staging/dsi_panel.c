@@ -63,6 +63,7 @@
 #define DEFAULT_PANEL_JITTER_ARRAY_SIZE		2
 #define MAX_PANEL_JITTER		10
 #define DEFAULT_PANEL_PREFILL_LINES	25
+#define FOD_OFF_TIME_DELAY		170
 
 #define DISPLAY_SKINCE_MODE 0x400000
 
@@ -4692,7 +4693,7 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD_OFF);
 		panel->skip_dimmingon = STATE_DIM_RESTORE;
 		panel->fod_hbm_enabled = false;
-		panel->fod_hbm_off_time = ktime_add_ms(ktime_get(), panel->fod_off_dimming_delay);
+		panel->fod_hbm_off_time = ktime_add_ms(ktime_get(), FOD_OFF_TIME_DELAY);
 		if ((drm_dev && drm_dev->state == DRM_BLANK_LP1) ||
 			(drm_dev && drm_dev->state == DRM_BLANK_LP2)) {
 			pr_info("HBM_FOD_OFF DSI_CMD_SET_DOZE_HBM");
@@ -4780,10 +4781,9 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 			rc = dsi_panel_update_backlight(panel, dim_backlight);
 		}
 		break;
-	case DISPPARAM_FOD_BACKLIGHT:
+	case 0xD00000:
 		pr_info("FOD backlight");
-		if (fod_backlight == DISPPARAM_ACL_L1) {
-
+		if (fod_backlight == 0x1000) {
 			pr_info("FOD backlight restore last_bl_lvl=%d, doze_state=%d",
 				panel->last_bl_lvl, drm_dev->state);
 			rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_DIMMINGOFF);
@@ -4798,7 +4798,6 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 						   panel->name, rc);
 				drm_dev->doze_brightness = DOZE_BRIGHTNESS_HBM;
 				panel->in_aod = true;
-#endif
 				panel->skip_dimmingon = STATE_NONE;
 			}
 		} else if (fod_backlight >= 0) {
