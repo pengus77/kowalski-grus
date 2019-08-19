@@ -47,8 +47,6 @@
 #include "ion_priv.h"
 #include "compat_ion.h"
 
-static kuid_t cam_euid;
-
 bool ion_buffer_fault_user_mappings(struct ion_buffer *buffer)
 {
 	return (buffer->flags & ION_FLAG_CACHED) &&
@@ -475,20 +473,6 @@ static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 	return 0;
 }
 
-static bool is_cam_alloc(unsigned int heap_id_mask)
-{
-	if (ION_BIT(ION_CAMERA_HEAP_ID) & heap_id_mask) {
-		if (!cam_euid.val)
-			cam_euid = current_euid();
-		return true;
-	}
-	if (!cam_euid.val)
-		return false;
-	if (uid_eq(current_euid(), cam_euid))
-		return true;
-	return false;
-}
-
 static struct ion_handle *__ion_alloc(
 		struct ion_client *client, size_t len,
 		size_t align, unsigned int heap_id_mask,
@@ -515,10 +499,6 @@ static struct ion_handle *__ion_alloc(
 
 	pr_debug("%s: len %zu align %zu heap_id_mask %u flags %x\n", __func__,
 		 len, align, heap_id_mask, flags);
-
-	if (is_cam_alloc(heap_id_mask))
-		flags |= ION_FLAG_CAM_ALLOC;
-
 	/*
 	 * traverse the list of heaps available in this system in priority
 	 * order.  If the heap type is supported by the client, and matches the
@@ -1980,7 +1960,7 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 EXPORT_SYMBOL(ion_device_add_heap);
 
 int ion_walk_heaps(struct ion_client *client, int heap_id,
-		   unsigned int type, void *data,
+		   enum ion_heap_type type, void *data,
 		   int (*f)(struct ion_heap *heap, void *data))
 {
 	int ret_val = 0;
