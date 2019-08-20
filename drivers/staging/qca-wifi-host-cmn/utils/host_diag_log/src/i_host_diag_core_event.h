@@ -213,14 +213,12 @@ static inline void qdf_wow_wakeup_host_event(uint8_t wow_wakeup_cause)
 }
 
 static inline void host_log_acs_req_event(uint8_t *intf, const uint8_t *hw_mode,
-					  uint16_t bw, uint8_t ht, uint8_t vht,
-					  uint16_t chan_start,
-					  uint16_t chan_end)
+                            uint16_t bw, uint8_t ht, uint8_t vht,
+                            uint16_t chan_start, uint16_t chan_end)
 {
 }
 
-static inline void host_log_acs_scan_start(uint32_t scan_id,
-					   uint8_t vdev_id)
+static inline void host_log_acs_scan_start(uint8_t *scan_type, uint8_t vdev_id)
 {
 }
 
@@ -229,9 +227,8 @@ static inline void host_log_acs_scan_done(const uint8_t *status,
 {
 }
 
-static inline void host_log_acs_chan_spect_weight(uint16_t chan,
-						  uint16_t weight, int32_t rssi,
-						  uint16_t bss_count)
+static inline void host_log_acs_chan_spect_weight(uint16_t chan, uint16_t weight,
+						  int32_t rssi, uint16_t bss_count)
 {
 }
 
