@@ -158,6 +158,7 @@ void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy);
 #define CPUFREQ_DBS_GOVERNOR_INITIALIZER(_name_)			\
 	{								\
 		.name = _name_,						\
+		.dynamic_switching = true,                              \
 		.max_transition_latency	= TRANSITION_LATENCY_LIMIT,	\
 		.owner = THIS_MODULE,					\
 		.init = cpufreq_dbs_governor_init,			\
