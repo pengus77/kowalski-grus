@@ -218,7 +218,7 @@ static inline void host_log_acs_req_event(uint8_t *intf, const uint8_t *hw_mode,
 {
 }
 
-static inline void host_log_acs_scan_start(uint8_t *scan_type, uint8_t vdev_id)
+static inline void host_log_acs_scan_start(uint32_t scan_id, uint8_t vdev_id)
 {
 }
 
