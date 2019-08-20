@@ -4503,7 +4503,6 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 	uint32_t temp = 0;
 	u32  bl_level = 0;
 	u32 fod_backlight = 0;
-	u32 dim_backlight;
 	struct drm_device *drm_dev = NULL;
 	struct dsi_display *display;
 	struct mipi_dsi_host *host = panel->host;
