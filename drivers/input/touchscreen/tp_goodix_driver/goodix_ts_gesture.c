@@ -580,24 +580,36 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 	if (!core_data->gesture_enabled)
 		return EVT_CONTINUE;
 
-	/* Always ignore FOD on AOD or in suspend */
-	if (core_data->double_wakeup) {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x03;
-		state_data[2] = 0xF5;
-		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-		/* Keep the wakelock on if people REALLY want DT2W with screen off */	
-		ts_info("Set IC double wakeup mode on, FOD mode off;");
+        if (core_data->double_wakeup && core_data->fod_status) {
+                state_data[0] = GSX_GESTURE_CMD;
+                state_data[1] = 0x01;
+                state_data[2] = 0xF7;
+                ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
+                ts_info("Set IC double wakeup mode on,FOD mode on;");
 		doze = true;
-	} else {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x02;
-		state_data[2] = 0xF6;
-		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
-		/* Let it sleep like a baby and keep DT2W enabled with Notifications */	
-		ts_info("Set IC double wakeup mode partially on, FOD mode off;");
+        } else if (core_data->double_wakeup && (!core_data->fod_status)) {
+                state_data[0] = GSX_GESTURE_CMD;
+                state_data[1] = 0x03;
+                state_data[2] = 0xF5;
+                ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
+                ts_info("Set IC double wakeup mode on,FOD mode off;");
+		doze = true;
+        } else if (!core_data->double_wakeup && core_data->fod_status) {
+                state_data[0] = GSX_GESTURE_CMD;
+                state_data[1] = 0x00;
+                state_data[2] = 0xF8;
+                ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
+                ts_info("Set IC double wakeup mode off,FOD mode on;");
+		doze = true;
+        } else if (!core_data->double_wakeup && (!core_data->fod_status)) {
+                state_data[0] = GSX_GESTURE_CMD;
+                state_data[1] = 0x02;
+                state_data[2] = 0xF6;
+                ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
+		/* Let it sleep like a baby */
+                ts_info("Set IC double wakeup mode off,FOD mode off;");
 		doze = false;
-	}
+        }
 
 	if (ret != 0) {
 		ts_err("Send doze command error");
