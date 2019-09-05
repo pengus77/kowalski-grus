@@ -2006,6 +2006,12 @@
 		status = "ok";
 	};
 
+	ssc_sensors: qcom,msm-ssc-sensors {
+                compatible = "qcom,msm-ssc-sensors";
+                status = "ok";
+                qcom,firmware-name = "slpi";
+        };
+
 	qcom,rmtfs_sharedmem@0 {
 		compatible = "qcom,sharedmem-uio";
 		reg = <0x0 0x200000>;
