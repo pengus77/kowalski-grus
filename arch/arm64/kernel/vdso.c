@@ -1,5 +1,7 @@
 /*
- * VDSO implementation for AArch64 and vector page setup for AArch32.
+ * Additional userspace pages setup for AArch64 and AArch32.
+ *  - AArch64: vDSO pages setup, vDSO data page update.
+ *  - AArch32: sigreturn and kuser helpers pages setup.
  *
  * Copyright (C) 2012 ARM Limited
  *
@@ -98,6 +100,9 @@ static int __init alloc_vectors_page(void)
 
 #ifndef CONFIG_VDSO32
 	extern char __aarch32_sigret_code_start[], __aarch32_sigret_code_end[];
+	size_t sigret_sz =
+		__aarch32_sigret_code_end - __aarch32_sigret_code_start;
+	unsigned long sigret_vpage;
 
 	sigret_vpage = get_zeroed_page(GFP_ATOMIC);
 	if (!sigret_vpage)
@@ -123,7 +128,7 @@ static int __init alloc_vectors_page(void)
 
 #ifdef CONFIG_KUSER_HELPERS
 	/* kuser helpers */
-	memcpy((void *)vpage + 0x1000 - kuser_sz, __kuser_helper_start,
+	memcpy((void *)kuser_vpage + 0x1000 - kuser_sz, __kuser_helper_start,
 		kuser_sz);
 	flush_icache_range(kuser_vpage, kuser_vpage + PAGE_SIZE);
 	vectors_page[1] = virt_to_page(kuser_vpage);
@@ -137,16 +142,24 @@ arch_initcall(alloc_vectors_page);
 int aarch32_setup_vectors_page(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
-	unsigned long addr = AARCH32_VECTORS_BASE;
-	static const struct vm_special_mapping spec = {
-		.name	= "[vectors]",
-		.pages	= vectors_page,
-
-	};
+	unsigned long addr;
 	void *ret;
 
 	if (down_write_killable(&mm->mmap_sem))
 		return -EINTR;
+	addr = get_unmapped_area(NULL, 0, PAGE_SIZE, 0, 0);
+	if (IS_ERR_VALUE(addr)) {
+		ret = ERR_PTR(addr);
+		goto out;
+	}
+
+	ret = _install_special_mapping(mm, addr, PAGE_SIZE,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				       &compat_vdso_spec[0]);
+	if (IS_ERR(ret))
+		goto out;
+
 	current->mm->context.vdso = (void *)addr;
 
 #ifdef CONFIG_KUSER_HELPERS
