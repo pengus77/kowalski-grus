@@ -54,13 +54,6 @@
 
 #undef CONFIG_OF
 
-#undef pr_info
-#undef pr_err
-#undef pr_debug
-#define pr_debug(fmt, args...) printk(KERN_INFO "[CSPL] " pr_fmt(fmt), ##args)
-#define pr_info(fmt, args...) printk(KERN_INFO "[CSPL] " pr_fmt(fmt), ##args)
-#define pr_err(fmt, args...) printk(KERN_ERR "[CSPL] " pr_fmt(fmt), ##args)
-
 #define CRUS_TX_CONFIG "crus_sp_tx%d.bin"
 #define CRUS_RX_CONFIG "crus_sp_rx%d.bin"
 
@@ -1073,6 +1066,28 @@ static long crus_sp_ioctl(struct file *f,
 	return crus_sp_shared_ioctl(f, cmd, (void __user *)arg);
 }
 
+static long crus_sp_compat_ioctl(struct file *f,
+		unsigned int cmd, unsigned long arg)
+{
+	unsigned int cmd64;
+
+	pr_info("%s\n", __func__);
+
+	switch (cmd) {
+	case CRUS_SP_IOCTL_GET32:
+		cmd64 = CRUS_SP_IOCTL_GET;
+		break;
+	case CRUS_SP_IOCTL_SET32:
+		cmd64 = CRUS_SP_IOCTL_SET;
+		break;
+	default:
+		pr_err("CRUS_SP: Invalid IOCTL, command = %d\n", cmd);
+		return -EINVAL;
+	}
+
+	return crus_sp_shared_ioctl(f, cmd64, compat_ptr(arg));
+}
+
 static int crus_sp_open(struct inode *inode, struct file *f)
 {
 	pr_debug("%s\n", __func__);
@@ -1290,6 +1305,7 @@ static const struct file_operations crus_sp_fops = {
 	.open = crus_sp_open,
 	.release = crus_sp_release,
 	.unlocked_ioctl = crus_sp_ioctl,
+	.compat_ioctl = crus_sp_compat_ioctl,
 };
 
 struct miscdevice crus_sp_misc = {

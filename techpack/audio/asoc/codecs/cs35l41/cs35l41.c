@@ -12,7 +12,6 @@
  * published by the Free Software Foundation.
  *
  */
-#define DEBUG 1
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
@@ -256,7 +255,7 @@ static bool cs35l41_is_csplmboxsts_correct(enum cs35l41_cspl_mboxcmd cmd,
 	}
 }
 
-static int __maybe_unused cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
+static int cs35l41_set_csplmboxcmd(struct cs35l41_private *cs35l41,
 				   enum cs35l41_cspl_mboxcmd cmd)
 {
 	int		ret;
@@ -448,10 +447,8 @@ static const struct snd_kcontrol_new dsp_rx2_mux =
 	SOC_DAPM_ENUM("DSPRX2 SRC", cs35l41_dsprx2_enum);
 
 static const struct snd_kcontrol_new cs35l41_aud_controls[] = {
-#ifndef CONFIG_SOUND_CONTROL
 	SOC_SINGLE_SX_TLV("Digital PCM Volume", CS35L41_AMP_DIG_VOL_CTRL,
 		      3, 0x4CF, 0x391, dig_vol_tlv),
-#endif
 	SOC_SINGLE_TLV("AMP PCM Gain", CS35L41_AMP_GAIN_CTRL, 5, 0x14, 0,
 			amp_gain_tlv),
 	SOC_SINGLE_RANGE("ASPTX1 Slot Position", CS35L41_SP_FRAME_TX_SLOT, 0,
@@ -785,7 +782,6 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 
 		usleep_range(1000, 1100);
 
-#ifndef CONFIG_SOUND_CONTROL
 		if (cs35l41->halo_booted) {
 			if (cs35l41->cspl_cmd == CSPL_MBOX_CMD_STOP_PRE_REINIT)
 				/* Send this command on power down event */
@@ -795,10 +791,8 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 				ret = cs35l41_set_csplmboxcmd(cs35l41,
 							cs35l41->cspl_cmd);
 		}
-#endif
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-#ifndef CONFIG_SOUND_CONTROL
 		if (cs35l41->halo_booted) {
 			if (cs35l41->cspl_cmd == CSPL_MBOX_CMD_STOP_PRE_REINIT)
 				ret = cs35l41_set_csplmboxcmd(cs35l41,
@@ -807,7 +801,6 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 				ret = cs35l41_set_csplmboxcmd(cs35l41,
 							CSPL_MBOX_CMD_PAUSE);
 		}
-#endif
 
 		regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL1,
 				CS35L41_GLOBAL_EN_MASK, 0);
@@ -1347,10 +1340,6 @@ static int cs35l41_boost_config(struct cs35l41_private *cs35l41,
 	return 0;
 }
 
-#ifdef CONFIG_SOUND_CONTROL
-extern struct snd_soc_codec *cs35l41_codec;
-#endif
-
 static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
@@ -1500,10 +1489,6 @@ static int cs35l41_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_dapm_ignore_suspend(dapm, "TEMP");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP1 Preloader");
 	snd_soc_dapm_ignore_suspend(dapm, "DSP1 Preload");
-
-#ifdef CONFIG_SOUND_CONTROL
-	cs35l41_codec = codec;
-#endif
 
 	return 0;
 }

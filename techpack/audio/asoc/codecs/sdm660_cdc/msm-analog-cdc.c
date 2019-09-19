@@ -4669,18 +4669,19 @@ static bool chk_hw_va(void)
 	hw_major = get_hw_version_major();
 	hw_minor = get_hw_version_minor();
 
-	printk(KERN_INFO "%s: hw_platform = %d, major <%d>, minor <%d>.\n",
+	pr_debug(KERN_INFO "%s: hw_platform = %d, major <%d>, minor <%d>.\n",
 			__func__, hw_platform, hw_major, hw_minor);
 
-	if (HARDWARE_PLATFORM_SIRIUS == hw_platform) {
-		if ((hw_major == 1 && hw_minor < 2) || (hw_major == 0)) {
-			printk("%s: Hardware does support dbmd4.\n", __func__);
-			return true;
-		}
+	if (HARDWARE_PLATFORM_GRUS == hw_platform)
+		goto out;
+
+	if ((hw_major == 1 && hw_minor < 2) || (hw_major == 0)) {
+		pr_debug("%s: Hardware does support dbmd4.\n", __func__);
+		return true;
 	}
 
-	printk("%s: Hardware does NOT support dbmd4.\n", __func__);
-
+out:
+	pr_debug("%s: Hardware does NOT support dbmd4.\n", __func__);
 	return false;
 }
 

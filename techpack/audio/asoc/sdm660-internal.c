@@ -32,10 +32,6 @@
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 3
 
-#ifdef CONFIG_SND_SOC_CS35L41
-#define CS35L41_CODEC_NAME "cs35l41.2-0040"
-#endif
-
 #define WSA8810_NAME_1 "wsa881x.20170211"
 #define WSA8810_NAME_2 "wsa881x.20170212"
 #define MSM_LL_QOS_VALUE 300 /* time in us to ensure LPM doesn't go in C3/C4 */
@@ -1927,8 +1923,8 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 #ifdef CONFIG_SND_SOC_CS35L41
 	dai_link = rtd->dai_link;
 	if (dai_link && dai_link->codec_name) {
-		if (!strcmp(dai_link->codec_name, CS35L41_CODEC_NAME)) {
-			dev_info(card->dev, "%s: found codec[%s]\n", __func__, CS35L41_CODEC_NAME);
+		if (!strcmp(dai_link->codec_name, "cs35l41.2-0040")) {
+			dev_info(card->dev, "%s: found codec[%s]\n", __func__, "cs35l41.2-0040");
 			cs35l41_codec = rtd->codec;
 			cs35l41_dapm = snd_soc_codec_get_dapm(cs35l41_codec);
 			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Playback");
@@ -3150,8 +3146,10 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Primary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.0",
 		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
+#ifdef CONFIG_SND_SOC_CS35L41
+		.codec_name = "cs35l41.2-0040",
+		.codec_dai_name = "cs35l41-pcm",
+#endif
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_PRI_MI2S_RX,
@@ -3613,7 +3611,6 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dailink;
 	int len1;
-	int hw_platform = get_hw_version_platform();
 
 	if (snd_card_val == INT_SND_CARD)
 		card = &sdm660_card;
@@ -3650,23 +3647,6 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 
 	if (of_property_read_bool(dev->of_node,
 				  "qcom,mi2s-audio-intf")) {
-		dev_info(dev, "%s: hw_platform = %d.\n", __func__, hw_platform);
-		switch (hw_platform) {
-#ifdef CONFIG_SND_SOC_CS35L41
-			case HARDWARE_PLATFORM_GRUS:
-				msm_mi2s_be_dai_links[0].codec_name = CS35L41_CODEC_NAME;
-				msm_mi2s_be_dai_links[0].codec_dai_name = "cs35l41-pcm";
-				break;
-#endif
-			default:
-#ifdef CONFIG_SND_SOC_TAS2557
-				msm_mi2s_be_dai_links[0].codec_name = "tas2557.2-004c";
-				msm_mi2s_be_dai_links[0].codec_dai_name = "tas2557 ASI1";
-#endif
-				break;
-		}
-
-		dev_info(dev, "%s: using %d \n", __func__, msm_mi2s_be_dai_links[0].codec_name);
 		memcpy(dailink + len1,
 		       msm_mi2s_be_dai_links,
 		       sizeof(msm_mi2s_be_dai_links));
