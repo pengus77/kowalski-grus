@@ -1068,7 +1068,7 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(dai->codec);
-	int i;
+	int i, tclk;
 	unsigned int rate = params_rate(params);
 	u8 asp_width, asp_wl;
 
@@ -1111,6 +1111,10 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 				CS35L41_ASP_TX_WL_MASK,
 				asp_wl << CS35L41_ASP_TX_WL_SHIFT);
 	}
+
+	tclk = rate * asp_width * params_channels(params);
+	if ((cs35l41->clksrc == CS35L41_PLLSRC_SCLK) && (cs35l41->sclk != tclk))
+		cs35l41_codec_set_sysclk(dai->codec, 0, 0, tclk, 0);
 
 	pr_debug("---->CSPL: %s.\n", __func__);
 	return 0;
