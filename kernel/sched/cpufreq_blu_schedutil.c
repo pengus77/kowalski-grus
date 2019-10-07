@@ -26,8 +26,8 @@
 #define cpufreq_driver_fast_switch(x, y) 0
 #define cpufreq_enable_fast_switch(x)
 #define cpufreq_disable_fast_switch(x)
-#define UP_LATENCY_MULTIPLIER			(3000)
-#define DOWN_LATENCY_MULTIPLIER			(1500)
+#define UP_LATENCY_MULTIPLIER			(20000)
+#define DOWN_LATENCY_MULTIPLIER			(500)
 #define DEFAULT_HISPEED_FREQ			(0)
 #define SUGOV_KTHREAD_PRIORITY	50
 
