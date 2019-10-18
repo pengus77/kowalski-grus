@@ -35,11 +35,6 @@
  */
 #define IPA_DFLT_RT_TBL_NAME "ipa_dflt_rt"
 
- /** 
- * name for default value of invalid protocol of NAT
- */
-#define IPAHAL_NAT_INVALID_PROTOCOL   0xFF
-
 /**
  * commands supported by IPA driver
  */
