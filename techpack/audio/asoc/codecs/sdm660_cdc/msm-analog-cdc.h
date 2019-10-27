@@ -225,6 +225,7 @@ struct sdm660_cdc_priv {
 	int child_count;
 	struct msm_cap_mode cap_mode;
 	bool micb1_always_on;
+	char pmic_analog[PMIC_ANOLOG_SIZE];
 };
 
 struct sdm660_cdc_pdata {
