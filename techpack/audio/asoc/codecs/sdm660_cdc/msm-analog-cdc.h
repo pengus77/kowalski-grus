@@ -34,7 +34,7 @@
 #define DEFAULT_MULTIPLIER 800
 #define DEFAULT_GAIN 9
 #define DEFAULT_OFFSET 100
-
+#define PMIC_ANOLOG_SIZE 9
 extern const u8 msm89xx_pmic_cdc_reg_readable[MSM89XX_PMIC_CDC_CACHE_SIZE];
 extern const u8 msm89xx_cdc_core_reg_readable[MSM89XX_CDC_CORE_CACHE_SIZE];
 extern struct regmap_config msm89xx_cdc_core_regmap_config;
