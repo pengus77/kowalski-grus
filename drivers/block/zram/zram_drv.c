@@ -44,7 +44,7 @@ static const char *default_compressor = "lz4";
 /* Limit disksize on zram initialization 
  * 0 = disable
  */
-static u64 max_disksize_creation = 1024 * 1024 * 1024; // 1.0GB
+static u64 max_disksize_creation = 1536 * 1024 * 1024; // 1.5GB
 
 /*
  * We don't need to see memory allocation errors more than once every 1
