@@ -981,6 +981,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 	tunables->hispeed_freq = 0;
 
 	tunables->iowait_boost_enable = false;
+	tunables->pl = false;
 
 	policy->governor_data = sg_policy;
 	sg_policy->tunables = tunables;
