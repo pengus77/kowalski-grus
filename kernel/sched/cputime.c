@@ -80,6 +80,7 @@ void irqtime_account_irq(struct task_struct *curr)
 		irqtime_account_delta(irqtime, delta, CPUTIME_IRQ);
 	else if (in_serving_softirq() && curr != this_cpu_ksoftirqd())
 		irqtime_account_delta(irqtime, delta, CPUTIME_SOFTIRQ);
+#ifdef CONFIG_SCHED_WALT
 	else
 		account = false;
 
@@ -87,6 +88,7 @@ void irqtime_account_irq(struct task_struct *curr)
 		sched_account_irqtime(cpu, curr, delta, wallclock);
 	else if (curr != this_cpu_ksoftirqd())
 		sched_account_irqstart(cpu, curr, wallclock);
+#endif
 }
 EXPORT_SYMBOL_GPL(irqtime_account_irq);
 
@@ -151,10 +153,8 @@ void account_user_time(struct task_struct *p, cputime_t cputime,
 	/* Account for user time used */
 	acct_account_cputime(p);
 
-#ifdef CONFIG_CPU_FREQ_TIMES
 	/* Account power usage for user time */
 	cpufreq_acct_update_power(p, cputime);
-#endif
 }
 
 /*
@@ -205,10 +205,9 @@ void __account_system_time(struct task_struct *p, cputime_t cputime,
 
 	/* Account for system time used */
 	acct_account_cputime(p);
-#ifdef CONFIG_CPU_FREQ_TIMES
+
 	/* Account power usage for system time */
 	cpufreq_acct_update_power(p, cputime);
-#endif
 }
 
 /*
