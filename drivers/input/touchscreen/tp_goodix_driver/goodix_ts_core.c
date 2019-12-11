@@ -42,10 +42,6 @@
 #define INPUT_TYPE_B_PROTOCOL
 #endif
 
-#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
-#include "../xiaomi/xiaomi_touch.h"
-#endif
-
 #define INPUT_EVENT_START			0
 #define INPUT_EVENT_SENSITIVE_MODE_OFF		0
 #define INPUT_EVENT_SENSITIVE_MODE_ON		1
@@ -1737,6 +1733,7 @@ int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 
 		blank = *(int *)(fb_event->data);
 		flush_workqueue(core_data->event_wq);
+		printk("goodix_ts_fb_notifier_callback: event: %d - blank: %d\n", event, blank);
 		if (event == DRM_EVENT_BLANK && blank == DRM_BLANK_POWERDOWN) {
 			queue_work(core_data->event_wq, &core_data->suspend_work);
 		} else if (event == DRM_EVENT_BLANK && blank == DRM_BLANK_UNBLANK) {
@@ -2285,11 +2282,8 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	}
 
 	if (core_data->gtp_tp_class == NULL)
-#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
-		core_data->gtp_tp_class = get_xiaomi_touch_class();
-#else
 		core_data->gtp_tp_class = class_create(THIS_MODULE, "touch");
-#endif
+
 	core_data->gtp_touch_dev = device_create(core_data->gtp_tp_class, NULL, 0x5d, core_data, "tp_dev");
 	if (IS_ERR(core_data->gtp_touch_dev)) {
 		ts_err("ERROR: Cannot create device for the sysfs!");
