@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/of_platform.h>
 #include <linux/completion.h>
-#include <linux/debugfs.h>
 #include <linux/of_irq.h>
 #ifdef CONFIG_DRM
 #include <drm/drm_notifier.h>
@@ -282,56 +281,6 @@ struct kobject *goodix_get_default_kobj(void)
 }
 EXPORT_SYMBOL_GPL(goodix_get_default_kobj);
 
-/* debug fs */
-struct debugfs_buf {
-	struct debugfs_blob_wrapper buf;
-	int pos;
-	struct dentry *dentry;
-} goodix_dbg;
-
-void goodix_msg_printf(const char *fmt, ...)
-{
-	va_list args;
-	int r;
-
-	if (goodix_dbg.pos < goodix_dbg.buf.size) {
-		va_start(args, fmt);
-		r = vscnprintf(goodix_dbg.buf.data + goodix_dbg.pos,
-			 goodix_dbg.buf.size - 1, fmt, args);
-		goodix_dbg.pos += r;
-		va_end(args);
-	}
-}
-EXPORT_SYMBOL_GPL(goodix_msg_printf);
-
-static int goodix_debugfs_init(void)
-{
-	struct dentry *r_b;
-	goodix_dbg.buf.size = PAGE_SIZE;
-	goodix_dbg.pos = 0;
-	goodix_dbg.buf.data = kzalloc(goodix_dbg.buf.size, GFP_KERNEL);
-	if (goodix_dbg.buf.data == NULL) {
-		pr_err("Debugfs init failed\n");
-		goto exit;
-	}
-	r_b = debugfs_create_blob("goodix_ts", 0644, NULL, &goodix_dbg.buf);
-	if (!r_b) {
-		pr_err("Debugfs create failed\n");
-		return -ENOENT;
-	}
-	goodix_dbg.dentry = r_b;
-
-exit:
-	return 0;
-}
-
-static void goodix_debugfs_exit(void)
-{
-	debugfs_remove(goodix_dbg.dentry);
-	goodix_dbg.dentry = NULL;
-	pr_info("Debugfs module exit\n");
-}
-
 /* show external module infomation */
 static ssize_t goodix_ts_extmod_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -530,8 +479,6 @@ static int goodix_ts_convert_0x_data(const u8 *buf,
 	}
 	return 0;
 }
-
-
 
 static ssize_t goodix_ts_send_cfg_store(struct device *dev,
 				struct device_attribute *attr,
@@ -801,9 +748,6 @@ static int goodix_ts_input_report(struct input_dev *dev,
 			input_report_abs(dev, ABS_MT_WIDTH_MINOR, coords->overlapping_area);
 			input_report_abs(dev, ABS_MT_WIDTH_MAJOR, coords->overlapping_area);
 
-			dev_dbg(core_data->ts_dev->dev, "[GTP] %s report:[%d](%d, %d, %d, %d)", __func__, id,
-				touch_data->coords[0].x, touch_data->coords[0].y,
-				touch_data->coords[0].area, touch_data->coords[0].overlapping_area);
 			__set_bit(i, &core_data->touch_id);
 			id = (++coords)->id;
 		} else {
@@ -814,7 +758,6 @@ static int goodix_ts_input_report(struct input_dev *dev,
 					input_report_key(dev, BTN_TOUCH, !!touch_num);
 					input_report_key(dev, BTN_TOOL_FINGER, 0);
 				}
-				dev_dbg(core_data->ts_dev->dev, "[GTP] %s report leave:%d", __func__, i);
 			}
 		}
 	}
@@ -926,12 +869,10 @@ int goodix_ts_irq_enable(struct goodix_ts_core *core_data,
 	if (enable) {
 		if (!atomic_cmpxchg(&core_data->irq_enabled, 0, 1)) {
 			enable_irq(core_data->irq);
-			ts_debug("Irq enabled");
 		}
 	} else {
 		if (atomic_cmpxchg(&core_data->irq_enabled, 1, 0)) {
 			disable_irq(core_data->irq);
-			ts_debug("Irq disabled");
 		}
 	}
 
@@ -1712,7 +1653,6 @@ out:
 	sysfs_notify(&core_data->gtp_touch_dev->kobj, NULL,
 		     "touch_suspend_notify");
 
-	ts_debug("Resume end");
 	return 0;
 }
 
@@ -1821,106 +1761,6 @@ static int goodix_ts_pm_resume(struct device *dev)
 }
 #endif
 #endif
-
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
-/*
-static void tpdbg_shutdown(struct goodix_ts_core *core_data, bool sleep)
-{
-
-}
-*/
-
-static void tpdbg_suspend(struct goodix_ts_core *core_data, bool enable)
-{
-	if (enable)
-		queue_work(core_data->event_wq, &core_data->suspend_work);
-	else
-		queue_work(core_data->event_wq, &core_data->resume_work);
-}
-
-static int tpdbg_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
-static ssize_t tpdbg_read(struct file *file, char __user *buf, size_t size,
-			  loff_t *ppos)
-{
-	const char *str = "cmd support as below:\n \
-				echo \"irq-disable\" or \"irq-enable\" to ctrl irq\n \
-				echo \"tp-suspend-en\" or \"tp-suspend-off\" to ctrl panel in or off suspend status\n";
-
-	loff_t pos = *ppos;
-	int len = strlen(str);
-
-	if (pos < 0)
-		return -EINVAL;
-	if (pos >= len)
-		return 0;
-
-	if (copy_to_user(buf, str, len))
-		return -EFAULT;
-
-	*ppos = pos + len;
-
-	return len;
-}
-
-static ssize_t tpdbg_write(struct file *file, const char __user *buf,
-			   size_t size, loff_t *ppos)
-{
-	struct goodix_ts_core *core_data = file->private_data;
-	char *cmd = kzalloc(size + 1, GFP_KERNEL);
-	int ret = size;
-
-	if (!cmd)
-		return -ENOMEM;
-
-	if (copy_from_user(cmd, buf, size)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	cmd[size] = '\0';
-
-	if (!strncmp(cmd, "irq-disable", 11))
-		goodix_ts_irq_enable(core_data, false);
-	else if (!strncmp(cmd, "irq-enable", 10))
-		goodix_ts_irq_enable(core_data, true);
-/*
-	else if (!strncmp(cmd, "tp-sd-en", 8))
-		tpdbg_shutdown(core_data, true);
-	else if (!strncmp(cmd, "tp-sd-off", 9))
-		tpdbg_shutdown(core_data, false);
-*/
-	else if (!strncmp(cmd, "tp-suspend-en", 13))
-		tpdbg_suspend(core_data, true);
-	else if (!strncmp(cmd, "tp-suspend-off", 14))
-		tpdbg_suspend(core_data, false);
-out:
-	kfree(cmd);
-
-	return ret;
-}
-
-static int tpdbg_release(struct inode *inode, struct file *file)
-{
-	file->private_data = NULL;
-
-	return 0;
-}
-
-static const struct file_operations tpdbg_operations = {
-	.owner = THIS_MODULE,
-	.open = tpdbg_open,
-	.read = tpdbg_read,
-	.write = tpdbg_write,
-	.release = tpdbg_release,
-};
-#endif
-
 
 /**
  * goodix_generic_noti_callback - generic notifier callback
@@ -2309,14 +2149,6 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	core_data->dbclick_count = 0;
 	core_data->fod_status = 0;
 
-#ifdef CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
-	core_data->debugfs = debugfs_create_dir("tp_debug", NULL);
-	if (core_data->debugfs) {
-		debugfs_create_file("switch_state", 0660, core_data->debugfs, core_data,
-				    &tpdbg_operations);
-	}
-#endif
-
 out:
 	return r;
 }
@@ -2330,7 +2162,6 @@ static int goodix_ts_remove(struct platform_device *pdev)
 #endif
 	power_supply_unreg_notifier(&core_data->power_supply_notifier);
 	goodix_ts_power_off(core_data);
-	goodix_debugfs_exit();
 	goodix_ts_sysfs_exit(core_data);
 	return 0;
 }
@@ -2372,7 +2203,6 @@ static int __init goodix_ts_core_init(void)
 		init_completion(&goodix_modules.core_comp);
 	}
 
-	goodix_debugfs_init();
 	return platform_driver_register(&goodix_ts_driver);
 }
 
