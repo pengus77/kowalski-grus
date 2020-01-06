@@ -6061,10 +6061,6 @@ int sched_isolate_cpu(int cpu)
 	set_cpu_isolated(cpu, true);
 	cpumask_clear_cpu(cpu, &avail_cpus);
 
-	/* Migrate timers */
-	smp_call_function_any(&avail_cpus, hrtimer_quiesce_cpu, &cpu, 1);
-	smp_call_function_any(&avail_cpus, timer_quiesce_cpu, &cpu, 1);
-
 	stop_cpus(cpumask_of(cpu), do_isolation_work_cpu_stop, 0);
 
 	calc_load_migrate(rq);
