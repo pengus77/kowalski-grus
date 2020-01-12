@@ -163,7 +163,11 @@ ENTRY(cpu_do_resume)
 	msr	mdscr_el1, x10
 
 	msr	sctlr_el1, x12
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
 	msr	tpidr_el1, x13
+alternative_else
+	msr	tpidr_el2, x13
+alternative_endif
 	msr	sp_el0, x14
 	/*
 	 * Restore oslsr_el1 by writing oslar_el1
