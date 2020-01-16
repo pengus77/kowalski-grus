@@ -35,14 +35,18 @@
 #define WCD_MBHC_RSC_LOCK(mbhc)			\
 {							\
 	pr_debug("%s: Acquiring BCL\n", __func__);	\
-	mutex_lock(&mbhc->codec_resource_lock);		\
+	if(!mutex_is_locked(&mbhc->codec_resource_lock)){\
+		mutex_lock(&mbhc->codec_resource_lock);	\
+	}						\
 	pr_debug("%s: Acquiring BCL done\n", __func__);	\
 }
 
 #define WCD_MBHC_RSC_UNLOCK(mbhc)			\
 {							\
 	pr_debug("%s: Release BCL\n", __func__);	\
-	mutex_unlock(&mbhc->codec_resource_lock);	\
+	if(mutex_is_locked(&mbhc->codec_resource_lock)){ \
+		mutex_unlock(&mbhc->codec_resource_lock);\
+	}						\
 }
 
 #define WCD_MBHC_RSC_ASSERT_LOCKED(mbhc)		\
