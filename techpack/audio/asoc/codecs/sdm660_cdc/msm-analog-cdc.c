@@ -672,6 +672,8 @@ static void msm_anlg_cdc_mbhc_calc_impedance(struct wcd_mbhc *mbhc,
 	bool high = false;
 	bool min_range_used =  false;
 
+	WCD_MBHC_RSC_LOCK(mbhc);
+
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
 	reg0 = snd_soc_read(codec, MSM89XX_PMIC_ANALOG_MBHC_DBNC_TIMER);
 	reg1 = snd_soc_read(codec, MSM89XX_PMIC_ANALOG_MBHC_BTN2_ZDETH_CTL);
@@ -921,6 +923,8 @@ exit:
 
 	dev_dbg(codec->dev, "%s: RL %d ohm, RR %d ohm\n", __func__, *zl, *zr);
 	dev_dbg(codec->dev, "%s: Impedance detection completed\n", __func__);
+
+	WCD_MBHC_RSC_UNLOCK(mbhc);
 }
 
 static int msm_anlg_cdc_dig_register_notifier(void *handle,
