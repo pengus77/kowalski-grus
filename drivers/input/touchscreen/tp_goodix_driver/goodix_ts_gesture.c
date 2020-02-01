@@ -407,7 +407,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 	struct goodix_ext_module *module)
 {
 	int ret;
-	int x, y, area, overlapping_area;
 	unsigned char clear_reg = 0;
 	unsigned char checksum = 0, temp_data[GSX_KEY_DATA_LEN];
 	struct goodix_ts_device *ts_dev = core_data->ts_dev;
@@ -441,68 +440,6 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 	/*ts_debug("Gesture data:");*/
 	/*ts_debug("Gesture data %*ph", (int)sizeof(temp_data), temp_data);*/
 
-	if (core_data->fod_status) {
-		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0x46)) {
-
-			x = temp_data[4] | (temp_data[5] << 8);
-			y = temp_data[6] | (temp_data[7] << 8);
-				overlapping_area = temp_data[8];
-				area = temp_data[9];
-
-			input_mt_slot(core_data->input_dev, 0);
-			input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, true);
-			input_report_key(core_data->input_dev, BTN_INFO, 1);
-			input_report_key(core_data->input_dev, KEY_INFO, 1);
-			input_report_key(core_data->input_dev, BTN_TOUCH, 1);
-			input_report_key(core_data->input_dev, BTN_TOOL_FINGER, 1);
-			input_report_abs(core_data->input_dev, ABS_MT_TOOL_TYPE, MT_TOOL_FINGER);
-			input_report_abs(core_data->input_dev, ABS_MT_POSITION_X, x);
-			input_report_abs(core_data->input_dev, ABS_MT_POSITION_Y, y);
-			input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, overlapping_area);
-			input_report_abs(core_data->input_dev, ABS_MT_TOUCH_MINOR, area);
-
-			core_data->fod_pressed = true;
-			__set_bit(0, &core_data->touch_id);
-
-
-			ts_debug("Gesture report, x=%d, y=%d, overlapping_area=%d, area=%d",
-					x, y, overlapping_area, area);
-
-			/*wait for report key event*/
-			FP_Event_Gesture = 0;
-			input_sync(core_data->input_dev);
-		}
-
-		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0x4c)) {
-			/*wait for report key event*/
-			FP_Event_Gesture = 0;
-			input_report_key(core_data->input_dev, KEY_GOTO, 1);
-			input_sync(core_data->input_dev);
-			input_report_key(core_data->input_dev, KEY_GOTO, 0);
-			input_sync(core_data->input_dev);
-
-			ts_debug("Gesture report L");
-		}
-
-		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0xff) && core_data->fod_pressed) {
-			ts_debug("Gesture report up");
-			input_mt_slot(core_data->input_dev, 0);
-			input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, false);
-			input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, 0);
-			input_report_key(core_data->input_dev, BTN_INFO, 0);
-			input_report_key(core_data->input_dev, KEY_INFO, 0);
-			input_report_key(core_data->input_dev, BTN_TOUCH, 0);
-			input_report_key(core_data->input_dev, BTN_TOOL_FINGER, 0);
-			input_sync(core_data->input_dev);
-			__clear_bit(0, &core_data->touch_id);
-			core_data->fod_pressed = false;
-		}
-
-		write_lock(&gsx_gesture->rwlock);
-		memcpy(gsx_gesture->gesture_data, temp_data, sizeof(temp_data));
-		write_unlock(&gsx_gesture->rwlock);
-	}
-
 	if (temp_data[2] == 0xcc && core_data->double_wakeup) {
 		input_report_key(core_data->input_dev, KEY_WAKEUP, 1);
 		input_sync(core_data->input_dev);
@@ -520,33 +457,18 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 re_send_ges_cmd:
 	/*if (ts_dev->hw_ops->send_cmd(core_data->ts_dev, gesture_cmd))
 		ts_info("warning: failed re_send gesture cmd\n");*/
-	if (core_data->double_wakeup && core_data->fod_status) {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x01;
-		state_data[2] = 0xF7;
-		ret = goodix_i2c_write(ts_dev, GSX_REG_GESTURE, state_data, 3);
-		ts_info("Set IC double wakeup mode on,FOD mode on;");
-	} else if (core_data->double_wakeup && (!core_data->fod_status)) {
+	if (core_data->double_wakeup) {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x03;
 		state_data[2] = 0xF5;
 		ret = goodix_i2c_write(ts_dev, GSX_REG_GESTURE, state_data, 3);
 		ts_info("Set IC double wakeup mode on,FOD mode off;");
-	} else if (!core_data->double_wakeup && core_data->fod_status) {
-		state_data[0] = GSX_GESTURE_CMD;
-		state_data[1] = 0x00;
-		state_data[2] = 0xF8;
-		ret = goodix_i2c_write(ts_dev, GSX_REG_GESTURE, state_data, 3);
-		ts_info("Set IC double wakeup mode off,FOD mode on;");
-	} else if (!core_data->double_wakeup && (!core_data->fod_status)) {
+	} else {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x02;
 		state_data[2] = 0xF6;
 		ret = goodix_i2c_write(ts_dev, GSX_REG_GESTURE, state_data, 3);
 		ts_info("Set IC double wakeup mode off,FOD mode off;");
-	} else {
-		ts_info("Get IC mode falied,core_data->double_wakeup=%d,core_data->fod_status=%d;",
-			core_data->double_wakeup, core_data->fod_status);
 	}
 gesture_ist_exit:
 	ts_dev->hw_ops->write_trans(core_data->ts_dev, GSX_REG_GESTURE_DATA,
@@ -580,28 +502,14 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 	if (!core_data->gesture_enabled)
 		return EVT_CONTINUE;
 
-        if (core_data->double_wakeup && core_data->fod_status) {
-                state_data[0] = GSX_GESTURE_CMD;
-                state_data[1] = 0x01;
-                state_data[2] = 0xF7;
-                ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
-                ts_info("Set IC double wakeup mode on,FOD mode on;");
-		doze = true;
-        } else if (core_data->double_wakeup && (!core_data->fod_status)) {
+        if (core_data->double_wakeup) {
                 state_data[0] = GSX_GESTURE_CMD;
                 state_data[1] = 0x03;
                 state_data[2] = 0xF5;
                 ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
                 ts_info("Set IC double wakeup mode on,FOD mode off;");
 		doze = true;
-        } else if (!core_data->double_wakeup && core_data->fod_status) {
-                state_data[0] = GSX_GESTURE_CMD;
-                state_data[1] = 0x00;
-                state_data[2] = 0xF8;
-                ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
-                ts_info("Set IC double wakeup mode off,FOD mode on;");
-		doze = true;
-        } else if (!core_data->double_wakeup && (!core_data->fod_status)) {
+        } else {
                 state_data[0] = GSX_GESTURE_CMD;
                 state_data[1] = 0x02;
                 state_data[2] = 0xF6;
