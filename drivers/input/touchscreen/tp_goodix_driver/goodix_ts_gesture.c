@@ -523,7 +523,7 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
                 state_data[2] = 0xF5;
                 ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3); 
                 ts_info("Set IC double wakeup mode on,FOD mode off;");
-		doze = false;
+		doze = true;
         } else {
                 state_data[0] = GSX_GESTURE_CMD;
                 state_data[1] = 0x02;
