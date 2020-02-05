@@ -59,7 +59,9 @@ enum {
 };
 
 #define MAX_COPPS_PER_PORT 0x8
-#define ADM_MAX_CHANNELS 8
+#define ADM_MAX_CHANNELS 32
+
+#define ADSP_ADM_API_VERSION_V3 3
 
 /* multiple copp per stream. */
 struct route_payload {
