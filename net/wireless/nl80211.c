@@ -12117,6 +12117,9 @@ static int nl80211_external_auth(struct sk_buff *skb, struct genl_info *info)
 
 	params.status = nla_get_u16(info->attrs[NL80211_ATTR_STATUS_CODE]);
 
+	if (info->attrs[NL80211_ATTR_PMKID])
+		params.pmkid = nla_data(info->attrs[NL80211_ATTR_PMKID]);
+
 	return rdev_external_auth(rdev, dev, &params);
 }
 
