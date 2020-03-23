@@ -631,7 +631,6 @@ QDF_STATUS policy_mgr_get_pcl(struct wlan_objmgr_psoc *psoc,
 	uint32_t num_connections = 0, i;
 	enum policy_mgr_conc_priority_mode first_index = 0;
 	enum policy_mgr_one_connection_mode second_index = 0;
-	enum policy_mgr_two_connection_mode __maybe_unused third_index = 0;
 	enum policy_mgr_pcl_type pcl = PM_NONE;
 	enum policy_mgr_conc_priority_mode conc_system_pref = 0;
 	struct policy_mgr_psoc_priv_obj *pm_ctx;
@@ -696,37 +695,43 @@ QDF_STATUS policy_mgr_get_pcl(struct wlan_objmgr_psoc *psoc,
 		}
 
 		break;
-	case 2:
-		third_index =
-			policy_mgr_get_third_connection_pcl_table_index(psoc);
-		if (PM_MAX_TWO_CONNECTION_MODE == third_index) {
-			policy_mgr_err(
-				"couldn't find index for 3rd connection pcl table");
-			return status;
-		}
-		if (policy_mgr_is_hw_dbs_capable(psoc) == true) {
-			pcl = (*third_connection_pcl_dbs_table)
-				[third_index][mode][conc_system_pref];
-		} else {
-			pcl = third_connection_pcl_nodbs_table
-				[third_index][mode][conc_system_pref];
-		}
-		break;
+/*
+ * Disable 3 connection as they are not PORed, take out this code out
+ * from comments if needed in future.
+ *	case 2:
+ *		third_index =
+ *			policy_mgr_get_third_connection_pcl_table_index(psoc);
+ *		if (PM_MAX_TWO_CONNECTION_MODE == third_index) {
+ *			policy_mgr_err(
+ *				"couldn't find index for 3rd connection pcl table");
+ *			return status;
+ *		}
+ *		if (policy_mgr_is_hw_dbs_capable(psoc) == true) {
+ *			pcl = (*third_connection_pcl_dbs_table)
+ *				[third_index][mode][conc_system_pref];
+ *		} else {
+ *			pcl = third_connection_pcl_nodbs_table
+ *				[third_index][mode][conc_system_pref];
+ *		}
+ *		break;
+*/
 	default:
 		policy_mgr_err("unexpected num_connections value %d",
 			num_connections);
+		pcl = PM_MAX_PCL_TYPE;
 		break;
 	}
 
-	policy_mgr_debug("index1:%d index2:%d index3:%d pcl:%d dbs:%d",
-		first_index, second_index, third_index,
+	policy_mgr_debug("index1:%d index2:%d pcl:%d dbs:%d",
+		first_index, second_index,
 		pcl, policy_mgr_is_hw_dbs_capable(psoc));
 
 	/* once the PCL enum is obtained find out the exact channel list with
 	 * help from sme_get_cfg_valid_channels
 	 */
+
 	status = policy_mgr_get_channel_list(psoc, pcl, pcl_channels, len, mode,
-					pcl_weight, weight_len);
+					     pcl_weight, weight_len);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		policy_mgr_err("failed to get channel list:%d", status);
 		return status;
@@ -1913,14 +1918,14 @@ uint8_t policy_mgr_get_alternate_channel_for_sap(
 {
 	uint8_t pcl_channels[QDF_MAX_NUM_CHAN];
 	uint8_t pcl_weight[QDF_MAX_NUM_CHAN];
-	uint8_t channel = 0;
 	uint32_t pcl_len = 0;
 
 	if (QDF_STATUS_SUCCESS == policy_mgr_get_pcl(psoc, PM_SAP_MODE,
 		&pcl_channels[0], &pcl_len,
 		pcl_weight, QDF_ARRAY_SIZE(pcl_weight))) {
-		channel = pcl_channels[0];
+		if (pcl_len)
+			return pcl_channels[0];
 	}
 
-	return channel;
+	return 0;
 }
