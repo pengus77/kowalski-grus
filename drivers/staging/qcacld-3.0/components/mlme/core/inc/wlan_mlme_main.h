@@ -33,13 +33,27 @@
 #define mlme_debug(params...) QDF_TRACE_DEBUG(QDF_MODULE_ID_MLME, params)
 
 /**
+ * struct wlan_ies - Generic WLAN Information Element(s) format
+ * @len: Total length of the IEs
+ * @data: IE data
+ */
+struct wlan_ies {
+	uint16_t len;
+	uint8_t *data;
+};
+
+/**
  * struct peer_mlme_priv_obj - peer MLME component object
  * @ucast_key_cipher: unicast crypto type.
  * @is_pmf_enabled: True if PMF is enabled
+ * @last_assoc_received_time: last assoc received time
+ * @last_disassoc_deauth_received_time: last disassoc/deauth received time
  */
 struct peer_mlme_priv_obj {
 	uint32_t ucast_key_cipher;
 	bool is_pmf_enabled;
+	qdf_time_t last_assoc_received_time;
+	qdf_time_t last_disassoc_deauth_received_time;
 };
 
 /**
@@ -47,11 +61,19 @@ struct peer_mlme_priv_obj {
  * @dynamic_cfg: current configuration of nss, chains for vdev.
  * @ini_cfg: Max configuration of nss, chains supported for vdev.
  * @sta_dynamic_oce_value: Dyanmic oce flags value for sta
+ * @follow_ap_edca: if true, it is forced to follow the AP's edca
+ * @self_disconnect_ies: Disconnect IEs to be sent in deauth/disassoc frames
+ *			 originated from driver
+ * @peer_disconnect_ies: Disconnect IEs received in deauth/disassoc frames
+ *			 from peer
  */
 struct vdev_mlme_priv_obj {
 	struct mlme_nss_chains dynamic_cfg;
 	struct mlme_nss_chains ini_cfg;
 	uint8_t sta_dynamic_oce_value;
+	bool follow_ap_edca;
+	struct wlan_ies self_disconnect_ies;
+	struct wlan_ies peer_disconnect_ies;
 };
 
 
@@ -220,4 +242,56 @@ void mlme_set_peer_pmf_status(struct wlan_objmgr_peer *peer,
  * Return: Value of is_pmf_enabled; True if PMF is enabled by peer
  */
 bool mlme_get_peer_pmf_status(struct wlan_objmgr_peer *peer);
+
+/**
+ * mlme_set_self_disconnect_ies() - Set diconnect IEs configured from userspace
+ * @vdev: vdev pointer
+ * @ie: pointer for disconnect IEs
+ *
+ * Return: None
+ */
+void mlme_set_self_disconnect_ies(struct wlan_objmgr_vdev *vdev,
+				  struct wlan_ies *ie);
+
+/**
+ * mlme_free_self_disconnect_ies() - Free the self diconnect IEs
+ * @vdev: vdev pointer
+ *
+ * Return: None
+ */
+void mlme_free_self_disconnect_ies(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * mlme_get_self_disconnect_ies() - Get diconnect IEs from vdev object
+ * @vdev: vdev pointer
+ *
+ * Return: Returns a pointer to the self disconnect IEs present in vdev object
+ */
+struct wlan_ies *mlme_get_self_disconnect_ies(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * mlme_set_peer_disconnect_ies() - Cache disconnect IEs received from peer
+ * @vdev: vdev pointer
+ * @ie: pointer for disconnect IEs
+ *
+ * Return: None
+ */
+void mlme_set_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev,
+				  struct wlan_ies *ie);
+
+/**
+ * mlme_free_peer_disconnect_ies() - Free the peer diconnect IEs
+ * @vdev: vdev pointer
+ *
+ * Return: None
+ */
+void mlme_free_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev);
+
+/**
+ * mlme_get_peer_disconnect_ies() - Get diconnect IEs from vdev object
+ * @vdev: vdev pointer
+ *
+ * Return: Returns a pointer to the peer disconnect IEs present in vdev object
+ */
+struct wlan_ies *mlme_get_peer_disconnect_ies(struct wlan_objmgr_vdev *vdev);
 #endif

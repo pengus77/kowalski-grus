@@ -48,11 +48,13 @@
 #include "lim_ibss_peer_mgmt.h"
 #include "lim_ft_defs.h"
 #include "lim_session.h"
+#include "lim_process_fils.h"
 
 #include "qdf_types.h"
 #include "wma_types.h"
 #include "lim_types.h"
 #include "wlan_utility.h"
+#include <wlan_mlme_main.h>
 
 #ifdef FEATURE_WLAN_TDLS
 #define IS_TDLS_PEER(type)  ((type) == STA_ENTRY_TDLS_PEER)
@@ -2544,6 +2546,20 @@ lim_add_sta(tpAniSirGlobal mac_ctx,
 			add_sta_params->stbc_capable = 0;
 	}
 
+	if (session_entry->pePersona == QDF_SAP_MODE ||
+	    session_entry->pePersona == QDF_P2P_GO_MODE) {
+		if (session_entry->parsedAssocReq) {
+			uint16_t aid = sta_ds->assocId;
+			/* Get a copy of the already parsed Assoc Request */
+			assoc_req =
+			(tpSirAssocReq) session_entry->parsedAssocReq[aid];
+
+			add_sta_params->wpa_rsn = assoc_req->rsnPresent;
+			add_sta_params->wpa_rsn |=
+				(assoc_req->wpaPresent << 1);
+		}
+	}
+
 	lim_update_he_stbc_capable(add_sta_params);
 
 	msg_q.type = WMA_ADD_STA_REQ;
@@ -2941,6 +2957,9 @@ lim_add_sta_self(tpAniSirGlobal pMac, uint16_t staIdx, uint8_t updateSta,
 
 	if (IS_DOT11_MODE_HE(selfStaDot11Mode))
 		lim_add_self_he_cap(pAddStaParams, psessionEntry);
+
+	if (lim_is_fils_connection(psessionEntry))
+		pAddStaParams->no_ptk_4_way = true;
 
 	msgQ.type = WMA_ADD_STA_REQ;
 	msgQ.reserved = 0;
@@ -4124,6 +4143,9 @@ QDF_STATUS lim_sta_send_add_bss(tpAniSirGlobal pMac, tpSirAssocRsp pAssocRsp,
 	}
 	lim_set_sta_ctx_twt(&pAddBssParams->staContext, psessionEntry);
 
+	if (lim_is_fils_connection(psessionEntry))
+		pAddBssParams->no_ptk_4_way = true;
+
 	msgQ.type = WMA_ADD_BSS_REQ;
 	/** @ToDo : Update the Global counter to keeptrack of the PE <--> HAL messages*/
 	msgQ.reserved = 0;
@@ -4608,6 +4630,9 @@ QDF_STATUS lim_sta_send_add_bss_pre_assoc(tpAniSirGlobal pMac, uint8_t updateEnt
 		pAddBssParams->staContext.ch_width = CH_WIDTH_10MHZ;
 	}
 
+	if (lim_is_fils_connection(psessionEntry))
+		pAddBssParams->no_ptk_4_way = true;
+
 	msgQ.type = WMA_ADD_BSS_REQ;
 	/** @ToDo : Update the Global counter to keeptrack of the PE <--> HAL messages*/
 	msgQ.reserved = 0;
@@ -4924,3 +4949,33 @@ void lim_send_sme_tsm_ie_ind(tpAniSirGlobal pMac, tpPESession psessionEntry,
 	return;
 }
 #endif /* FEATURE_WLAN_ESE */
+
+void lim_extract_ies_from_deauth_disassoc(tpAniSirGlobal mac_ctx,
+					  uint8_t vdev_id,
+					  uint8_t *deauth_disassoc_frame,
+					  uint16_t deauth_disassoc_frame_len)
+{
+	struct wlan_objmgr_vdev *vdev;
+	uint16_t reason_code, ie_offset;
+	struct wlan_ies ie;
+
+	/* Get the offset of IEs */
+	ie_offset = sizeof(struct wlan_frame_hdr) + sizeof(reason_code);
+
+	if (!deauth_disassoc_frame || deauth_disassoc_frame_len <= ie_offset)
+		return;
+
+	vdev = wlan_objmgr_get_vdev_by_id_from_psoc(mac_ctx->psoc,
+						    vdev_id,
+						    WLAN_LEGACY_MAC_ID);
+	if (!vdev) {
+		pe_err("Got NULL vdev obj, returning");
+		return;
+	}
+
+	ie.data = deauth_disassoc_frame + ie_offset;
+	ie.len = deauth_disassoc_frame_len - ie_offset;
+
+	mlme_set_peer_disconnect_ies(vdev, &ie);
+	wlan_objmgr_vdev_release_ref(vdev, WLAN_LEGACY_MAC_ID);
+}

@@ -52,6 +52,7 @@
  */
 #define SIZE_OF_SETROAMMODE             11      /* size of SETROAMMODE */
 #define SIZE_OF_GETROAMMODE             11      /* size of GETROAMMODE */
+#define SIZE_OF_SETSUSPENDMODE          14
 
 /*
  * Size of GETCOUNTRYREV output = (sizeof("GETCOUNTRYREV") = 14) + one (space) +
@@ -1399,12 +1400,10 @@ hdd_parse_channellist(const uint8_t *pValue, uint8_t *pChannelList,
 		inPtr = strpbrk(inPtr, " ");
 		/* no channel list after the number of channels argument */
 		if (NULL == inPtr) {
-			if (0 != j) {
-				*pNumChannels = j;
+			if ((j != 0) && (j == *pNumChannels))
 				return 0;
-			} else {
-				return -EINVAL;
-			}
+			else
+				goto cnt_mismatch;
 		}
 
 		/* remove empty space */
@@ -1416,12 +1415,10 @@ hdd_parse_channellist(const uint8_t *pValue, uint8_t *pChannelList,
 		 * argument and spaces
 		 */
 		if ('\0' == *inPtr) {
-			if (0 != j) {
-				*pNumChannels = j;
+			if ((j != 0) && (j == *pNumChannels))
 				return 0;
-			} else {
-				return -EINVAL;
-			}
+			else
+				goto cnt_mismatch;
 		}
 
 		v = sscanf(inPtr, "%31s ", buf);
@@ -1441,6 +1438,11 @@ hdd_parse_channellist(const uint8_t *pValue, uint8_t *pChannelList,
 	}
 
 	return 0;
+
+cnt_mismatch:
+	hdd_debug("Mismatch in ch cnt: %d and num of ch: %d", *pNumChannels, j);
+	*pNumChannels = 0;
+	return -EINVAL;
 }
 
 /**
@@ -3277,15 +3279,26 @@ static int drv_cmd_get_roam_trigger(struct hdd_adapter *adapter,
 				    struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint8_t lookUpThreshold =
-		sme_get_neighbor_lookup_rssi_threshold(hdd_ctx->mac_handle);
-	int rssi = (-1) * lookUpThreshold;
 	char extra[32];
+	uint8_t lookup_threshold;
+	int rssi;
 	uint8_t len = 0;
+	QDF_STATUS status;
+
+	status = sme_get_neighbor_lookup_rssi_threshold(hdd_ctx->mac_handle,
+							adapter->session_id,
+							&lookup_threshold);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_GETROAMTRIGGER_IOCTL,
-		   adapter->session_id, lookUpThreshold);
+		   adapter->session_id, lookup_threshold);
+
+	hdd_debug("vdev_id: %u, lookup_threshold: %u",
+		  adapter->session_id, lookup_threshold);
+
+	rssi = (-1) * lookup_threshold;
 
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, rssi);
 	len = QDF_MIN(priv_data->total_len, len + 1);
@@ -3363,19 +3376,28 @@ static int drv_cmd_get_roam_scan_period(struct hdd_adapter *adapter,
 					struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint16_t nEmptyScanRefreshPeriod =
-		sme_get_empty_scan_refresh_period(hdd_ctx->mac_handle);
+	uint16_t empty_scan_refresh_period;
 	char extra[32];
 	uint8_t len;
+	QDF_STATUS status;
+
+	status = sme_get_empty_scan_refresh_period(hdd_ctx->mac_handle,
+						   adapter->session_id,
+						   &empty_scan_refresh_period);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, empty_scan_refresh_period: %u",
+		  adapter->session_id, empty_scan_refresh_period);
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_GETROAMSCANPERIOD_IOCTL,
 		   adapter->session_id,
-		   nEmptyScanRefreshPeriod);
+		   empty_scan_refresh_period);
 
 	len = scnprintf(extra, sizeof(extra), "%s %d",
 			"GETROAMSCANPERIOD",
-			(nEmptyScanRefreshPeriod / 1000));
+			(empty_scan_refresh_period / 1000));
 	/* Returned value is in units of seconds */
 	len = QDF_MIN(priv_data->total_len, len + 1);
 	if (copy_to_user(priv_data->buf, &extra, len)) {
@@ -3542,6 +3564,46 @@ exit:
 	return ret;
 }
 
+static int drv_cmd_set_suspend_mode(struct hdd_adapter *adapter,
+				    struct hdd_context *hdd_ctx,
+				    uint8_t *command,
+				    uint8_t command_len,
+				    struct hdd_priv_data *priv_data)
+{
+	int errno;
+	uint8_t *value = command;
+	QDF_STATUS status;
+	uint8_t idle_monitor;
+
+	if (QDF_STA_MODE != adapter->device_mode) {
+		hdd_debug("Non-STA interface");
+		return 0;
+	}
+
+	/* Move pointer to ahead of SETSUSPENDMODE<delimiter> */
+	value = value + SIZE_OF_SETSUSPENDMODE + 1;
+
+	/* Convert the value from ascii to integer */
+	errno = kstrtou8(value, 10, &idle_monitor);
+	if (errno < 0) {
+		/*
+		 * If the input value is greater than max value of datatype,
+		 * then also kstrtou8 fails
+		 */
+		hdd_err("Range validation failed");
+		return -EINVAL;
+	}
+
+	hdd_debug("idle_monitor:%d", idle_monitor);
+	status = ucfg_pmo_tgt_psoc_send_idle_roam_suspend_mode(hdd_ctx->psoc,
+							       idle_monitor);
+	if (QDF_IS_STATUS_ERROR(status)) {
+		hdd_debug("Send suspend mode to fw failed");
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int drv_cmd_get_roam_mode(struct hdd_adapter *adapter,
 				 struct hdd_context *hdd_ctx,
 				 uint8_t *command,
@@ -3627,17 +3689,25 @@ static int drv_cmd_get_roam_delta(struct hdd_adapter *adapter,
 				  struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint8_t roamRssiDiff =
-		sme_get_roam_rssi_diff(hdd_ctx->mac_handle);
+	uint8_t rssi_diff;
 	char extra[32];
 	uint8_t len;
+	QDF_STATUS status;
+
+	status = sme_get_roam_rssi_diff(hdd_ctx->mac_handle,
+					adapter->session_id,
+					&rssi_diff);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, rssi_diff: %u", adapter->session_id, rssi_diff);
 
 	qdf_mtrace(QDF_MODULE_ID_HDD, QDF_MODULE_ID_HDD,
 		   TRACE_CODE_HDD_GETROAMDELTA_IOCTL,
-		   adapter->session_id, roamRssiDiff);
+		   adapter->session_id, rssi_diff);
 
 	len = scnprintf(extra, sizeof(extra), "%s %d",
-			command, roamRssiDiff);
+			command, rssi_diff);
 	len = QDF_MIN(priv_data->total_len, len + 1);
 
 	if (copy_to_user(priv_data->buf, &extra, len)) {
@@ -4223,9 +4293,19 @@ static int drv_cmd_get_scan_n_probes(struct hdd_adapter *adapter,
 				     struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint8_t val = sme_get_roam_scan_n_probes(hdd_ctx->mac_handle);
+	uint8_t val;
 	char extra[32];
 	uint8_t len = 0;
+	QDF_STATUS status;
+
+	status = sme_get_roam_scan_n_probes(hdd_ctx->mac_handle,
+					    adapter->session_id,
+					    &val);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, scan_n_probes: %u",
+		  adapter->session_id, val);
 
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
 	len = QDF_MIN(priv_data->total_len, len + 1);
@@ -4279,14 +4359,10 @@ static int drv_cmd_set_scan_home_away_time(struct hdd_adapter *adapter,
 	hdd_debug("Received Command to Set scan away time = %d",
 		  homeAwayTime);
 
-	if (hdd_ctx->config->nRoamScanHomeAwayTime !=
-	    homeAwayTime) {
-		hdd_ctx->config->nRoamScanHomeAwayTime = homeAwayTime;
-		sme_update_roam_scan_home_away_time(hdd_ctx->mac_handle,
-						    adapter->session_id,
-						    homeAwayTime,
-						    true);
-	}
+	sme_update_roam_scan_home_away_time(hdd_ctx->mac_handle,
+					    adapter->session_id,
+					    homeAwayTime,
+					    true);
 
 exit:
 	return ret;
@@ -4299,10 +4375,19 @@ static int drv_cmd_get_scan_home_away_time(struct hdd_adapter *adapter,
 					   struct hdd_priv_data *priv_data)
 {
 	int ret = 0;
-	uint16_t val = sme_get_roam_scan_home_away_time(hdd_ctx->mac_handle);
-	char extra[32];
+	uint16_t val;
+	char extra[32] = {0};
 	uint8_t len = 0;
+	QDF_STATUS status;
 
+	status = sme_get_roam_scan_home_away_time(hdd_ctx->mac_handle,
+						  adapter->session_id,
+						  &val);
+	if (QDF_IS_STATUS_ERROR(status))
+		return qdf_status_to_os_return(status);
+
+	hdd_debug("vdev_id: %u, scan home away time: %u",
+		  adapter->session_id, val);
 	len = scnprintf(extra, sizeof(extra), "%s %d", command, val);
 	len = QDF_MIN(priv_data->total_len, len + 1);
 
@@ -7297,13 +7382,11 @@ static int hdd_parse_disable_chan_cmd(struct hdd_adapter *adapter, uint8_t *ptr)
 	hdd_debug("Number of channel to disable are: %d", temp_int);
 
 	if (!temp_int) {
-		if (!wlan_hdd_restore_channels(hdd_ctx, false)) {
-			/*
-			 * Free the cache channels only when the command is
-			 * received with num channels as 0
-			 */
-			wlan_hdd_free_cache_channels(hdd_ctx);
-		}
+		/*
+		 * Restore and Free the cache channels when the command is
+		 * received with num channels as 0
+		 */
+		wlan_hdd_restore_channels(hdd_ctx, false);
 		return 0;
 	}
 
@@ -7522,6 +7605,175 @@ static int drv_cmd_get_disable_chan_list(struct hdd_adapter *adapter,
 	return 0;
 }
 #endif
+
+#ifdef FEATURE_ANI_LEVEL_REQUEST
+static int drv_cmd_get_ani_level(struct hdd_adapter *adapter,
+				 struct hdd_context *hdd_ctx,
+				 uint8_t *command,
+				 uint8_t command_len,
+				 struct hdd_priv_data *priv_data)
+{
+	char *extra;
+	int copied_length = 0, j, temp_int, ret = 0;
+	uint8_t *param, num_freqs, num_recv_channels;
+	uint32_t parsed_freqs[MAX_NUM_FREQS_FOR_ANI_LEVEL];
+	struct wmi_host_ani_level_event ani[MAX_NUM_FREQS_FOR_ANI_LEVEL];
+	size_t user_size = priv_data->total_len;
+
+	hdd_debug("Received Command to get ANI level");
+
+	param = strnchr(command, strlen(command), ' ');
+
+	/* No argument after the command */
+	if (!param)
+		return -EINVAL;
+
+	/* No space after the command */
+	else if (SPACE_ASCII_VALUE != *param)
+		return -EINVAL;
+
+	param++;
+
+	/* Removing empty spaces*/
+	while ((SPACE_ASCII_VALUE  == *param) && ('\0' !=  *param))
+		param++;
+
+	/*no argument followed by spaces */
+	if ('\0' == *param)
+		return -EINVAL;
+
+	/* Getting the first argument ie the number of channels */
+	if (sscanf(param, "%d ", &temp_int) != 1) {
+		hdd_err("Cannot get number of freq from input");
+		return -EINVAL;
+	}
+
+	if (temp_int < 0 || temp_int > MAX_NUM_FREQS_FOR_ANI_LEVEL) {
+		hdd_err("Invalid Number of channel received");
+		return -EINVAL;
+	}
+
+	hdd_debug("Number of freq to fetch ANI level are: %d", temp_int);
+
+	if (!temp_int)
+		return 0;
+
+	num_freqs = temp_int;
+
+	for (j = 0; j < num_freqs; j++) {
+		/*
+		 * Param pointing to the beginning of first space
+		 * after number of channels.
+		 */
+		param = strpbrk(param, " ");
+		/*no channel list after the number of channels argument*/
+		if (!param) {
+			hdd_err("Invalid No of freq provided in the list");
+			ret = -EINVAL;
+			goto parse_failed;
+		}
+
+		param++;
+
+		/* Removing empty space */
+		while ((SPACE_ASCII_VALUE == *param) && ('\0' != *param))
+			param++;
+
+		if ('\0' == *param) {
+			hdd_err("No freq is provided in the list");
+			ret = -EINVAL;
+			goto parse_failed;
+		}
+
+		if (sscanf(param, "%d ", &temp_int) != 1) {
+			hdd_err("Cannot read freq number");
+			ret = -EINVAL;
+			goto parse_failed;
+		}
+
+		hdd_debug("channel_freq[%d] = %d", j, temp_int);
+		parsed_freqs[j] = temp_int;
+	}
+
+	/* Extra arguments check */
+	param = strpbrk(param, " ");
+	if (param) {
+		while ((SPACE_ASCII_VALUE == *param) && ('\0' != *param))
+			param++;
+
+		if ('\0' !=  *param) {
+			hdd_err("Invalid argument received");
+			ret = -EINVAL;
+			goto parse_failed;
+		}
+	}
+
+	qdf_mem_zero(ani, sizeof(ani));
+	hdd_debug("num_freq: %d", num_freqs);
+	if (QDF_IS_STATUS_ERROR(wlan_hdd_get_ani_level(adapter, ani,
+						       parsed_freqs,
+						       num_freqs))) {
+		hdd_err("Unable to retrieve ani level");
+		return -EINVAL;
+	}
+
+	extra = qdf_mem_malloc(user_size);
+	if (!extra) {
+		hdd_err("memory allocation failed");
+		ret = -ENOMEM;
+		goto parse_failed;
+	}
+
+	/*
+	 * Find the number of channels that are populated. If freq is not
+	 * filled then stop count there
+	 */
+	for (num_recv_channels = 0;
+	     (num_recv_channels < num_freqs &&
+	     ani[num_recv_channels].chan_freq); num_recv_channels++)
+		;
+
+	for (j = 0; j < num_recv_channels; j++) {
+		/* Sanity check for ANI level validity */
+		if (ani[j].ani_level > MAX_ANI_LEVEL)
+			continue;
+
+		copied_length += scnprintf(extra + copied_length,
+					   user_size - copied_length, "%d:%d\n",
+					   ani[j].chan_freq, ani[j].ani_level);
+	}
+
+	if (copied_length == 0) {
+		hdd_err("ANI level not fetched");
+		ret = -EINVAL;
+		goto free;
+	}
+
+	hdd_debug("data: %s", extra);
+
+	if (copy_to_user(priv_data->buf, extra, copied_length + 1)) {
+		hdd_err("failed to copy data to user buffer");
+		ret = -EFAULT;
+		goto free;
+	}
+
+free:
+	qdf_mem_free(extra);
+
+parse_failed:
+	return ret;
+}
+
+#else
+static int drv_cmd_get_ani_level(struct hdd_adapter *adapter,
+				 struct hdd_context *hdd_ctx,
+				 uint8_t *command,
+				 uint8_t command_len,
+				 struct hdd_priv_data *priv_data)
+{
+	return 0;
+}
+#endif
 /*
  * The following table contains all supported WLAN HDD
  * IOCTL driver commands and the handler for each of them.
@@ -7535,7 +7787,7 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"COUNTRY",                   drv_cmd_country, true},
 	{"SETCOUNTRYREV",             drv_cmd_country, true},
 	{"GETCOUNTRYREV",             drv_cmd_get_country, false},
-	{"SETSUSPENDMODE",            drv_cmd_dummy, false},
+	{"SETSUSPENDMODE",            drv_cmd_set_suspend_mode, true},
 	{"SET_AP_WPS_P2P_IE",         drv_cmd_dummy, false},
 	{"SETROAMTRIGGER",            drv_cmd_set_roam_trigger, true},
 	{"GETROAMTRIGGER",            drv_cmd_get_roam_trigger, false},
@@ -7635,6 +7887,7 @@ static const struct hdd_drv_cmd hdd_drv_cmds[] = {
 	{"GETANTENNAMODE",            drv_cmd_get_antenna_mode, false},
 	{"SET_DISABLE_CHANNEL_LIST",  drv_cmd_set_disable_chan_list, true},
 	{"GET_DISABLE_CHANNEL_LIST",  drv_cmd_get_disable_chan_list, false},
+	{"GET_ANI_LEVEL",             drv_cmd_get_ani_level, false},
 	{"STOP",                      drv_cmd_dummy, false},
 	/* Deprecated commands */
 	{"RXFILTER-START",            drv_cmd_dummy, false},

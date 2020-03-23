@@ -42,6 +42,8 @@
  * @twt_requestor: TWT requestor capability
  * @twt_responder: TWT responder capability
  * @bcn_reception_stats: Beacon Reception stats capability
+ * @akm_service_bitmap: bitmap of FT akm supported by firmware
+ * @is_adaptive_11r_roam_supported: Adaptive 11r target capability
  */
 struct wma_tgt_services {
 	uint32_t sta_power_save;
@@ -73,6 +75,8 @@ struct wma_tgt_services {
 	bool twt_requestor;
 	bool twt_responder;
 	bool bcn_reception_stats;
+	uint32_t akm_service_bitmap;
+	bool is_adaptive_11r_roam_supported;
 };
 
 /**
@@ -224,5 +228,6 @@ struct wma_tgt_cfg {
 	struct board_info hw_bd_info;
 	enum sar_version sar_version;
 	bool dynamic_nss_chains_support;
+	bool nan_seperate_vdev_support;
 };
 #endif /* WMA_TGT_CFG_H */

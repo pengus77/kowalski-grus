@@ -1687,6 +1687,7 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx,
 	case eWNI_SME_ROAM_SCAN_OFFLOAD_REQ:
 	case eWNI_SME_SET_ADDBA_ACCEPT:
 	case eWNI_SME_UPDATE_EDCA_PROFILE:
+	case WNI_SME_REGISTER_BCN_REPORT_SEND_CB:
 		/* These messages are from HDD.No need to respond to HDD */
 		lim_process_normal_hdd_msg(mac_ctx, msg, false);
 		break;
@@ -1697,6 +1698,11 @@ static void lim_process_messages(tpAniSirGlobal mac_ctx,
 		break;
 	case eWNI_SME_MON_INIT_SESSION:
 		lim_mon_init_session(mac_ctx, msg->bodyptr);
+		qdf_mem_free(msg->bodyptr);
+		msg->bodyptr = NULL;
+		break;
+	case eWNI_SME_MON_DEINIT_SESSION:
+		lim_mon_deinit_session(mac_ctx, msg->bodyptr);
 		qdf_mem_free(msg->bodyptr);
 		msg->bodyptr = NULL;
 		break;

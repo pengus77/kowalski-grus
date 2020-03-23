@@ -117,6 +117,14 @@ struct obss_detection_cfg {
 	uint8_t obss_ht_20mhz_detect_mode;
 };
 
+#define ADAPTIVE_11R_STA_IE_LEN   0x0B
+#define ADAPTIVE_11R_STA_OUI      "\x00\x00\x0f\x22"
+#define ADAPTIVE_11R_OUI_LEN      0x04
+#define ADAPTIVE_11R_OUI_SUBTYPE  0x00
+#define ADAPTIVE_11R_OUI_VERSION  0x01
+#define ADAPTIVE_11R_DATA_LEN      0x04
+#define ADAPTIVE_11R_OUI_DATA     "\x00\x00\x00\x01"
+
 typedef struct sPESession       /* Added to Support BT-AMP */
 {
 	/* To check session table is in use or free */
@@ -150,6 +158,8 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	uint16_t channelChangeReasonCode;
 	uint8_t dot11mode;
 	uint8_t htCapability;
+	enum ani_akm_type connected_akm;
+
 	/* Supported Channel Width Set: 0-20MHz 1 - 40MHz */
 	uint8_t htSupportedChannelWidthSet;
 	/* Recommended Tx Width Set
@@ -304,6 +314,7 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	enum QDF_OPMODE pePersona;
 	int8_t txMgmtPower;
 	bool is11Rconnection;
+	bool is_adaptive_11r_connection;
 
 #ifdef FEATURE_WLAN_ESE
 	bool isESEconnection;
@@ -533,10 +544,6 @@ typedef struct sPESession       /* Added to Support BT-AMP */
 	bool he_with_wep_tkip;
 #ifdef WLAN_FEATURE_FILS_SK
 	struct pe_fils_session *fils_info;
-	struct qdf_mac_addr dst_mac;
-	struct qdf_mac_addr src_mac;
-	uint16_t hlp_data_len;
-	uint8_t *hlp_data;
 #endif
 	/* previous auth frame's sequence number */
 	uint16_t prev_auth_seq_num;

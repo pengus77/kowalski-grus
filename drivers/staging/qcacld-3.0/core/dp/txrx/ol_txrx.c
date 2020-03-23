@@ -2306,6 +2306,8 @@ static void ol_txrx_pdev_pre_detach(struct cdp_pdev *ppdev, int force)
 	OL_RX_REORDER_TRACE_DETACH(pdev);
 	OL_RX_PN_TRACE_DETACH(pdev);
 
+	htt_pktlogmod_exit(pdev);
+
 	/*
 	 * WDI event detach
 	 */
@@ -2346,8 +2348,6 @@ static void ol_txrx_pdev_detach(struct cdp_pdev *ppdev, int force)
 			   "NULL pdev passed to %s\n", __func__);
 		return;
 	}
-
-	htt_pktlogmod_exit(pdev);
 
 	qdf_spin_lock_bh(&pdev->req_list_spinlock);
 	if (pdev->req_list_depth > 0)
@@ -3987,14 +3987,8 @@ void peer_unmap_timer_handler(void *data)
 		    peer->mac_addr.raw[0], peer->mac_addr.raw[1],
 		    peer->mac_addr.raw[2], peer->mac_addr.raw[3],
 		    peer->mac_addr.raw[4], peer->mac_addr.raw[5]);
-	if (cds_is_self_recovery_enabled()) {
-		if (!cds_is_driver_recovering() && !cds_is_fw_down())
-			cds_trigger_recovery(QDF_PEER_UNMAP_TIMEDOUT);
-		else
-			ol_txrx_err("Recovery is in progress, ignore!");
-	} else {
-		QDF_BUG(0);
-	}
+
+	cds_trigger_recovery(QDF_PEER_UNMAP_TIMEDOUT);
 }
 
 

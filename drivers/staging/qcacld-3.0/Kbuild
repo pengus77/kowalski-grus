@@ -181,6 +181,10 @@ ifeq ($(CONFIG_WLAN_SYSFS), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_sysfs.o
 endif
 
+ifeq ($(CONFIG_WLAN_BCN_RECV_FEATURE), y)
+HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_bcn_recv.o
+endif
+
 ifeq ($(CONFIG_QCACLD_FEATURE_COEX_CONFIG), y)
 HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_coex_config.o
 endif
@@ -1623,6 +1627,7 @@ cppflags-$(CONFIG_CP_STATS) += -DQCA_SUPPORT_CP_STATS
 cppflags-$(CONFIG_FEATURE_MEMDUMP_ENABLE) += -DWLAN_FEATURE_MEMDUMP_ENABLE
 cppflags-$(CONFIG_FEATURE_FW_LOG_PARSING) += -DFEATURE_FW_LOG_PARSING
 cppflags-$(CONFIG_WLAN_RECORD_RX_PADDR) += -DHIF_RECORD_RX_PADDR
+cppflags-$(CONFIG_FEATURE_OEM_DATA) += -DFEATURE_OEM_DATA
 
 ifeq ($(CONFIG_CNSS), y)
 ifeq ($(CONFIG_CNSS_SDIO), y)
@@ -1789,8 +1794,17 @@ cppflags-$(CONFIG_FEATURE_BECN_STATS) += -DWLAN_FEATURE_BEACON_RECEPTION_STATS
 #Set RX_PERFORMANCE
 cppflags-$(CONFIG_RX_PERFORMANCE) += -DRX_PERFORMANCE
 
+#Set MULTI_IF_LOG
+cppflags-$(CONFIG_MULTI_IF_LOG) += -DMULTI_IF_LOG
+
 #Set SLUB_MEM_OPTIMIZE
 cppflags-$(CONFIG_SLUB_MEM_OPTIMIZE) += -DSLUB_MEM_OPTIMIZE
+
+#Set DFS_PRI_MULTIPLIER
+cppflags-$(CONFIG_DFS_PRI_MULTIPLIER) += -DDFS_PRI_MULTIPLIER
+
+#Set DFS_OVERRIDE_RF_THRESHOLD
+cppflags-$(CONFIG_DFS_OVERRIDE_RF_THRESHOLD) += -DDFS_OVERRIDE_RF_THRESHOLD
 
 #Enable OL debug and wmi unified functions
 cppflags-$(CONFIG_ATH_PERF_PWR_OFFLOAD) += -DATH_PERF_PWR_OFFLOAD
@@ -2036,17 +2050,23 @@ endif
 cppflags-$(CONFIG_WLAN_FEATURE_11AX) += -DWLAN_FEATURE_11AX
 cppflags-$(CONFIG_WLAN_FEATURE_11AX) += -DWLAN_FEATURE_11AX_BSS_COLOR
 
+#Enable support to get ANI value
+ifeq ($(CONFIG_ANI_LEVEL_REQUEST), y)
+cppflags-y += -DFEATURE_ANI_LEVEL_REQUEST
+endif
+
 # Dummy flag for WIN/MCL converged data path compilation
 cppflags-y += -DDP_PRINT_ENABLE=0
 cppflags-y += -DATH_SUPPORT_WRAP=0
 cppflags-y += -DQCA_HOST2FW_RXBUF_RING
+cppflags-y += -DHIF_CE_HISTORY_MAX=8192
 #endof dummy flags
 
 # Enable lock of serialization component to avoid race condition issues
 cppflags-y += -DWLAN_CMD_SERIALIZATION_LOCKING
 
 ccflags-$(CONFIG_ENABLE_SIZE_OPTIMIZE) += -Os
-
+ccflags-$(CONFIG_WLAN_FEATURE_ETHTOOL) += -DWLAN_FEATURE_ETHTOOL
 # DFS component
 cppflags-y += -DWLAN_DFS_STATIC_MEM_ALLOC
 cppflags-$(CONFIG_WLAN_DFS_MASTER_ENABLE) += -DQCA_MCL_DFS_SUPPORT
@@ -2068,6 +2088,9 @@ cppflags-$(CONFIG_ENABLE_SMMU_S1_TRANSLATION) += -DENABLE_SMMU_S1_TRANSLATION
 #Flag to enable/disable MTRACE feature
 cppflags-$(CONFIG_ENABLE_MTRACE_LOG) += -DENABLE_MTRACE_LOG
 
+#Flag to enable/disable Adaptive 11r feature
+cppflags-$(CONFIG_ADAPTIVE_11R) += -DWLAN_ADAPTIVE_11R
+
 #Flag to enable NUD tracking
 cppflags-$(CONFIG_WLAN_NUD_TRACKING) += -DWLAN_NUD_TRACKING
 
@@ -2076,6 +2099,9 @@ cppflags-$(CONFIG_DISABLE_CHANNEL_LIST) += -DDISABLE_CHANNEL_LIST
 
 #Flag to enable set coex configuration feature
 cppflags-$(CONFIG_QCACLD_FEATURE_COEX_CONFIG) += -DFEATURE_COEX_CONFIG
+
+#Flag to enable/disable WIPS feature
+cppflags-$(CONFIG_WLAN_BCN_RECV_FEATURE) += -DWLAN_BCN_RECV_FEATURE
 
 #Flag to enable MPTA helper feature
 cppflags-$(CONFIG_QCACLD_FEATURE_MPTA_HELPER) += -DFEATURE_MPTA_HELPER
@@ -2115,6 +2141,9 @@ endif
 ifdef CONFIG_TGT_NUM_MSDU_DESC
 ccflags-y += -DCFG_TGT_NUM_MSDU_DESC=$(CONFIG_TGT_NUM_MSDU_DESC)
 endif
+
+CONFIG_WLAN_MAX_VDEVS ?= 6
+ccflags-y += -DWLAN_MAX_VDEVS=$(CONFIG_WLAN_MAX_VDEVS)
 
 KBUILD_CPPFLAGS += $(cppflags-y)
 
