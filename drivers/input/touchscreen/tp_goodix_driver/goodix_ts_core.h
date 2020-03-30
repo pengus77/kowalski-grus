@@ -64,7 +64,7 @@
 #define GOODIX_ESD_TICK_WRITE_DATA 0xAA
 #define GOODIX_PID_MAX_LEN	8
 #define GOODIX_VID_MAX_LEN	8
-#define GOODIX_ESD_CHECK_INTERVAL 5
+#define GOODIX_ESD_CHECK_INTERVAL 5000
 
 #define GOODIX_DEFAULT_CFG_NAME "goodix_config.cfg"
 
@@ -88,6 +88,9 @@
 #define GTP_RESULT_PASS 2
 #define GTP_RESULT_FAIL 1
 
+#define GTP_GAME_CMD_ADD  0x6F68
+#define GTP_GAME_CMD      0x0E
+#define GTP_EXIT_GAME_CMD 0x0F
 
 #define CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
 
@@ -341,7 +344,7 @@ struct goodix_ts_device {
 
 	int doze_mode_set_count;
 	struct mutex doze_mode_lock;
-
+	struct mutex report_mutex;
 	struct goodix_ts_board_data *board_data;
 	struct goodix_ts_config *normal_cfg;
 	struct goodix_ts_config *highsense_cfg;
@@ -424,6 +427,7 @@ struct goodix_ts_esd {
  * @ts_esd: esd protector structure
  * @fb_notifier: framebuffer notifier
  * @early_suspend: early suspend
+ * @work_stat: protect suspend, resume, receive fod cmd from high layer.
  */
 struct goodix_ts_core {
 	struct platform_device *pdev;
@@ -475,12 +479,15 @@ struct goodix_ts_core {
 	int gesture_enabled;
 	int fod_status;
 	int fod_pressed;
+	int fod_test;
 	int double_wakeup;
 	int result_type;
-	int dbclick_count;
 	struct class *gtp_tp_class;
 	struct device *gtp_touch_dev;
 	char *current_clicknum_file;
+	struct mutex work_stat;
+	bool tp_already_suspend;
+	struct completion pm_resume_completion;
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
 	struct dentry *debugfs;
 #endif
@@ -694,19 +701,11 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 #define ECHKSUM					1002
 #define EMEMCMP					1003
 
-/* #define CONFIG_GOODIX_DEBUG */
 /* log macro */
-#ifdef CONFIG_GOODIX_DEBUG
+#define ts_debug(fmt, arg...)	pr_debug("[GTP-DBG][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define ts_info(fmt, arg...)	pr_info("[GTP-INF][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define	ts_err(fmt, arg...)		pr_err("[GTP-ERR][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define boot_log(fmt, arg...)	g_info(fmt, ##arg)
-#define ts_debug(fmt, arg...)	pr_info("[GTP-DBG][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
-#else
-#define ts_info(fmt, arg...)	do {} while (0)
-#define ts_err(fmt, arg...)	do {} while (0)
-#define boot_log(fmt, arg...)	do {} while (0)
-#define ts_debug(fmt, arg...)	do {} while (0)
-#endif
 
 /**
  * goodix_register_ext_module - interface for external module
