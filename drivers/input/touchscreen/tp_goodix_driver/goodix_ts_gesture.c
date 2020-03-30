@@ -556,6 +556,7 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
  * @module: pointer to goodix_ext_module struct
  * return: 0 goon execute, EVT_CANCLED  stop execute
  *
+*/
 static int gsx_gesture_before_resume(struct goodix_ts_core *core_data,
 			struct goodix_ext_module *module)
 {
@@ -564,13 +565,13 @@ static int gsx_gesture_before_resume(struct goodix_ts_core *core_data,
 	ts_dev->hw_ops->reset(ts_dev);
 	return 0;
 }
-*/
 
 static struct goodix_ext_module_funcs gsx_gesture_funcs = {
 	.irq_event = gsx_gesture_ist,
 	.init = gsx_gesture_init,
 	.exit = gsx_gesture_exit,
-	.before_suspend = gsx_gesture_before_suspend
+	.before_suspend = gsx_gesture_before_suspend,
+	.before_resume = gsx_gesture_before_resume
 };
 
 static int __init goodix_gsx_gesture_init(void)
