@@ -11664,6 +11664,12 @@ F:	lib/swiotlb.c
 F:	arch/*/kernel/pci-swiotlb.c
 F:	include/linux/swiotlb.h
 
+SWITCHCON HID DRIVER
+M:	Daniel J. Ogorchock <djogorchock@gmail.com>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/hid-switchcon*
+
 SWITCHDEV
 M:	Jiri Pirko <jiri@resnulli.us>
 L:	netdev@vger.kernel.org
