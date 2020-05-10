@@ -1102,26 +1102,32 @@ int ipa3_nat_mdfy_pdn(struct ipa_ioc_nat_pdn_entry *mdfy_pdn)
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
 	int result = 0;
 	struct ipa3_nat_mem *nat_ctx = &(ipa3_ctx->nat_mem);
-	struct ipa_pdn_entry *pdn_entries = nat_ctx->pdn_mem.base;
+	struct ipa_pdn_entry *pdn_entries = NULL;
 
 	IPADBG("\n");
 
+	mutex_lock(&nat_ctx->dev.lock);
+
 	if (ipa3_ctx->ipa_hw_type < IPA_HW_v4_0) {
 		IPAERR_RL("IPA HW does not support multi PDN\n");
-		return -EPERM;
+		result = -EPERM;
+		goto bail;
 	}
+
 	if (!nat_ctx->dev.is_mem_allocated) {
 		IPAERR_RL(
 			"attempt to modify a PDN entry before the PDN table memory allocation\n");
-		return -EPERM;
+		result = -EPERM;
+		goto bail;
 	}
 
 	if (mdfy_pdn->pdn_index > (IPA_MAX_PDN_NUM - 1)) {
 		IPAERR_RL("pdn index out of range %d\n", mdfy_pdn->pdn_index);
-		return -EPERM;
+		result = -EPERM;
+		goto bail;
 	}
 
-	mutex_lock(&nat_ctx->dev.lock);
+	pdn_entries = nat_ctx->pdn_mem.base;
 
 	/* store ip in pdn entries cache array */
 	pdn_entries[mdfy_pdn->pdn_index].public_ip =
@@ -1546,7 +1552,6 @@ int ipa3_del_nat_table(struct ipa_ioc_nat_ipv6ct_table_del *del)
 			ipa3_ctx->nat_mem.pdn_mem.base,
 			ipa3_ctx->nat_mem.pdn_mem.phys_base);
 		ipa3_ctx->nat_mem.pdn_mem.base = NULL;
-		ipa3_ctx->nat_mem.dev.is_mem_allocated = false;
 	}
 
 	ipa3_nat_ipv6ct_free_mem(&ipa3_ctx->nat_mem.dev);

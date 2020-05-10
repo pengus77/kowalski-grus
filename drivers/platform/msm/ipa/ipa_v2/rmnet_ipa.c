@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -691,7 +691,7 @@ static int wwan_add_ul_flt_rule_to_ipa(void)
 	/* send ipa_fltr_installed_notif_req_msg_v01 to Q6*/
 	req->source_pipe_index =
 		ipa2_get_ep_mapping(IPA_CLIENT_APPS_LAN_WAN_PROD);
-	req->install_status = QMI_RESULT_SUCCESS_V01;
+	req->install_status = IPA_QMI_RESULT_SUCCESS_V01;
 	req->filter_index_list_len = num_q6_rule;
 	mutex_lock(&ipa_qmi_lock);
 	for (i = 0; i < num_q6_rule; i++) {
@@ -2307,6 +2307,12 @@ static int rmnet_ipa_ap_suspend(struct device *dev)
 
 	/* Make sure that there is no Tx operation ongoing */
 	netif_tx_lock_bh(netdev);
+	netif_stop_queue(netdev);
+
+	/* Stoppig Watch dog timer when pipe was in suspend state */
+	if (del_timer(&netdev->watchdog_timer))
+		dev_put(netdev);
+
 	ipa_rm_release_resource(IPA_RM_RESOURCE_WWAN_0_PROD);
 	netif_tx_unlock_bh(netdev);
 	IPAWANDBG_LOW("Exit\n");
@@ -2329,7 +2335,12 @@ static int rmnet_ipa_ap_resume(struct device *dev)
 	struct net_device *netdev = ipa_netdevs[0];
 
 	IPAWANDBG_LOW("Enter...\n");
-	netif_wake_queue(netdev);
+	if (netdev) {
+		netif_wake_queue(netdev);
+		/* Starting Watch dog timer, pipe was changes to resume state */
+		if (netif_running(netdev) && netdev->watchdog_timeo <= 0)
+			__netdev_watchdog_up(netdev);
+	}
 	IPAWANDBG_LOW("Exit\n");
 
 	return 0;
