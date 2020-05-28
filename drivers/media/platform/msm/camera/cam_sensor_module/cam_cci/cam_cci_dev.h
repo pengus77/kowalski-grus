@@ -46,7 +46,7 @@
 #define CYCLES_PER_MICRO_SEC_DEFAULT 4915
 #define CCI_MAX_DELAY 1000000
 
-#define CCI_TIMEOUT msecs_to_jiffies(1500)
+#define CCI_TIMEOUT msecs_to_jiffies(500)
 
 #define NUM_MASTERS 2
 #define NUM_QUEUES 2
@@ -66,13 +66,18 @@
 #define MAX_LRME_V4l2_EVENTS 30
 
 /* Max bytes that can be read per CCI read transaction */
-#define CCI_READ_MAX 256
+#define CCI_READ_MAX 12
 #define CCI_I2C_READ_MAX_RETRIES 3
 #define CCI_I2C_MAX_READ 8192
 #define CCI_I2C_MAX_WRITE 8192
-#define CCI_I2C_MAX_BYTE_COUNT 65535
 
 #define CAMX_CCI_DEV_NAME "cam-cci-driver"
+
+/* Max bytes that can be read per CCI read transaction */
+#define CCI_READ_MAX 12
+#define CCI_I2C_READ_MAX_RETRIES 3
+#define CCI_I2C_MAX_READ 8192
+#define CCI_I2C_MAX_WRITE 8192
 
 #define PRIORITY_QUEUE (QUEUE_0)
 #define SYNC_QUEUE (QUEUE_1)
@@ -121,7 +126,6 @@ struct cam_cci_read_cfg {
 	uint16_t addr_type;
 	uint8_t *data;
 	uint16_t num_byte;
-	uint16_t data_type;
 };
 
 struct cam_cci_i2c_queue_info {
@@ -138,11 +142,9 @@ struct cam_cci_master_info {
 	uint8_t reset_pending;
 	struct mutex mutex;
 	struct completion reset_complete;
-	struct completion th_complete;
 	struct mutex mutex_q[NUM_QUEUES];
 	struct completion report_q[NUM_QUEUES];
 	atomic_t done_pending[NUM_QUEUES];
-	spinlock_t lock_q[NUM_QUEUES];
 };
 
 struct cam_cci_clk_params_t {
@@ -207,6 +209,7 @@ struct cci_device {
 	struct cam_hw_soc_info soc_info;
 	uint32_t hw_version;
 	uint8_t ref_count;
+	uint8_t ref_count_cci[MASTER_MAX];
 	enum cam_cci_state_t cci_state;
 	struct cam_cci_i2c_queue_info
 		cci_i2c_queue_info[NUM_MASTERS][NUM_QUEUES];
