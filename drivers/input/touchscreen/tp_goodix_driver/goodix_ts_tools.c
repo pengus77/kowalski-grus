@@ -151,7 +151,7 @@ static int read_config_data(struct goodix_ts_device *ts_dev, void __user *arg)
 		   + (i2c_msg_head[2] << 16) + (i2c_msg_head[3] << 24);
 	length = i2c_msg_head[4] + (i2c_msg_head[5] << 8)
 		 + (i2c_msg_head[6] << 16) + (i2c_msg_head[7] << 24);
-	ts_info("read config,reg_addr=0x%x, length=%d", reg_addr, length);
+	pr_debug("read config,reg_addr=0x%x, length=%d", reg_addr, length);
 	tmp_buf = kzalloc(length, GFP_KERNEL);
 	if (!tmp_buf) {
 		ts_err("failed alloc memory");
@@ -332,7 +332,7 @@ int sync_read_rawdata (unsigned int reg,
 
 	list_add_tail(&tools_data.list, &dev->head);
 
-	ts_info("add sync_read to list");
+	pr_debug("add sync_read to list");
 
 	mutex_unlock(&dev->mutex);
 
@@ -374,7 +374,7 @@ int goodix_tools_register(void)
 
 	int ret = 0;
 
-	ts_info("register tools module");
+	pr_debug("register tools module");
 
 	/* Only the first time open device need to register module */
 
@@ -382,7 +382,7 @@ int goodix_tools_register(void)
 
 	if (ret) {
 
-		ts_info("failed register to core module");
+		pr_debug("failed register to core module");
 
 	}
 
@@ -482,15 +482,15 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 			mutex_lock(&dev->mutex);
 			dev->ops_mode |= IRQ_FALG;
 			mutex_unlock(&dev->mutex);
-			ts_info("IRQ enabled");
+			pr_debug("IRQ enabled");
 		} else if (arg == 0) {
 			goodix_ts_irq_enable(dev->ts_core, false);
 			mutex_lock(&dev->mutex);
 			dev->ops_mode &= ~IRQ_FALG;
 			mutex_unlock(&dev->mutex);
-			ts_info("IRQ disabled");
+			pr_debug("IRQ disabled");
 		} else {
-			ts_info("Irq aready set with, arg = %ld", arg);
+			pr_debug("Irq aready set with, arg = %ld", arg);
 		}
 		ret = 0;
 		break;
@@ -533,7 +533,7 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 				ts_err("Failed send config");
 				ret = -EAGAIN;
 			} else {
-				ts_info("Send config success");
+				pr_debug("Send config success");
 				ret = 0;
 			}
 		}
@@ -541,7 +541,7 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 	case GTP_READ_CONFIG:
 		ret = read_config_data(ts_dev, (void __user *)arg);
 		if (ret > 0)
-			ts_info("success read config:len=%d", ret);
+			pr_debug("success read config:len=%d", ret);
 		else
 			ts_err("failed read config:ret=0x%x", ret);
 		break;
@@ -572,7 +572,7 @@ static long goodix_tools_ioctl(struct file *filp, unsigned int cmd,
 			ts_err("failed copy driver version info to user");
 		break;
 	default:
-		ts_info("Invalid cmd");
+		pr_debug("Invalid cmd");
 		ret = -ENOTTY;
 		break;
 	}
@@ -601,11 +601,11 @@ static int goodix_tools_open(struct inode *inode, struct file *filp)
 {
 	int ret = 0;
 	filp->private_data = goodix_tools_dev;
-	ts_info("tools open");
+	pr_debug("tools open");
 	/* Only the first time open device need to register module */
 	ret = goodix_register_ext_module(&goodix_tools_dev->module);
 	if (ret) {
-		ts_info("failed register to core module");
+		pr_debug("failed register to core module");
 	}
 
 	return ret;
@@ -730,7 +730,7 @@ static void __exit goodix_tools_exit(void)
 {
 	misc_deregister(&goodix_tools_miscdev);
 	kfree(goodix_tools_dev);
-	ts_info("Goodix tools miscdev exit");
+	pr_debug("Goodix tools miscdev exit");
 }
 
 module_init(goodix_tools_init);
