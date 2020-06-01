@@ -2,7 +2,7 @@
  * Goodix GTX5 Gesture Dirver
  *
  * Copyright (C) 2015 - 2016 Goodix, Inc.
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2020 XiaoMi, Inc.
  * Authors:  Wang Yafei <wangyafei@goodix.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -41,6 +41,8 @@ extern int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg, unsi
 extern int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg, unsigned char *data, unsigned int len);
 static int goodix_set_suspend_func(struct goodix_ts_core *core_data);
 static int goodix_wakeup_and_set_suspend_func(struct goodix_ts_core *core_data);
+
+
 
 
 #define GSX_KEY_DATA_LEN	37
@@ -84,7 +86,7 @@ static ssize_t gsx_gesture_type_show(struct goodix_ext_module *module,
 	unsigned char *type;
 
 	if (atomic_read(&gsx_gesture->registered) != 1) {
-		ts_debug("Gesture module not register!");
+		ts_info("Gesture module not register!");
 		return -EPERM;
 	}
 	type = kzalloc(256, GFP_KERNEL);
@@ -148,19 +150,17 @@ static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
 	int ret;
 
 	if (sscanf(buf, "%u", &tmp) != 1) {
-		ts_debug("Parameter illegal");
+		ts_info("Parameter illegal");
 		return -EINVAL;
 	}
-	ts_debug("Tmp value =%d", tmp);
 
 	if (tmp == 1) {
 		if (atomic_read(&gsx_gesture->registered)) {
-			ts_debug("Gesture module has aready registered");
 			return count;
 		}
 		ret = goodix_register_ext_module(&gsx_gesture->module);
 		if (!ret) {
-			ts_debug("Gesture module registered!");
+			ts_info("Gesture module registered!");
 			atomic_set(&gsx_gesture->registered, 1);
 		} else {
 			atomic_set(&gsx_gesture->registered, 0);
@@ -168,17 +168,15 @@ static ssize_t gsx_gesture_enable_store(struct goodix_ext_module *module,
 		}
 	} else if (tmp == 0) {
 		if (!atomic_read(&gsx_gesture->registered)) {
-			ts_debug("Gesture module has aready unregistered");
 			return count;
 		}
-		ts_debug("Start unregistered gesture module");
 		ret = goodix_unregister_ext_module(&gsx_gesture->module);
 		if (!ret) {
 			atomic_set(&gsx_gesture->registered, 0);
-			ts_debug("Gesture module unregistered success");
+			ts_info("Gesture module unregistered success");
 		} else {
 			atomic_set(&gsx_gesture->registered, 1);
-			ts_debug("Gesture module unregistered failed");
+			ts_info("Gesture module unregistered failed");
 		}
 	} else {
 		ts_err("Parameter error!");
@@ -193,12 +191,11 @@ int goodix_gesture_enable(bool enable)
 
 	if (enable == true) {
 		if (atomic_read(&gsx_gesture->registered)) {
-			ts_debug("Gesture module has aready registered");
 			return 0;
 		}
 		ret = goodix_register_ext_module(&gsx_gesture->module);
 		if (!ret) {
-			ts_debug("Gesture module registered!");
+			ts_info("Gesture module registered!");
 			atomic_set(&gsx_gesture->registered, 1);
 		} else {
 			atomic_set(&gsx_gesture->registered, 0);
@@ -206,17 +203,15 @@ int goodix_gesture_enable(bool enable)
 		}
 	} else {
 		if (!atomic_read(&gsx_gesture->registered)) {
-			ts_debug("Gesture module has aready unregistered");
 			return 0;
 		}
-		ts_debug("Start unregistered gesture module");
 		ret = goodix_unregister_ext_module(&gsx_gesture->module);
 		if (!ret) {
 			atomic_set(&gsx_gesture->registered, 0);
-			ts_debug("Gesture module unregistered success");
+			ts_info("Gesture module unregistered success");
 		} else {
 			atomic_set(&gsx_gesture->registered, 1);
-			ts_debug("Gesture module unregistered failed");
+			ts_info("Gesture module unregistered failed");
 		}
 	}
 
@@ -273,11 +268,11 @@ int goodix_check_gesture_stat(bool enable)
 	int count = GSX_KEY_DATA_LEN;
 
 	if (atomic_read(&gsx_gesture->registered) != 1) {
-		ts_debug("Gesture module not register!");
+		ts_info("Gesture module not register!");
 		return -EPERM;
 	}
 	if (!buf || !gsx_gesture->gesture_data) {
-		ts_debug("Parameter error!");
+		ts_info("Parameter error!");
 		return -EPERM;
 	}
 	read_lock(&gsx_gesture->rwlock);
@@ -293,11 +288,11 @@ static ssize_t gsx_gesture_data_show(struct goodix_ext_module *module,
 	int count = GSX_KEY_DATA_LEN;
 
 	if (atomic_read(&gsx_gesture->registered) != 1) {
-		ts_debug("Gesture module not register!");
+		ts_info("Gesture module not register!");
 		return -EPERM;
 	}
 	if (!buf || !gsx_gesture->gesture_data) {
-		ts_debug("Parameter error!");
+		ts_info("Parameter error!");
 		return -EPERM;
 	}
 	read_lock(&gsx_gesture->rwlock);
@@ -338,13 +333,7 @@ static int gsx_gesture_init(struct goodix_ts_core *core_data,
 	memset(gsx_gesture->gesture_type, 0, GSX_GESTURE_TYPE_LEN);
 	memset(gsx_gesture->gesture_data, 0xff, GSX_KEY_DATA_LEN);
 
-	ts_debug("Set gesture type manually");
 	memset(gsx_gesture->gesture_type, 0xff, GSX_GESTURE_TYPE_LEN);
-	/*gsx_gesture->gesture_type[34/8] |= (0x1 << 34%8);*/	/* 0x22 double click */
-	/*gsx_gesture->gesture_type[170/8] |= (0x1 << 170%8);*/	/* 0xaa up swip */
-	/*gsx_gesture->gesture_type[187/8] |= (0x1 << 187%8);*/	/* 0xbb right swip */
-	/*gsx_gesture->gesture_type[171/8] |= (0x1 << 171%8);*/	/* 0xab down swip */
-	/*gsx_gesture->gesture_type[186/8] |= (0x1 << 186%8);*/	/* 0xba left swip */
 
 	if (gsx_gesture->kobj_initialized)
 		goto exit_gesture_init;
@@ -444,8 +433,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 	unsigned char checksum = 0, temp_data[GSX_KEY_DATA_LEN];
 	struct goodix_ts_device *ts_dev = core_data->ts_dev;
 
-	/*ts_debug("gsx_gesture_ist, core_data-suspend=%d",
-			atomic_read(&core_data->suspended));*/
+
 	if (atomic_read(&core_data->suspended) == 0)
 		return EVT_CONTINUE;
 
@@ -454,27 +442,24 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 	ret = ts_dev->hw_ops->read_trans(core_data->ts_dev, GSX_REG_GESTURE_DATA,
 				   temp_data, sizeof(temp_data));
 	if (ret < 0 || ((temp_data[0] & GOODIX_GESTURE_EVENT)  == 0)) {
-		ts_debug("Read gesture data faild, ret=%d, temp_data[0]=0x%x", ret, temp_data[0]);
 		goto re_send_ges_cmd;
 	}
 
 	if ((temp_data[0] & 0x08)  != 0) {
 		FP_Event_Gesture = 1;
-		/*ts_debug("FP_Event_Gesture = %d", FP_Event_Gesture);*/
 	}
 
 	checksum = checksum_u8(temp_data, sizeof(temp_data));
 	if (checksum != 0) {
 		ts_err("Gesture data checksum error:0x%x", checksum);
-		ts_debug("Gesture data %*ph", (int)sizeof(temp_data), temp_data);
+		ts_info("Gesture data %*ph", (int)sizeof(temp_data), temp_data);
 		goto re_send_ges_cmd;
 	}
 
-	/*ts_debug("Gesture data:");*/
-	/*ts_debug("Gesture data %*ph", (int)sizeof(temp_data), temp_data);*/
-
-	if (core_data->fod_status) {
-		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0x46)) {
+	if ((core_data->fod_status == 1 || core_data->fod_status == 3) ||
+			core_data->aod_status) {
+		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0x46) &&
+		!core_data->sleep_finger) {
 
 			x = temp_data[4] | (temp_data[5] << 8);
 			y = temp_data[6] | (temp_data[7] << 8);
@@ -491,14 +476,10 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 			input_report_abs(core_data->input_dev, ABS_MT_POSITION_X, x);
 			input_report_abs(core_data->input_dev, ABS_MT_POSITION_Y, y);
 			input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, overlapping_area);
-			input_report_abs(core_data->input_dev, ABS_MT_TOUCH_MINOR, area);
+			/*input_report_abs(core_data->input_dev, ABS_MT_TOUCH_MINOR, area);*/
 
 			core_data->fod_pressed = true;
 			__set_bit(0, &core_data->touch_id);
-
-
-			ts_debug("Gesture report, x=%d, y=%d, overlapping_area=%d, area=%d",
-					x, y, overlapping_area, area);
 
 			/*wait for report key event*/
 			FP_Event_Gesture = 0;
@@ -512,22 +493,23 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 			input_sync(core_data->input_dev);
 			input_report_key(core_data->input_dev, KEY_GOTO, 0);
 			input_sync(core_data->input_dev);
-
-			ts_debug("Gesture report L");
+			core_data->sleep_finger = 0;
 		}
 
-		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0xff) && core_data->fod_pressed) {
-			ts_debug("Gesture report up");
-			input_mt_slot(core_data->input_dev, 0);
-			input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, false);
-			input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, 0);
-			input_report_key(core_data->input_dev, BTN_INFO, 0);
-			input_report_key(core_data->input_dev, KEY_INFO, 0);
-			input_report_key(core_data->input_dev, BTN_TOUCH, 0);
-			input_report_key(core_data->input_dev, BTN_TOOL_FINGER, 0);
-			input_sync(core_data->input_dev);
-			__clear_bit(0, &core_data->touch_id);
-			core_data->fod_pressed = false;
+		if ((FP_Event_Gesture == 1) && (temp_data[2] == 0xff)) {
+			if (core_data->fod_pressed) {
+				input_mt_slot(core_data->input_dev, 0);
+				input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, false);
+				input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, 0);
+				input_report_key(core_data->input_dev, BTN_INFO, 0);
+				input_report_key(core_data->input_dev, KEY_INFO, 0);
+				input_report_key(core_data->input_dev, BTN_TOUCH, 0);
+				input_report_key(core_data->input_dev, BTN_TOOL_FINGER, 0);
+				input_sync(core_data->input_dev);
+				__clear_bit(0, &core_data->touch_id);
+				core_data->fod_pressed = false;
+			}
+			core_data->sleep_finger = 0;
 		}
 
 		write_lock(&gsx_gesture->rwlock);
@@ -551,7 +533,7 @@ static int gsx_gesture_ist(struct goodix_ts_core *core_data,
 
 		goto gesture_ist_exit;
 	} else {
-		ts_debug("Unsupported gesture:%x", temp_data[2]);
+		ts_info("Unsupported gesture:%x", temp_data[2]);
 	}
 
 re_send_ges_cmd:
@@ -579,36 +561,54 @@ static int goodix_set_suspend_func(struct goodix_ts_core *core_data)
 	u8 state_data[3] = {0};
 	int ret;
 
-	if (core_data->double_wakeup && core_data->fod_status) {
+	if (core_data->double_wakeup &&
+			((core_data->fod_status == 1 || core_data->fod_status == 3) ||
+                        core_data->aod_status)) {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x01;
 		state_data[2] = 0xF7;
 		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+		if (!ret) {
+			atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK_FOD);
+		}
 		ts_info("Set IC double wakeup mode on,FOD mode on;");
-	} else if (core_data->double_wakeup && (!core_data->fod_status)) {
+	} else if (core_data->double_wakeup &&
+			(core_data->fod_status != 1 && core_data->fod_status != 3)) {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x03;
 		state_data[2] = 0xF5;
 		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+		if (!ret) {
+			atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK);
+		}
 		ts_info("Set IC double wakeup mode on,FOD mode off;");
-	} else if (!core_data->double_wakeup && core_data->fod_status) {
+	} else if (!core_data->double_wakeup &&
+			((core_data->fod_status == 1 || core_data->fod_status == 3) ||
+			core_data->aod_status)) {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x00;
 		state_data[2] = 0xF8;
 		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+		if (!ret) {
+			atomic_set(&core_data->suspend_stat, TP_GESTURE_FOD);
+		}
 		ts_info("Set IC double wakeup mode off,FOD mode on;");
-	} else if (!core_data->double_wakeup && (!core_data->fod_status)) {
+	} else if (!core_data->double_wakeup &&
+			((core_data->fod_status != 1 && core_data->fod_status != 3) ||
+                        core_data->aod_status)) {
 		state_data[0] = GSX_GESTURE_CMD;
 		state_data[1] = 0x02;
 		state_data[2] = 0xF6;
 		ret = goodix_i2c_write(dev, GSX_REG_GESTURE, state_data, 3);
+		if (!ret) {
+			atomic_set(&core_data->suspend_stat, TP_SLEEP);
+		}
 		ts_info("Set IC double wakeup mode off,FOD mode off;");
 	} else {
 		ret = -1;
 		ts_info("Get IC mode falied,core_data->double_wakeup=%d,core_data->fod_status=%d;",
 			core_data->double_wakeup, core_data->fod_status);
 	}
-
 	return ret;
 }
 
@@ -635,7 +635,7 @@ static int goodix_wakeup_and_set_suspend_func(struct goodix_ts_core *core_data)
 			do {
 				r = ext_module->funcs->before_resume(core_data, ext_module);
 				if (r == EVT_CANCEL_RESUME) {
-					ts_debug("wait for fwupdate findish");
+					ts_info("wait for fwupdate findish");
 					mdelay(5);
 				}
 			} while (r == EVT_CANCEL_RESUME && ++retry < 3);
@@ -651,23 +651,24 @@ static int goodix_wakeup_and_set_suspend_func(struct goodix_ts_core *core_data)
 	do {
 		r = goodix_set_suspend_func(core_data);
 		if (r < 0) {
-			ts_debug("Send doze command failed, retry");
+			ts_info("Send doze command failed, retry");
 		}
 	} while (r < 0 && ++retry < 3);
 
-	if (core_data->double_wakeup && core_data->fod_status) {
+	if (core_data->double_wakeup && (core_data->fod_status == 1 || core_data->aod_status)) {
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK_FOD);
 	} else if (core_data->double_wakeup) {
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_DBCLK);
-	} else if (core_data->fod_status) {
+	} else if (core_data->fod_status == 1 || core_data->aod_status) {
 		atomic_set(&core_data->suspend_stat, TP_GESTURE_FOD);
 	}
-	ts_debug("suspend_stat[%d]", atomic_read(&core_data->suspend_stat));
+	ts_info("suspend_stat[%d]", atomic_read(&core_data->suspend_stat));
 
 	/*finish suspend*/
 
 	return r;
 }
+
 
 /**
  * gsx_gesture_before_suspend - execute gesture suspend routine
@@ -695,7 +696,7 @@ static int gsx_gesture_before_suspend(struct goodix_ts_core *core_data,
 	ret = goodix_set_suspend_func(core_data);
 	if (ret != 0) {
 		ts_err("Send doze command error");
-		return 0;
+		return EVT_CONTINUE;
 	} else {
 		ts_info("Set IC in doze mode");
 		atomic_set(&core_data->suspended, 1);

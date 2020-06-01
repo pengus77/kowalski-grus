@@ -3,7 +3,7 @@
  * Core layer of touchdriver architecture.
  *
  * Copyright (C) 2015 - 2016 Goodix, Inc.
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2020 XiaoMi, Inc.
  * Authors:  Yulong Cai <caiyulong@goodix.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,6 +38,7 @@
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/of_irq.h>
+#include <linux/wakelock.h>
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
@@ -64,7 +65,7 @@
 #define GOODIX_ESD_TICK_WRITE_DATA 0xAA
 #define GOODIX_PID_MAX_LEN	8
 #define GOODIX_VID_MAX_LEN	8
-#define GOODIX_ESD_CHECK_INTERVAL 5000
+#define GOODIX_ESD_CHECK_INTERVAL 5
 
 #define GOODIX_DEFAULT_CFG_NAME "goodix_config.cfg"
 
@@ -443,6 +444,7 @@ struct goodix_ts_core {
 #endif
 	struct goodix_ts_event ts_event;
 	unsigned long touch_id;
+	unsigned long sleep_finger;
 	unsigned long event_status;
 	unsigned int avdd_load;
 	unsigned char lockdown_info[GOODIX_LOCKDOWN_SIZE];
@@ -470,7 +472,12 @@ struct goodix_ts_core {
 	struct early_suspend early_suspend;
 #endif
 	struct notifier_block power_supply_notifier;
+	struct notifier_block bl_notifier;
 	struct workqueue_struct *event_wq;
+	struct workqueue_struct *touch_feature_wq;
+	struct work_struct cmd_update_work;
+	struct work_struct aod_set_work;
+	struct work_struct fod_set_work;
 	struct work_struct suspend_work;
 	struct work_struct resume_work;
 	struct work_struct power_supply_work;
@@ -478,6 +485,7 @@ struct goodix_ts_core {
 	int is_usb_exist;
 	int gesture_enabled;
 	int fod_status;
+	int aod_status;
 	int fod_pressed;
 	int fod_test;
 	int double_wakeup;
@@ -486,7 +494,10 @@ struct goodix_ts_core {
 	struct device *gtp_touch_dev;
 	char *current_clicknum_file;
 	struct mutex work_stat;
+	struct work_struct sleep_work;
 	bool tp_already_suspend;
+	bool palm_sensor_switch;
+	struct wake_lock tp_wakelock;
 	struct completion pm_resume_completion;
 #ifdef CONFIG_TOUCHSCREEN_GOODIX_DEBUG_FS
 	struct dentry *debugfs;
@@ -702,7 +713,6 @@ static inline u32 checksum_be32(u8 *data, u32 size)
 #define EMEMCMP					1003
 
 /* log macro */
-#define ts_debug(fmt, arg...)	pr_debug("[GTP-DBG][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define ts_info(fmt, arg...)	pr_info("[GTP-INF][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define	ts_err(fmt, arg...)		pr_err("[GTP-ERR][%s:%d] "fmt"\n", __func__, __LINE__, ##arg)
 #define boot_log(fmt, arg...)	g_info(fmt, ##arg)
