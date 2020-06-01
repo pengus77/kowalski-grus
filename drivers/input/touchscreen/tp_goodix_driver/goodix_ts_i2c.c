@@ -276,13 +276,6 @@ static int goodix_parse_dt(struct device_node *node,
 			board_data->panel_key_map[4]);
 	/*add end*/
 
-
-	ts_debug("[DT]id:%d, x:%d, y:%d, w:%d, p:%d",
-			board_data->panel_max_id,
-			board_data->panel_max_x,
-			board_data->panel_max_y,
-			board_data->panel_max_w,
-			board_data->panel_max_p);
 	return 0;
 }
 
@@ -1360,8 +1353,6 @@ static int _goodix_do_read_config(struct goodix_ts_device *dev,
 			goto err_out;
 		}
 		offset += subbag_len + 3;
-		ts_debug("sub bag %d, data:%*ph", buf[offset], buf[offset + 1] + 3,
-				 buf + offset);
 	}
 	ret = offset;
 
@@ -1886,8 +1877,6 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 		coords->overlapping_area = buffer[8];
 		coords->area = buffer[i * BYTES_PER_COORD + 9];
 
-		/*ts_debug("D:[%d](%d, %d)[%d]", coords->id, coords->x, coords->y,
-				coords->w);*/
 		coords++;
 	}
 
@@ -1907,10 +1896,6 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 				(buffer[i * BYTES_PER_COORD + 6] << 8);
 			touch_data->pen_coords[0].w = buffer[i * BYTES_PER_COORD + 7];
 			touch_data->pen_coords[0].p = touch_data->pen_coords[0].w;
-
-			/*ts_debug("EP:[%d](%d, %d)", touch_data->pen_coords[0].id,
-					touch_data->pen_coords[0].x, touch_data->pen_coords[0].y);*/
-
 		}
 	} else {/*it's a finger*/
 		coords->id = buffer[i * BYTES_PER_COORD + 2] & 0x0f;
@@ -1923,8 +1908,6 @@ static int goodix_touch_handler(struct goodix_ts_device *dev,
 		coords->overlapping_area = buffer[8];
 		coords->area = buffer[i * BYTES_PER_COORD + 9];
 
-
-		/*ts_debug("EF:[%d](%d, %d)", coords->id, coords->x, coords->y);*/
 		if (touch_data->pen_down == true) {
 			touch_data->pen_down = false;
 			/*ts_info("***pen leave");*/
@@ -1967,15 +1950,6 @@ static int goodix_event_handler(struct goodix_ts_device *dev,
 	core_data->event_status = pre_buf[0];
 	event_sta = pre_buf[0];
 	ispalm = pre_buf[1] & 0x20;
-#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
-	if (core_data->palm_sensor_switch) {
-		if (ispalm)
-			update_palm_sensor_value(1);
-		else
-			update_palm_sensor_value(0);
-		ts_info("palm event:%d", !!ispalm);
-	}
-#endif
 	if (likely((event_sta & GOODIX_TOUCH_EVENT) == GOODIX_TOUCH_EVENT)) {
 		/*handle touch event*/
 		goodix_touch_handler(dev,

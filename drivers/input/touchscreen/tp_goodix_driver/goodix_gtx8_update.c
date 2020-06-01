@@ -251,217 +251,6 @@ static int goodix_parse_firmware(struct firmware_data *fw_data)
 	ts_info("Firmware chip type:%02X", fw_info->chip_type);
 	ts_info("Firmware size:%u", fw_info->size);
 	ts_info("Firmware subsystem num:%u", fw_info->subsys_num);
-#ifdef CONFIG_GOODIX_DEBUG
-	for (i = 0; i < fw_info->subsys_num; i++) {
-		ts_debug("------------------------------------------");
-		ts_debug("Index:%d", i);
-		ts_debug("Subsystem type:%02X", fw_info->subsys[i].type);
-		ts_debug("Subsystem size:%u", fw_info->subsys[i].size);
-		ts_debug("Subsystem flash_addr:%08X", fw_info->subsys[i].flash_addr);
-		ts_debug("Subsystem Ptr:%p", fw_info->subsys[i].data);
-	}
-	ts_debug("------------------------------------------");
-#endif
-
-err_size:
-	return r;
-}
-
-/**
- * goodix_check_update - compare the version of firmware running in
- *  touch device with the version getting from the firmware file.
- * @fw_info: firmware infomation to be compared
- * return: 0 firmware in the touch device needs to be updated
- *			< 0 no need to update firmware
- */
-static int goodix_check_update(struct goodix_ts_device *dev,
-		const struct firmware_info *fw_info)
-{
-	struct goodix_ts_version fw_ver;
-	/*u8 fwimg_cid;*/
-	int r = 0;
-	int res = 0;
-
-	/* read version from chip, if we got invalid
-	 * firmware version, maybe fimware in flash is
-	 * incorrect, so we need to update firmware */
-	r = dev->hw_ops->read_version(dev, &fw_ver);
-	if (r == -EBUS)
-		return r;
-
-	if (fw_ver.valid) {
-		if (memcmp(fw_ver.pid, fw_info->fw_pid, dev->reg.pid_len)) {
-			ts_err("Product ID is not match");
-			return -EPERM;
-		}
-
-		/*fwimg_cid = fw_info->fw_vid[0];*/
-		res = memcmp(fw_ver.vid, fw_info->fw_vid, dev->reg.vid_len);
-		if (res == 0) {
-			ts_err("FW version is equal to the IC's");
-			return -EPERM;
-		} else if (res > 0) {
-			ts_info("Warning: fw version is lower the IC's");
-		}
-	} /* else invalid firmware, update firmware */
-
-	ts_info("Firmware needs to be updated");
-	return 0;
-}
-
-/**
- * goodix_reg_write_confirm - write register and confirm the value
- *  in the register.
- * @dev: pointer to touch device
- * @addr: register address
- * @data: pointer to data buffer
- * @len: data length
- * return: 0 write success and confirm ok
- *		   < 0 failed
- */
-static int goodix_reg_write_confirm(struct goodix_ts_device *dev,
-		unsigned int addr, unsigned char *data, unsigned int len)
-{
-	u8 *cfm, cfm_buf[32];
-	int r, i;
-
-	if (len > sizeof(cfm_buf)) {
-		cfm = kzalloc(len, GFP_KERNEL);
-		if (!cfm) {
-			ts_err("Mem alloc failed");
-			return -ENOMEM;
-		}
-	} else {
-		cfm = &cfm_buf[0];
-	}
-
-	for (i = 0; i < GOODIX_BUS_RETRY_TIMES; i++) {
-		r = dev->hw_ops->write_trans(dev, addr, data, len);
-		if (r < 0)
-			goto exit;
-
-		r = dev->hw_ops->read_trans(dev, addr, cfm, len);
-		if (r < 0)
-			goto exit;
-
-		if (memcmp(data, cfm, len)) {
-			r = -EMEMCMP;
-			continue;
-		} else {
-			r = 0;
-			break;
-		}
-	}
-
-exit:
-	if (cfm != &cfm_buf[0])
-		kfree(cfm);
-	return r;
-}
-
-static inline int goodix_reg_write(struct goodix_ts_device *dev,
-		unsigned int addr, unsigned char *data, unsigned int len)
-{
-	return dev->hw_ops->write_trans(dev, addr, data, len);
-}
-
-static inline int goodix_reg_read(struct goodix_ts_device *dev,
-		unsigned int addr, unsigned char *data, unsigned int len)
-{
-	return dev->hw_ops->read_trans(dev, addr, data, len);
-}
-
-#if 0
-#define MAX_MASK_BUF_SIZE (16*1024)
-static int goodix_load_mask(struct goodix_ts_device *ts_dev)
-{
-	const struct firmware *mask_fw;
-	const u8 *mask_name = "goodix_mask.bin";
-	u8 reg_val[10] = {0};
-	u32 total_size = 0, data_size = 0, offset = 0;
-	int r, i;
-	int index;
-
-	ts_debug("Start load mask");
-	r = request_firmware(&mask_fw, mask_name, ts_dev->dev);
-	if (r < 0) {
-		ts_err("Firmware image [%s] not available,errno:%d", mask_name, r);
-		return r;
-	} else {
-		ts_info("Firmware image [%s] is ready, size = %zu", mask_name,
-			mask_fw->size);
-	}
-
-	/* enable AHB access */
-	reg_val[0] = 0x01;
-	r = goodix_reg_write(ts_dev, 0x2049, reg_val, 1);
-	if (r) {
-		ts_err("Failed enbale AHB access");
-		goto mask_exit;
-	}
-	ts_debug("Success enable AHB access, Set 0x2049 --> 0x01");
-
-	/* switch to bank4 */
-	reg_val[0] = 0x04;
-	r = goodix_reg_write(ts_dev, 0x2048, reg_val, 1);
-	if (r) {
-		ts_err("Failed switch to bank4");
-		goto mask_exit;
-	}
-	ts_debug("Success switch to bank4, Set 0x2048 -->0x04");
-
-	total_size = mask_fw->size;
-	offset = 0;
-	index = 1;
-	while (total_size > 0) {
-		data_size = total_size > MAX_MASK_BUF_SIZE ?
-			MAX_MASK_BUF_SIZE : total_size;
-		ts_info("Flash firmware to %08x,size:%u bytes",
-			0xC000 + offset, data_size);
-
-		for (i = 0; i < 3; i++) {
-			r = goodix_reg_write_confirm(ts_dev, 0xC000,
-				(u8 *)mask_fw->data + offset, data_size);
-			if (!r)
-				break;
-			else {
-				ts_info("Failed write mask data retry..");
-				msleep(20);
-			}
-		}
-		if (r) {
-			ts_err("Failed send mask");
-			goto mask_exit;
-		}
-		offset += data_size;
-		total_size -= data_size;
-		/* switch to bank5 */
-		if (index == 1) {
-			reg_val[0] = 0x05;
-			r = goodix_reg_write(ts_dev, 0x2048, reg_val, 1);
-			if (r) {
-				ts_err("Failed switch to bank5");
-				goto mask_exit;
-			}
-			ts_debug("Success switch to bank5, Set 0x2048-->0x05");
-		}
-		index++;
-	}
-	/* disable AHB access */
-	reg_val[0] = 0x00;
-	r = goodix_reg_write(ts_dev, 0x2049, reg_val, 1);
-	if (r) {
-		ts_err("Failed disbale AHB access");
-		goto mask_exit;
-	}
-	ts_debug("Success diable AHB access, Set 0x2049-->0x00");
-	ts_info("Success loak mask");
-mask_exit:
-	release_firmware(mask_fw);
-	return r;
-}
-#endif
-
 /**
  * goodix_load_isp - load ISP program to deivce ram
  * @dev: pointer to touch device
@@ -487,7 +276,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		ts_err("Failed to select bank0");
 		return r;
 	}
-	ts_debug("Success select bank0, Set 0x%x -->0x00", HW_REG_BANK_SELECT);
 
 	/* enable bank0 access */
 	reg_val[0] = 0x01;
@@ -497,7 +285,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		ts_err("Failed to enable patch0 access");
 		return r;
 	}
-	ts_debug("Success select bank0, Set 0x%x -->0x01", HW_REG_ACCESS_PATCH0);
 
 	r = goodix_reg_write_confirm(ts_dev, HW_REG_ISP_ADDR,
 				     (u8 *)fw_isp->data, fw_isp->size);
@@ -505,8 +292,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		ts_err("Loading ISP error");
 		return r;
 	}
-
-	ts_debug("Success send ISP data to IC");
 
 
 	/* forbid patch access */
@@ -517,7 +302,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		ts_err("Failed to disable patch0 access");
 		return r;
 	}
-	ts_debug("Success forbit bank0 accedd, set 0x%x -->0x00", HW_REG_ACCESS_PATCH0);
 
 	/*clear 0x6006*/
 	reg_val[0] = 0x00;
@@ -528,7 +312,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		ts_err("Failed to clear 0x%x", HW_REG_ISP_RUN_FLAG);
 		return r;
 	}
-	ts_debug("Success clear 0x%x", HW_REG_ISP_RUN_FLAG);
 
 	/* TODO: change address 0xBDE6 set backdoor flag HW_REG_CPU_RUN_FROM */
 	memset(reg_val, 0x55, 8);
@@ -538,18 +321,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		ts_err("Failed set backdoor flag");
 		return r;
 	}
-	ts_debug("Success write [8]0x55 to 0x%x", HW_REG_CPU_RUN_FROM);
-
-	/* Emulation code SRAM start */
-	/*reg_val[0] = 0x01;
-	r = goodix_reg_write_confirm(ts_dev, HW_REG_EC_SRM_START,
-				     reg_val, 1);
-	if (r < 0) {
-		ts_err("Failed to set CPU Emulation Code SRM start");
-		return r;
-	}
-	ts_debug("Success set CPU Emulation code start, set 0x%x-->0x01",
-		 HW_REG_EC_SRM_START);*/
 
 	/* TODO: change reg_val 0x08---> 0x00 release ss51 */
 	reg_val[0] = 0x00;
@@ -559,7 +330,6 @@ static int goodix_load_isp(struct goodix_ts_device *ts_dev,
 		ts_err("Failed to run isp");
 		return r;
 	}
-	ts_debug("Success run isp, set 0x%x-->0x00", HW_REG_CPU_CTRL);
 
 	/* check isp work state */
 	for (i = 0; i < TS_CHECK_ISP_STATE_RETRY_TIMES; i++) {
@@ -626,7 +396,6 @@ static int goodix_update_prepare(struct fw_update_ctrl *fwu_ctrl)
 		ts_err("Failed hold ss51,return =%d", r);
 		return -EINVAL;
 	}
-	ts_debug("Success hold ss51");
 
 	/* enable DSP & MCU power */
 	reg_val[0] = 0x00;
@@ -635,8 +404,6 @@ static int goodix_update_prepare(struct fw_update_ctrl *fwu_ctrl)
 		ts_err("Failed enable DSP&MCU power");
 		return r;
 	}
-	ts_debug("Success enabled DSP&MCU power,set 0x%x-->0x00",
-		 HW_REG_DSP_MCU_POWER);
 
 	/* disable watchdog timer */
 	reg_val[0] = 0x00;
@@ -645,7 +412,6 @@ static int goodix_update_prepare(struct fw_update_ctrl *fwu_ctrl)
 		ts_err("Failed to clear cache");
 		return r;
 	}
-	ts_debug("Success clear cache");
 
 	reg_val[0] = 0x95;
 	r = goodix_reg_write(ts_dev, HW_REG_ESD_KEY, reg_val, 1);
@@ -658,16 +424,6 @@ static int goodix_update_prepare(struct fw_update_ctrl *fwu_ctrl)
 		ts_err("Failed to disable watchdog");
 		return r;
 	}
-	ts_debug("Success disable watchdog");
-
-	/* soft reset */
-	/*reg_val[0] = 0x01;
-	r = goodix_reg_write(ts_dev, HW_REG_RESET, reg_val, 1);
-	if (r < 0) {
-		ts_err("Soft reset falied");
-		return r;
-	}
-	ts_debug("Success soft reset");*/
 
 	/* set scramble */
 	reg_val[0] = 0x00;
@@ -676,15 +432,6 @@ static int goodix_update_prepare(struct fw_update_ctrl *fwu_ctrl)
 		ts_err("Failed to set scramble");
 		return r;
 	}
-	ts_debug("Succcess set scramble");
-
-	/* load mask for emulation IC */
-	/*r = goodix_load_mask(ts_dev);
-	if (r < 0) {
-		ts_err("Failed load mask");
-		return r;
-	}
-	ts_debug("Success load mask");*/
 
 	/* load ISP code and run form isp */
 	r = goodix_load_isp(ts_dev, &fwu_ctrl->fw_data);
@@ -808,7 +555,6 @@ static int goodix_send_fw_packet(struct goodix_ts_device *dev, u8 type,
 
 		/* flash haven't end */
 		if (reg_val[0] == ISP_STAT_WRITING && reg_val[1] == ISP_STAT_WRITING) {
-			ts_debug("Flash not ending...");
 			usleep_range(55000, 56000);
 			continue;
 		}
@@ -957,43 +703,6 @@ static int goodix_flash_firmware(struct goodix_ts_device *dev,
 			goto exit_flash;
 		}
 	}
-
-/*------Following is debug code---------*/
-/*	debug_buf = kzalloc(4096, GFP_KERNEL);
-	if (!debug_buf) {
-		ts_err("Failed alloc memory");
-		goto exit_flash;
-	}
-
-	temp[0] = 0x10;
-	temp[1] = 0x00;
-	temp[2] = 0x00;
-	temp[3] = 0x00;
-	r = goodix_reg_write(dev, 0x8100, temp, 4);
-	temp[0] = 0;
-	temp[1] = 0;
-	r |= goodix_reg_write(dev, 0x8022, temp, 2);
-	temp[0] = 0xAA;
-	temp[1] = 0xAA;
-	r |= goodix_reg_write(dev, 0x8020, temp, 2);
-	if (r) {
-		ts_err("Faild send read command");
-		goto exit_debug;
-	}
-
-	r = goodix_reg_read(dev, 0x8100, debug_buf, 4086);
-	if (!r) {
-		ts_info("success read 4096bytes");
-		ts_info("data is: %*ph", 128, debug_buf);
-	} else {
-		ts_err("Failed read 0x8100,4096 bytes");
-	}
-
-exit_debug:
-	kfree(debug_buf);*/
-/*-------------------------------------*/
-
-
 
 exit_flash:
 	return r;

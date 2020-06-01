@@ -43,8 +43,6 @@
 #define INPUT_TYPE_B_PROTOCOL
 #endif
 #include <linux/backlight.h>
-#include "../xiaomi/xiaomi_touch.h"
-#include "test_core/test_param_init.h"
 
 #define INPUT_EVENT_START			0
 #define INPUT_EVENT_SENSITIVE_MODE_OFF		0
@@ -70,8 +68,6 @@
 #define PINCTRL_STATE_SUSPEND   "pmx_ts_suspend"
 extern int goodix_start_cfg_bin(struct goodix_ts_core *ts_core);
 extern int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg, unsigned char *data, unsigned int len);
-extern void touch_irq_boost(void);
-extern void lpm_disable_for_input(bool on);
 
 struct goodix_module goodix_modules;
 struct goodix_ts_core *goodix_core_data;
@@ -251,6 +247,28 @@ static void goodix_ext_sysfs_release(struct kobject *kobj)
 				struct goodix_ext_module, kobj)
 #define to_ext_attr(attr)	container_of(attr,\
 				struct goodix_ext_attribute, attr)
+
+static ssize_t goodix_fod_status_show(struct device *dev,
+                                   struct device_attribute *attr, char *buf)
+{
+       struct goodix_ts_core *core_data = dev_get_drvdata(dev);
+
+       return snprintf(buf, 10, "%d\n", core_data->fod_status);
+}
+
+static ssize_t goodix_fod_status_store(struct device *dev,
+                                    struct device_attribute *attr,
+                                    const char *buf, size_t count)
+{
+       struct goodix_ts_core *core_data = dev_get_drvdata(dev);
+
+       sscanf(buf, "%u", &core_data->fod_status);
+
+       core_data->gesture_enabled = core_data->double_wakeup | core_data->fod_status;
+       goodix_check_gesture_stat(!!core_data->fod_status);
+
+       return count;
+}
 
 static ssize_t goodix_ext_sysfs_show(struct kobject *kobj,
 		struct attribute *attr, char *buf)
@@ -687,119 +705,6 @@ static ssize_t goodix_ts_irq_info_store(struct device *dev,
 	return count;
 }
 
-/* open short test */
-static ssize_t goodix_ts_tp_test_show(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	int ret = 0;
-	int r = 0;
-	ret = goodix_tools_register();
-
-	if (ret) {
-		ret = 0;
-		ts_err("tp_test prepare goodix_tools_register failed");
-		r = snprintf(buf, sizeof(ret), "%d", ret);
-		if (r < 0)
-			return -EINVAL;
-		return sizeof(ret);
-	}
-	ts_info("test start!");
-	ret = test_process(dev);
-
-	if (ret == 0) {
-		ret = 1;
-		ts_err("test PASS!");
-	} else {
-		ts_err("test FAILED. result:%x", ret);
-		ret = 0;
-	}
-	goodix_tools_unregister();
-	r = snprintf(buf, sizeof(ret), "%d\n", ret);
-	if (r < 0)
-		return -EINVAL;
-
-	ts_info("test finish!");
-	return sizeof(ret);
-
-}
-
-/* tp get rawdata */
-static ssize_t goodix_ts_tp_rawdata_show(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-
-{
-	int ret = 0;
-	int r = 0;
-	int buf_size = 0;
-	ret = goodix_tools_register();
-
-	if (ret) {
-		ret = 0;
-		ts_err("tp_rawdata prepare goodix_tools_register failed");
-		r = snprintf(buf, 6, "-EIO\t\n");
-		if (r < 0)
-			return -EINVAL;
-		return 4;/*sizeof("-EIO")*/
-	}
-
-	ts_info("start get rawdata!");
-	ret = get_tp_rawdata(dev, buf, &buf_size);
-
-	goodix_tools_unregister();
-
-	ts_info("test finish!");
-	return ret;
-}
-
-static ssize_t goodix_ts_power_reset_show(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-{
-	struct goodix_ts_core *core_data =
-		dev_get_drvdata(dev);
-	const struct goodix_ts_hw_ops *hw_ops = ts_hw_ops(core_data);
-
-	int ret = 0;
-	ts_info("ts power reset test!");
-
-	goodix_ts_power_off(core_data);
-	goodix_ts_power_on(core_data);
-	if (hw_ops->reset)
-		hw_ops->reset(core_data->ts_dev);
-
-	return ret;
-}
-
-/* tp get test config */
-static ssize_t goodix_ts_tp_get_testcfg_show(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
-
-{
-	int ret = 0;
-	int r = 0;
-	int buf_size = 0;
-	ret = goodix_tools_register();
-
-	if (ret) {
-		ret = 0;
-		ts_err("tp_rawdata prepare goodix_tools_register failed");
-		r = snprintf(buf, 6, "-EIO\t\n");
-		if (r < 0)
-			return -EINVAL;
-		return 4;/*sizeof("-EIO")*/
-	}
-
-	ts_info("start get rawdata!");
-	ret = get_tp_testcfg(dev, buf, &buf_size);
-
-	goodix_tools_unregister();
-
-	ts_info("test finish!");
-	return ret;
-}
 static DEVICE_ATTR(extmod_info, S_IRUGO, goodix_ts_extmod_show, NULL);
 static DEVICE_ATTR(driver_info, S_IRUGO, goodix_ts_driver_info_show, NULL);
 static DEVICE_ATTR(chip_info, S_IRUGO, goodix_ts_chip_info_show, NULL);
@@ -809,10 +714,8 @@ static DEVICE_ATTR(send_cfg, S_IWUSR | S_IWGRP, NULL, goodix_ts_send_cfg_store);
 static DEVICE_ATTR(read_cfg, S_IRUGO, goodix_ts_read_cfg_show, NULL);
 static DEVICE_ATTR(irq_info, S_IRUGO | S_IWUSR | S_IWGRP,
 		goodix_ts_irq_info_show, goodix_ts_irq_info_store);
-static DEVICE_ATTR(tp_test, S_IRUGO, goodix_ts_tp_test_show, NULL);
-static DEVICE_ATTR(tp_rawdata, S_IRUGO, goodix_ts_tp_rawdata_show, NULL);
-static DEVICE_ATTR(tp_get_testcfg, S_IRUGO, goodix_ts_tp_get_testcfg_show, NULL);
-static DEVICE_ATTR(tp_power_reset, S_IRUGO, goodix_ts_power_reset_show, NULL);
+static DEVICE_ATTR(fod_status, (S_IRUGO | S_IWUSR | S_IWGRP),
+               goodix_fod_status_show, goodix_fod_status_store);
 
 static struct attribute *sysfs_attrs[] = {
 	&dev_attr_extmod_info.attr,
@@ -823,10 +726,7 @@ static struct attribute *sysfs_attrs[] = {
 	&dev_attr_send_cfg.attr,
 	&dev_attr_read_cfg.attr,
 	&dev_attr_irq_info.attr,
-	&dev_attr_tp_test.attr,
-	&dev_attr_tp_rawdata.attr,
-	&dev_attr_tp_get_testcfg.attr,
-	&dev_attr_tp_power_reset.attr,
+	&dev_attr_fod_status.attr,
 	NULL,
 };
 
@@ -997,7 +897,6 @@ static void goodix_ts_sleep_work(struct work_struct *work)
 		r = wait_for_completion_timeout(&core_data->pm_resume_completion, msecs_to_jiffies(500));
 		if (!r) {
 			ts_info("pm_resume_completion timeout, i2c is closed");
-			lpm_disable_for_input(false);
 			wake_unlock(&core_data->tp_wakelock);
 			return;
 		} else {
@@ -1013,7 +912,6 @@ static void goodix_ts_sleep_work(struct work_struct *work)
 		if (r == EVT_CANCEL_IRQEVT) {
 			ts_info("irq exit");
 			mutex_unlock(&goodix_modules.mutex);
-			lpm_disable_for_input(false);
 			wake_unlock(&core_data->tp_wakelock);
 			return;
 		}
@@ -1029,7 +927,6 @@ static void goodix_ts_sleep_work(struct work_struct *work)
 					&ts_event->event_data.touch_data);
 		}
 	}
-	lpm_disable_for_input(false);
 	wake_unlock(&core_data->tp_wakelock);
 	ts_info("exit");
 }
@@ -1051,12 +948,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	int r;
 
 	core_data->irq_trig_cnt++;
-	/* inform external module */
-	lpm_disable_for_input(true);
-
-#ifdef CONFIG_CPU_BOOST
-	touch_irq_boost();
-#endif
 
 	if (core_data->tp_already_suspend) {
 		ts_info("device in suspend, schedue to work");
@@ -1138,12 +1029,10 @@ int goodix_ts_irq_enable(struct goodix_ts_core *core_data,
 	if (enable) {
 		if (!atomic_cmpxchg(&core_data->irq_enabled, 0, 1)) {
 			enable_irq(core_data->irq);
-			ts_debug("Irq enabled");
 		}
 	} else {
 		if (atomic_cmpxchg(&core_data->irq_enabled, 1, 0)) {
 			disable_irq(core_data->irq);
-			ts_debug("Irq disabled");
 		}
 	}
 
@@ -1373,46 +1262,6 @@ static int goodix_ts_gpio_setup(struct goodix_ts_core *core_data)
 
 	return 0;
 }
-
-static ssize_t gtp_fod_test_store(struct device *dev,
-				struct device_attribute *attr,
-				const char *buf, size_t count)
-{
-	int value = 0;
-	struct goodix_ts_core *core_data = dev_get_drvdata(dev);
-
-	ts_info("buf:%c,count:%zu\n", buf[0], count);
-	sscanf(buf, "%u", &value);
-	if (value) {
-		core_data->fod_pressed = true;
-		core_data->fod_test = true;
-		input_report_key(core_data->input_dev, BTN_INFO, 1);
-		input_report_key(core_data->input_dev, KEY_INFO, 1);
-		input_sync(core_data->input_dev);
-		input_mt_slot(core_data->input_dev, 0);
-		input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, 1);
-		input_report_key(core_data->input_dev, BTN_TOUCH, 1);
-		input_report_key(core_data->input_dev, BTN_TOOL_FINGER, 1);
-		input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, 1);
-		input_report_abs(core_data->input_dev, ABS_MT_POSITION_X, CENTER_X);
-		input_report_abs(core_data->input_dev, ABS_MT_POSITION_Y, CENTER_Y);
-		input_sync(core_data->input_dev);
-	} else {
-		core_data->fod_pressed = false;
-		core_data->fod_test = false;
-		input_mt_slot(core_data->input_dev, 0);
-		input_report_abs(core_data->input_dev, ABS_MT_WIDTH_MINOR, 0);
-		input_mt_report_slot_state(core_data->input_dev, MT_TOOL_FINGER, 0);
-		input_report_abs(core_data->input_dev, ABS_MT_TRACKING_ID, -1);
-		input_report_key(core_data->input_dev, BTN_INFO, 0);
-		input_report_key(core_data->input_dev, KEY_INFO, 0);
-		input_sync(core_data->input_dev);
-	}
-	return count;
-}
-
-static DEVICE_ATTR(fod_test, (S_IRUGO | S_IWUSR | S_IWGRP),
-		NULL, gtp_fod_test_store);
 
 static void goodix_switch_mode_work(struct work_struct *work)
 {
@@ -2310,100 +2159,6 @@ static struct attribute *gtp_attr_group[] = {
 	NULL,
 };
 
-static int gtp_i2c_test(void)
-{
-	int ret = 0;
-	u8 read_val = 0;
-	struct goodix_ts_device *ts_device;
-	ts_device = goodix_core_data->ts_dev;
-
-	ret = ts_device->hw_ops->read_trans(ts_device, 0x3100,
-			&read_val, 1);
-	if (!ret) {
-		ts_info("i2c test SUCCESS");
-	} else {
-		ts_err("i2c test FAILED");
-		return GTP_RESULT_FAIL;
-	}
-
-	return GTP_RESULT_PASS;
-}
-
-static ssize_t gtp_selftest_read(struct file *file, char __user *buf,
-				 size_t count, loff_t *pos)
-{
-	char tmp[5] = { 0 };
-	int cnt;
-
-	if (*pos != 0 || !goodix_core_data)
-		return 0;
-	cnt =
-	    snprintf(tmp, sizeof(goodix_core_data->result_type), "%d\n",
-		     goodix_core_data->result_type);
-	if (copy_to_user(buf, tmp, strlen(tmp))) {
-		return -EFAULT;
-	}
-	*pos += cnt;
-	return cnt;
-}
-
-static int gtp_short_open_test(void)
-{
-	int ret = 0;
-
-	ret = goodix_tools_register();
-
-	if (ret) {
-		ts_err("tp_test prepare goodix_tools_register failed");
-		return GTP_RESULT_INVALID;
-	}
-	ts_info("test start!");
-	ret = test_process((void *)(&goodix_core_data->pdev->dev));
-
-	if (ret == 0) {
-		ts_err("test PASS!");
-		return GTP_RESULT_PASS;
-	} else {
-		ts_err("test FAILED. result:%x", ret);
-		return GTP_RESULT_FAIL;
-	}
-	goodix_tools_unregister();
-
-	ts_info("test finish!");
-	return GTP_RESULT_FAIL;
-}
-
-static ssize_t gtp_selftest_write(struct file *file, const char __user *buf,
-				  size_t count, loff_t *pos)
-{
-	int retval = 0;
-	char tmp[6];
-
-	if (copy_from_user(tmp, buf, count)) {
-		retval = -EFAULT;
-		goto out;
-	}
-	if (!goodix_core_data)
-		return GTP_RESULT_INVALID;
-
-	if (!strncmp("short", tmp, 5) || !strncmp("open", tmp, 4)) {
-		retval = gtp_short_open_test();
-	} else if (!strncmp("i2c", tmp, 3))
-		retval = gtp_i2c_test();
-
-	goodix_core_data->result_type = retval;
-out:
-	if (retval >= 0)
-		retval = count;
-
-	return retval;
-}
-
-static const struct file_operations gtp_selftest_ops = {
-	.read = gtp_selftest_read,
-	.write = gtp_selftest_write,
-};
-
 static void gtp_power_supply_work(struct work_struct *work)
 {
 	struct goodix_ts_core *core_data =
@@ -2849,6 +2604,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		goto out;
 	}
 
+
 	if (core_data->gtp_tp_class == NULL)
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 		core_data->gtp_tp_class = get_xiaomi_touch_class();
@@ -2863,13 +2619,10 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	dev_set_drvdata(core_data->gtp_touch_dev, core_data);
 
 	if (sysfs_create_file(&core_data->gtp_touch_dev->kobj,
-				  &dev_attr_fod_test.attr)) {
-		ts_err("Failed to create fod_test sysfs group!");
-		goto out;
-	}
-
-	core_data->tp_selftest_proc =
-		proc_create("tp_selftest", 0644, NULL, &gtp_selftest_ops);
+                                  &dev_attr_fod_status.attr)) {
+                ts_err("Failed to create fod_status sysfs group!");
+                goto out; 
+        }
 
 	core_data->fod_status = 0;
 	wake_lock_init(&core_data->tp_wakelock, WAKE_LOCK_SUSPEND, "touch_locker");
@@ -2913,9 +2666,6 @@ static int goodix_ts_remove(struct platform_device *pdev)
 		platform_get_drvdata(pdev);
 #ifdef CONFIG_DRM
 	drm_unregister_client(&core_data->fb_notifier);
-#endif
-#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
-	destroy_workqueue(core_data->touch_feature_wq);
 #endif
 	wake_lock_destroy(&core_data->tp_wakelock);
 	power_supply_unreg_notifier(&core_data->power_supply_notifier);

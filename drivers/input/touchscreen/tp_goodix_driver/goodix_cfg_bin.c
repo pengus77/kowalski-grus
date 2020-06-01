@@ -124,41 +124,6 @@ int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 		cfg_bin->cfg_pkgs[i].cfg = &cfg_bin->bin_data[offset1 + TS_PKG_HEAD_LEN];
 	}
 
-	/*debug, print pkg information*/
-	for (i = 0; i < cfg_bin->head.pkg_num; i++) {
-		ts_info("---------------------------------------------");
-		ts_info("------package:%d------", i + 1);
-		ts_info("package len:%04x", cfg_bin->cfg_pkgs[i].cnst_info.pkg_len);
-		ts_info("package ic_type:%s", cfg_bin->cfg_pkgs[i].cnst_info.ic_type);
-		ts_info("package cfg_type:%01x", cfg_bin->cfg_pkgs[i].cnst_info.cfg_type);
-		ts_info("package sensor_id:%01x", cfg_bin->cfg_pkgs[i].cnst_info.sensor_id);
-		ts_info("package hw_pid:%s", cfg_bin->cfg_pkgs[i].cnst_info.hw_pid);
-		ts_info("package hw_vid:%s", cfg_bin->cfg_pkgs[i].cnst_info.hw_vid);
-		ts_info("package fw_mask_version:%s", cfg_bin->cfg_pkgs[i].cnst_info.fw_mask);
-		ts_info("package fw_patch_version:%s", cfg_bin->cfg_pkgs[i].cnst_info.fw_patch);
-		ts_info("package x_res_offset:%02x", cfg_bin->cfg_pkgs[i].cnst_info.x_res_offset);
-		ts_info("package y_res_offset:%02x", cfg_bin->cfg_pkgs[i].cnst_info.y_res_offset);
-		ts_info("package trigger_offset:%02x", cfg_bin->cfg_pkgs[i].cnst_info.trigger_offset);
-
-		ts_info("");
-		ts_info("send_cfg_flag reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.cfg_send_flag.addr);
-		ts_info("version base reg:%02x, len:%d",
-				cfg_bin->cfg_pkgs[i].reg_info.version_base.addr,
-				cfg_bin->cfg_pkgs[i].reg_info.version_base.reserved1);
-		ts_info("pid reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.pid.addr);
-		ts_info("vid reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.vid.addr);
-		ts_info("sensor_id reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.sensor_id.addr);
-		ts_info("fw_status reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.fw_status.addr);
-		ts_info("cfg_addr reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.cfg_addr.addr);
-		ts_info("esd reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.esd.addr);
-		ts_info("command reg:%02x", cfg_bin->cfg_pkgs[i].reg_info.command.addr);
-		ts_info("coor:%02x", cfg_bin->cfg_pkgs[i].reg_info.coor.addr);
-		ts_info("gesture:%02x", cfg_bin->cfg_pkgs[i].reg_info.gesture.addr);
-		ts_info("fw_request:%02x", cfg_bin->cfg_pkgs[i].reg_info.fw_request.addr);
-		ts_info("proximity:%02x", cfg_bin->cfg_pkgs[i].reg_info.proximity.addr);
-
-		ts_info("--------------------------------------------");
-	}
 	r = 0;
 exit:
 	return r;
@@ -216,23 +181,6 @@ int goodix_cfg_bin_proc(void *data)
 	/*init i2c_set_doze_mode para*/
 	ts_dev->doze_mode_set_count = 0;
 	mutex_init(&ts_dev->doze_mode_lock);
-	/*debug*/
-	ts_info("@@@@@@@@@");
-	ts_info("cfg_send_flag:0x%04x", ts_dev->reg.cfg_send_flag);
-	ts_info("pid:0x%04x", ts_dev->reg.pid);
-	ts_info("vid:0x%04x", ts_dev->reg.vid);
-	ts_info("sensor_id:0x%04x", ts_dev->reg.sensor_id);
-	ts_info("fw_mask:0x%04x", ts_dev->reg.fw_mask);
-	ts_info("fw_status:0x%04x", ts_dev->reg.fw_status);
-	ts_info("cfg_addr:0x%04x", ts_dev->reg.cfg_addr);
-	ts_info("esd:0x%04x", ts_dev->reg.esd);
-	ts_info("command:0x%04x", ts_dev->reg.command);
-	ts_info("coor:0x%04x", ts_dev->reg.coor);
-	ts_info("gesture:0x%04x", ts_dev->reg.gesture);
-	ts_info("fw_request:0x%04x", ts_dev->reg.fw_request);
-	ts_info("proximity:0x%04x", ts_dev->reg.proximity);
-	ts_info("@@@@@@@@@");
-
 	
 	/* initialize firmware */
 	r = ts_dev->hw_ops->init(ts_dev);
