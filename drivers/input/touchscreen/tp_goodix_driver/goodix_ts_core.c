@@ -834,9 +834,7 @@ static int goodix_ts_input_report(struct input_dev *dev,
 
 			input_report_abs(dev, ABS_MT_WIDTH_MINOR, coords->overlapping_area);
 			input_report_abs(dev, ABS_MT_WIDTH_MAJOR, coords->overlapping_area);
-			if (!__test_and_set_bit(i, &core_data->touch_id)) {
-				ts_info("[GTP] %s report press:%d", __func__, i);
-			}
+			__test_and_set_bit(i, &core_data->touch_id);
 			dev_dbg(core_data->ts_dev->dev, "[GTP] %s report:[%d](%d, %d, %d, %d)", __func__, id,
 				touch_data->coords[0].x, touch_data->coords[0].y,
 				touch_data->coords[0].area, touch_data->coords[0].overlapping_area);
@@ -850,7 +848,6 @@ static int goodix_ts_input_report(struct input_dev *dev,
 					input_report_key(dev, BTN_TOOL_FINGER, 0);
 					core_data->sleep_finger = 0;
 				}
-				ts_info("[GTP] %s report leave:%d", __func__, i);
 			}
 		}
 	}
