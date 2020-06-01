@@ -31,7 +31,7 @@ int goodix_get_lockdowninfo(struct goodix_ts_core *ts_core)
 		ts_err("can't get lockdown");
 		return -EINVAL;
 	}
-	ts_info("lockdown is:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x",
+	pr_debug("lockdown is:0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x,0x%02x",
 		     ts_core->lockdown_info[0], ts_core->lockdown_info[1],
 		     ts_core->lockdown_info[2], ts_core->lockdown_info[3],
 		     ts_core->lockdown_info[4], ts_core->lockdown_info[5],
@@ -152,7 +152,7 @@ int goodix_cfg_bin_proc(void *data)
 	/*parse cfg bin*/
 	r = goodix_parse_cfg_bin(cfg_bin);
 	if (!r) {
-		ts_info("parse cfg bin SUCCESS");
+		pr_debug("parse cfg bin SUCCESS");
 	} else {
 		ts_err("parse cfg bin FAILED");
 		goto exit;
@@ -165,7 +165,7 @@ int goodix_cfg_bin_proc(void *data)
 	/*get register address and configuration from cfg bin*/
 	r = goodix_get_reg_and_cfg(ts_dev, cfg_bin);
 	if (!r) {
-		ts_info("get reg and cfg from cfg_bin SUCCESS");
+		pr_debug("get reg and cfg from cfg_bin SUCCESS");
 	} else {
 		if (r != -EBUS) {
 			ts_err("get reg and cfg from cfg_bin FAILED, update fw then retry");
@@ -273,12 +273,12 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 					cfg_bin->cfg_pkgs[i].cnst_info.ic_type);
 
 
-		ts_info("ic_type:%d", ts_dev->ic_type);
+		pr_debug("ic_type:%d", ts_dev->ic_type);
 
 		/*contrast sensor id*/
 		addr = cfg_bin->cfg_pkgs[i].reg_info.sensor_id.addr;
 		if (!addr) {
-			ts_info("pkg:%d, sensor_id reg is NULL", i);
+			pr_debug("pkg:%d, sensor_id reg is NULL", i);
 			continue;
 		}
 
@@ -346,12 +346,12 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 
 		/*contrast success, cfg_type*/
 		if (cfg_bin->cfg_pkgs[i].cnst_info.cfg_type == TS_NORMAL_CFG) {
-			ts_info("find normal cfg_pkg SUCCESS");
+			pr_debug("find normal cfg_pkg SUCCESS");
 			r = 0;
 			normal_pkg = &cfg_bin->cfg_pkgs[i];
 		}
 		if (cfg_bin->cfg_pkgs[i].cnst_info.cfg_type == TS_HIGH_SENSE_CFG) {
-			ts_info("find high sense cfg_pkg SUCCESS");
+			pr_debug("find high sense cfg_pkg SUCCESS");
 			high_sense_pkg = &cfg_bin->cfg_pkgs[i];
 		}
 	}
@@ -402,7 +402,7 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 
 	/*get configuration from pkgs*/
 	if (normal_pkg) {
-		ts_info("normal cfg is found!");
+		pr_debug("normal cfg is found!");
 		if (!ts_dev->normal_cfg) {
 			ts_dev->normal_cfg = devm_kzalloc(ts_dev->dev,
 					sizeof(*ts_dev->normal_cfg), GFP_KERNEL);
@@ -421,7 +421,7 @@ int goodix_get_reg_and_cfg(struct goodix_ts_device *ts_dev, struct goodix_cfg_bi
 	}
 
 	if (high_sense_pkg) {
-		ts_info("high sense cfg is found!");
+		pr_debug("high sense cfg is found!");
 		if (!ts_dev->highsense_cfg) {
 			ts_dev->highsense_cfg = devm_kzalloc(ts_dev->dev,
 					sizeof(*ts_dev->highsense_cfg), GFP_KERNEL);
@@ -470,9 +470,9 @@ int goodix_read_cfg_bin(struct device *dev, struct goodix_cfg_bin *cfg_bin)
 	else
 		strlcpy(cfg_bin_name, TS_DEFAULT_CFG_BIN,
 				sizeof(cfg_bin_name));
-	ts_info("ts_bdata->cfg_bin_name:%s", ts_bdata->cfg_bin_name);
+	pr_debug("ts_bdata->cfg_bin_name:%s", ts_bdata->cfg_bin_name);
 
-	ts_info("cfg_bin_name:%s", cfg_bin_name);
+	pr_debug("cfg_bin_name:%s", cfg_bin_name);
 
 	for (i = 0; i < TS_RQST_FW_RETRY_TIMES; i++) {
 		r = request_firmware(&firmware, cfg_bin_name, dev);
@@ -480,7 +480,7 @@ int goodix_read_cfg_bin(struct device *dev, struct goodix_cfg_bin *cfg_bin)
 			ts_err("Cfg_bin image [%s] not available,error:%d, try_times:%d", cfg_bin_name, r, i + 1);
 			msleep(1000);
 		} else {
-			ts_info("Cfg_bin image [%s] is ready, try_times:%d", cfg_bin_name, i + 1);
+			pr_debug("Cfg_bin image [%s] is ready, try_times:%d", cfg_bin_name, i + 1);
 			break;
 		}
 	}
