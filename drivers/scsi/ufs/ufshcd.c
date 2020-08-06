@@ -3165,7 +3165,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		err = SCSI_MLQUEUE_HOST_BUSY;
 		hba->ufs_stats.clk_rel.ctx = QUEUE_CMD;
-		ufshcd_release(hba, true);
+		ufshcd_release_all(hba);
 		goto out;
 	}
 	if (ufshcd_is_hibern8_on_idle_allowed(hba))
@@ -3213,6 +3213,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 
 	err = ufshcd_map_sg(hba, lrbp);
 	if (err) {
+		ufshcd_release(hba, false);
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		ufshcd_release_all(hba);
