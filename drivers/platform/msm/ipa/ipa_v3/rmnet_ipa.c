@@ -1108,9 +1108,9 @@ static int ipa3_wwan_change_mtu(struct net_device *dev, int new_mtu)
  * later
  * -EFAULT: Error while transmitting the skb
  */
-static int ipa3_wwan_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t ipa3_wwan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int ret = 0;
+	netdev_tx_t ret = NETDEV_TX_OK;
 	bool qmap_check;
 	struct ipa3_wwan_private *wwan_ptr = netdev_priv(dev);
 
@@ -2603,9 +2603,6 @@ static int rmnet_ipa_ap_suspend(struct device *dev)
 
 	/* Make sure that there is no Tx operation ongoing */
 	netif_stop_queue(netdev);
-	/* Stoppig Watch dog timer when pipe was in suspend state */
-	if (del_timer(&netdev->watchdog_timer))
-		dev_put(netdev);
 	netif_tx_unlock_bh(netdev);
 	if (ipa3_ctx->use_ipa_pm)
 		ipa_pm_deactivate_sync(rmnet_ipa3_ctx->pm_hdl);
@@ -2632,12 +2629,8 @@ static int rmnet_ipa_ap_resume(struct device *dev)
 	struct net_device *netdev = IPA_NETDEV();
 
 	IPAWANDBG("Enter...\n");
-	if (netdev) {
+	if (netdev)
 		netif_wake_queue(netdev);
-		/* Starting Watch dog timer, pipe was changes to resume state */
-		if (netif_running(netdev) && netdev->watchdog_timeo <= 0)
-			__netdev_watchdog_up(netdev);
-	}
 	IPAWANDBG("Exit\n");
 
 	return 0;
@@ -2730,11 +2723,9 @@ static int ipa3_ssr_notifier_cb(struct notifier_block *this,
 		break;
 	case SUBSYS_BEFORE_POWERUP:
 		IPAWANINFO("IPA received MPSS BEFORE_POWERUP\n");
-		if (atomic_read(&rmnet_ipa3_ctx->is_ssr)) {
+		if (atomic_read(&rmnet_ipa3_ctx->is_ssr))
 			/* clean up cached QMI msg/handlers */
 			ipa3_qmi_service_exit();
-			ipa3_q6_pre_powerup_cleanup();
-		}
 		/*
 		 * hold a proxy vote for the modem.
 		 * for IPA 4.0 offline charge is not needed and proxy vote
@@ -3738,17 +3729,6 @@ static inline int rmnet_ipa3_delete_lan_client_info
 	struct ipa_lan_client *lan_client = NULL;
 	int i;
 
-	IPAWANDBG("Delete lan client info: %d, %d, %d\n",
-		rmnet_ipa3_ctx->tether_device[device_type].num_clients,
-		lan_clnt_idx, device_type);
-	/* Check if Device type is valid. */
-
-	if (device_type >= IPACM_MAX_CLIENT_DEVICE_TYPES ||
-		device_type < 0) {
-		IPAWANERR("Invalid Device type: %d\n", device_type);
-		return -EINVAL;
-	}
-
 	/* Check if the request is to clean up all clients. */
 	if (lan_clnt_idx == 0xffffffff) {
 		/* Reset the complete device info. */
@@ -3765,8 +3745,6 @@ static inline int rmnet_ipa3_delete_lan_client_info
 		/* Reset the client info before sending the message. */
 		memset(lan_client, 0, sizeof(struct ipa_lan_client));
 		lan_client->client_idx = -1;
-		/* Decrement the number of clients. */
-		rmnet_ipa3_ctx->tether_device[device_type].num_clients--;
 
 	}
 	return 0;
@@ -3886,10 +3864,6 @@ int rmnet_ipa3_clear_lan_client_info(
 		IPAWANERR("Invalid Client Index: %d\n", data->client_idx);
 		return -EINVAL;
 	}
-
-	IPAWANDBG("Client : %d:%d:%d\n",
-		data->device_type, data->client_idx,
-		rmnet_ipa3_ctx->tether_device[data->device_type].num_clients);
 
 	mutex_lock(&rmnet_ipa3_ctx->per_client_stats_guard);
 	lan_client =
@@ -4049,21 +4023,6 @@ int rmnet_ipa3_query_per_client_stats(
 
 	mutex_lock(&rmnet_ipa3_ctx->per_client_stats_guard);
 
-	/* Check if Source pipe is valid. */
-	if (rmnet_ipa3_ctx->tether_device
-		[data->device_type].ul_src_pipe == -1) {
-		IPAWANERR("Device not initialized: %d\n", data->device_type);
-		mutex_unlock(&rmnet_ipa3_ctx->per_client_stats_guard);
-		return -EINVAL;
-	}
-
-	/* Check if we have clients connected. */
-	if (rmnet_ipa3_ctx->tether_device[data->device_type].num_clients == 0) {
-		IPAWANERR("No clients connected: %d\n", data->device_type);
-		mutex_unlock(&rmnet_ipa3_ctx->per_client_stats_guard);
-		return -EINVAL;
-	}
-
 	if (data->num_clients == 1) {
 		/* Check if the client info is valid.*/
 		lan_clnt_idx1 = rmnet_ipa3_get_lan_client_info(
@@ -4119,9 +4078,6 @@ int rmnet_ipa3_query_per_client_stats(
 	}
 	memset(req, 0, sizeof(struct ipa_get_stats_per_client_req_msg_v01));
 	memset(resp, 0, sizeof(struct ipa_get_stats_per_client_resp_msg_v01));
-
-	IPAWANDBG("Reset stats: %s",
-		data->reset_stats?"Yes":"No");
 
 	if (data->reset_stats) {
 		req->reset_stats_valid = true;
@@ -4193,9 +4149,6 @@ int rmnet_ipa3_query_per_client_stats(
 				IPA_MAC_ADDR_SIZE);
 		}
 	}
-
-	IPAWANDBG("Disconnect clnt: %s",
-		data->disconnect_clnt?"Yes":"No");
 
 	if (data->disconnect_clnt) {
 		rmnet_ipa3_delete_lan_client_info(data->device_type,

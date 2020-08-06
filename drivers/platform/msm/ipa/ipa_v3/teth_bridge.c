@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017,2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -38,12 +38,6 @@
 #define TETH_ERR(fmt, args...) \
 	pr_err(TETH_BRIDGE_DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args)
 
-enum ipa_num_teth_iface {
-	IPA_TETH_IFACE_1 = 0,
-	IPA_TETH_IFACE_2 = 1,
-	IPA_TETH_IFACE_MAX
-};
-
 /**
  * struct ipa3_teth_bridge_ctx - Tethering bridge driver context information
  * @class: kernel class pointer
@@ -56,7 +50,7 @@ struct ipa3_teth_bridge_ctx {
 	dev_t dev_num;
 	struct device *dev;
 	struct cdev cdev;
-	u32 modem_pm_hdl[IPA_TETH_IFACE_MAX];
+	u32 modem_pm_hdl;
 };
 static struct ipa3_teth_bridge_ctx *ipa3_teth_ctx;
 
@@ -126,32 +120,21 @@ int ipa3_teth_bridge_init(struct teth_bridge_init_params *params)
 int ipa3_teth_bridge_disconnect(enum ipa_client_type client)
 {
 	int res = 0;
-	int *pm_hdl = NULL;
 
 	TETH_DBG_FUNC_ENTRY();
 	if (ipa_pm_is_used()) {
-
-		if (client == IPA_CLIENT_USB2_PROD)
-			pm_hdl = &ipa3_teth_ctx->modem_pm_hdl[IPA_TETH_IFACE_2];
-		else
-			pm_hdl = &ipa3_teth_ctx->modem_pm_hdl[IPA_TETH_IFACE_1];
-
-		res = ipa_pm_deactivate_sync(*pm_hdl);
+		res = ipa_pm_deactivate_sync(ipa3_teth_ctx->modem_pm_hdl);
 		if (res) {
 			TETH_ERR("fail to deactivate modem %d\n", res);
 			return res;
 		}
-		res = ipa_pm_deregister(*pm_hdl);
-		*pm_hdl = ~0;
+		res = ipa_pm_deregister(ipa3_teth_ctx->modem_pm_hdl);
+		ipa3_teth_ctx->modem_pm_hdl = ~0;
 	} else {
-		if (client == IPA_CLIENT_USB2_PROD) {
-			TETH_ERR("No support for rm added/validated.\n");
-		} else {
-			ipa_rm_delete_dependency(IPA_RM_RESOURCE_USB_PROD,
-				IPA_RM_RESOURCE_Q6_CONS);
-			ipa_rm_delete_dependency(IPA_RM_RESOURCE_Q6_PROD,
-				IPA_RM_RESOURCE_USB_CONS);
-		}
+		ipa_rm_delete_dependency(IPA_RM_RESOURCE_USB_PROD,
+					IPA_RM_RESOURCE_Q6_CONS);
+		ipa_rm_delete_dependency(IPA_RM_RESOURCE_Q6_PROD,
+					IPA_RM_RESOURCE_USB_CONS);
 	}
 	TETH_DBG_FUNC_EXIT();
 
@@ -171,37 +154,23 @@ int ipa3_teth_bridge_connect(struct teth_bridge_connect_params *connect_params)
 {
 	int res = 0;
 	struct ipa_pm_register_params reg_params;
-	u32 *pm = NULL;
 
 	memset(&reg_params, 0, sizeof(reg_params));
 
 	TETH_DBG_FUNC_ENTRY();
 
 	if (ipa_pm_is_used()) {
-		if (connect_params->tethering_mode ==
-			TETH_TETHERING_MODE_RMNET_2) {
-			reg_params.name = "MODEM (USB RMNET_CV2X)";
-			pm = &ipa3_teth_ctx->modem_pm_hdl[IPA_TETH_IFACE_2];
-		} else {
-			reg_params.name = "MODEM (USB RMNET)";
-			pm = &ipa3_teth_ctx->modem_pm_hdl[IPA_TETH_IFACE_1];
-		}
+		reg_params.name = "MODEM (USB RMNET)";
 		reg_params.group = IPA_PM_GROUP_MODEM;
 		reg_params.skip_clk_vote = true;
 		res = ipa_pm_register(&reg_params,
-			pm);
+			&ipa3_teth_ctx->modem_pm_hdl);
 		if (res) {
 			TETH_ERR("fail to register with PM %d\n", res);
 			return res;
 		}
 
-		res = ipa_pm_activate_sync(*pm);
-		goto bail;
-	}
-
-	if (connect_params->tethering_mode == TETH_TETHERING_MODE_RMNET_2) {
-		res = -EINVAL;
-		TETH_ERR("No support for rm added/validated.\n");
+		res = ipa_pm_activate_sync(ipa3_teth_ctx->modem_pm_hdl);
 		goto bail;
 	}
 
@@ -256,7 +225,7 @@ static const struct file_operations ipa3_teth_bridge_drv_fops = {
 */
 int ipa3_teth_bridge_driver_init(void)
 {
-	int res, i;
+	int res;
 
 	TETH_DBG("Tethering bridge driver init\n");
 	ipa3_teth_ctx = kzalloc(sizeof(*ipa3_teth_ctx), GFP_KERNEL);
@@ -297,9 +266,7 @@ int ipa3_teth_bridge_driver_init(void)
 		goto fail_cdev_add;
 	}
 
-	for (i = 0; i < IPA_TETH_IFACE_MAX; i++)
-		ipa3_teth_ctx->modem_pm_hdl[i] = ~0;
-
+	ipa3_teth_ctx->modem_pm_hdl = ~0;
 	TETH_DBG("Tethering bridge driver init OK\n");
 
 	return 0;

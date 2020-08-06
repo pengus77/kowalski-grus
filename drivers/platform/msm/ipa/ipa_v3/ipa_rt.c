@@ -333,8 +333,8 @@ static int ipa_prep_rt_tbl_for_cmt(enum ipa_ip_type ip,
 
 	if ((tbl->sz[IPA_RULE_HASHABLE] +
 		tbl->sz[IPA_RULE_NON_HASHABLE]) == 0) {
-		IPADBG("rt tbl %s is with zero total size\n", tbl->name);
-		return 0;
+		WARN_ON_RATELIMIT_IPA(1);
+		IPAERR_RL("rt tbl %s is with zero total size\n", tbl->name);
 	}
 
 	hdr_width = ipahal_get_hw_tbl_hdr_width();
@@ -1244,7 +1244,7 @@ int ipa3_add_rt_rule_after(struct ipa_ioc_add_rt_rule_after *rules)
 	tbl = __ipa3_find_rt_tbl(rules->ip, rules->rt_tbl_name);
 	if (tbl == NULL || (tbl->cookie != IPA_RT_TBL_COOKIE)) {
 		IPAERR_RL("failed finding rt tbl name = %s\n",
-			(rules->rt_tbl_name != NULL) ? rules->rt_tbl_name : "");
+			rules->rt_tbl_name ? rules->rt_tbl_name : "");
 		ret = -EINVAL;
 		goto bail;
 	}
@@ -1552,7 +1552,6 @@ int ipa3_reset_rt(enum ipa_ip_type ip, bool user_only)
 					hdr_entry->cookie != IPA_HDR_COOKIE) {
 						IPAERR_RL(
 						"Header already deleted\n");
-						mutex_unlock(&ipa3_ctx->lock);
 						return -EINVAL;
 					}
 				} else if (rule->proc_ctx) {
@@ -1564,7 +1563,6 @@ int ipa3_reset_rt(enum ipa_ip_type ip, bool user_only)
 							IPA_PROC_HDR_COOKIE) {
 						IPAERR_RL(
 						"Proc entry already deleted\n");
-						mutex_unlock(&ipa3_ctx->lock);
 						return -EINVAL;
 					}
 				}

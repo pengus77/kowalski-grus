@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -92,8 +92,6 @@ const char *ipa_event_name[] = {
 	__stringify(ADD_BRIDGE_VLAN_MAPPING),
 	__stringify(DEL_BRIDGE_VLAN_MAPPING),
 	__stringify(WLAN_FWR_SSR_BEFORE_SHUTDOWN),
-	__stringify(IPA_GSB_CONNECT),
-	__stringify(IPA_GSB_DISCONNECT),
 };
 
 const char *ipa_hdr_l2_type_name[] = {
@@ -1462,7 +1460,7 @@ static ssize_t ipa_read_msg(struct file *file, char __user *ubuf,
 	int cnt = 0;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(ipa_event_name); i++) {
+	for (i = 0; i < IPA_EVENT_MAX_NUM; i++) {
 		nbytes = scnprintf(dbg_buff + cnt, IPA_MAX_MSG_LEN - cnt,
 				"msg[%u:%27s] W:%u R:%u\n", i,
 				ipa_event_name[i],
