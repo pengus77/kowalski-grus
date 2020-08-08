@@ -315,6 +315,7 @@ void hdd_ndp_event_handler(struct hdd_adapter *adapter,
 {
 	bool success;
 	struct wlan_objmgr_psoc *psoc = wlan_vdev_get_psoc(adapter->vdev);
+	uint8_t sta_id;
 
 	if (roam_status == eCSR_ROAM_NDP_STATUS_UPDATE) {
 		switch (roam_result) {
@@ -323,8 +324,10 @@ void hdd_ndp_event_handler(struct hdd_adapter *adapter,
 					NAN_DATAPATH_RSP_STATUS_SUCCESS);
 			hdd_debug("posting ndi create status: %d (%s) to umac",
 				  success, success ? "Success" : "Failure");
+
+			sta_id = roam_info->ndp.ndi_create_params.sta_id;
 			os_if_nan_post_ndi_create_rsp(psoc, adapter->session_id,
-							success);
+						      success, sta_id);
 			return;
 		case eCSR_ROAM_RESULT_NDI_DELETE_RSP:
 			success = (roam_info->ndp.ndi_create_params.status ==
@@ -775,7 +778,6 @@ void hdd_ndi_drv_ndi_delete_rsp_handler(uint8_t vdev_id)
 	sta_id = sta_ctx->broadcast_staid;
 	if (sta_id < HDD_MAX_ADAPTERS) {
 		hdd_ctx->sta_to_adapter[sta_id] = NULL;
-		hdd_roam_deregister_sta(adapter, sta_id);
 		hdd_delete_peer(sta_ctx, sta_id);
 		sta_ctx->broadcast_staid = HDD_WLAN_INVALID_STA_ID;
 	}
@@ -941,12 +943,12 @@ void hdd_ndp_peer_departed_handler(uint8_t vdev_id, uint16_t sta_id,
 		return;
 	}
 
-	hdd_roam_deregister_sta(adapter, sta_id);
 	hdd_delete_peer(sta_ctx, sta_id);
 	hdd_ctx->sta_to_adapter[sta_id] = NULL;
 
 	if (last_peer) {
 		hdd_debug("No more ndp peers.");
 		hdd_cleanup_ndi(hdd_ctx, adapter);
+		qdf_event_set(&adapter->peer_cleanup_done);
 	}
 }

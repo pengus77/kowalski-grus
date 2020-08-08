@@ -1374,6 +1374,9 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 
 	bytes += sizeof(tSirMacMgmtHdr) + payload;
 
+	if (sta)
+		bytes += sta->mlmStaContext.owe_ie_len;
+
 	qdf_status = cds_packet_alloc((uint16_t) bytes, (void **)&frame,
 				      (void **)&packet);
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
@@ -1413,6 +1416,12 @@ lim_send_assoc_rsp_mgmt_frame(tpAniSirGlobal mac_ctx,
 	if (addn_ie_len && addn_ie_len <= WNI_CFG_ASSOC_RSP_ADDNIE_DATA_LEN)
 		qdf_mem_copy(frame + sizeof(tSirMacMgmtHdr) + payload,
 			     &add_ie[0], addn_ie_len);
+
+	if (sta && sta->mlmStaContext.owe_ie_len)
+		qdf_mem_copy(frame + sizeof(tSirMacMgmtHdr) + payload
+			     + addn_ie_len,
+			     sta->mlmStaContext.owe_ie,
+			     sta->mlmStaContext.owe_ie_len);
 
 	if ((BAND_5G ==
 		lim_get_rf_band(pe_session->currentOperChannel)) ||
@@ -1924,9 +1933,8 @@ lim_send_assoc_req_mgmt_frame(tpAniSirGlobal mac_ctx,
 		pe_debug("Populate VHT IEs in Assoc Request");
 		populate_dot11f_vht_caps(mac_ctx, pe_session, &frm->VHTCaps);
 		vht_enabled = true;
-		if (pe_session->enableHtSmps &&
-				!pe_session->supported_nss_1x1) {
-			pe_err("VHT OP mode IE in Assoc Req");
+		if (pe_session->gLimOperatingMode.present) {
+			pe_debug("VHT OP mode IE in Assoc Req");
 			populate_dot11f_operating_mode(mac_ctx,
 					&frm->OperatingMode, pe_session);
 		}
@@ -5169,6 +5177,7 @@ void lim_send_mgmt_frame_tx(tpAniSirGlobal mac_ctx,
 	QDF_STATUS qdf_status;
 	uint8_t *frame;
 	void *packet;
+	tpSirMacMgmtHdr mac_hdr;
 
 	msg_len = mb_msg->msg_len - sizeof(*mb_msg);
 
@@ -5178,6 +5187,9 @@ void lim_send_mgmt_frame_tx(tpAniSirGlobal mac_ctx,
 #endif
 
 	sme_session_id = mb_msg->session_id;
+	mac_hdr = (tpSirMacMgmtHdr)mb_msg->data;
+
+	lim_add_mgmt_seq_num(mac_ctx, mac_hdr);
 
 	qdf_status = cds_packet_alloc((uint16_t) msg_len, (void **)&frame,
 				 (void **)&packet);
