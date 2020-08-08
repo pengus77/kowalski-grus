@@ -121,7 +121,6 @@ kernel/configs/android-*.cfg
 
 # build-dir
 out/
-*.sh
-
-net/wireguard/
-scripts/net/
+upgrade_audio.sh
+upgrade_wifi.sh
+build.sh
