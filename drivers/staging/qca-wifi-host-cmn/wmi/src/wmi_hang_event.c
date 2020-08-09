@@ -55,11 +55,6 @@ static void wmi_log_history(struct notifier_block *block, void *data,
 	if (wmi_hang_data->offset >= QDF_WLAN_MAX_HOST_OFFSET)
 		return;
 
-	if (wmi_history)
-		wmi_log = &wmi_handle->log_info.wmi_event_log_buf_info;
-	else
-		wmi_log = &wmi_handle->log_info.wmi_command_log_buf_info;
-
 	total_len = sizeof(struct wmi_hang_data_fixed_param);
 
 	if (wmi_log->length <= wmi_ring_size)
