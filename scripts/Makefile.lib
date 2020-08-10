@@ -288,7 +288,15 @@ DTC_FLAGS += -Wno-unit_address_vs_reg \
 	-Wno-avoid_unnecessary_addr_size \
 	-Wno-alias_paths \
 	-Wno-gpios_property \
-	-Wno-pci_device_reg
+	-Wno-pci_device_reg \
+	-Wno-simple_bus_reg \
+        -Wno-pci_bridge \
+        -Wno-graph_port \
+        -Wno-interrupt_provider \
+        -Wno-i2c_bus_bridge \
+        -Wno-graph_child_address \
+        -Wno-clocks_property \
+        -Wno-pci_device_bus_num 
 endif
 
 ifneq ($(findstring 2,$(KBUILD_ENABLE_EXTRA_GCC_CHECKS)),)
