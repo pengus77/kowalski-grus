@@ -168,6 +168,17 @@ enum dsi_panel_type {
 	DSI_PANEL_TYPE_MAX,
 };
 
+/* Extended Panel config for panels with additional gpios */
+struct dsi_panel_exd_config {
+	int display_1p8_en;
+	int led_5v_en;
+	int switch_power;
+	int led_en1;
+	int led_en2;
+	int oenab;
+	int selab;
+};
+
 struct dsi_read_config {
 	bool enabled;
 	struct dsi_panel_cmd_set read_cmd;
@@ -232,6 +243,8 @@ struct dsi_panel {
 	enum dsi_dms_mode dms_mode;
 
 	bool sync_broadcast_en;
+
+	struct dsi_panel_exd_config exd_config;
 
 	u32 last_bl_lvl;
 	s32 backlight_delta;

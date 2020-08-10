@@ -1053,7 +1053,10 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 	core_data->irq_trig_cnt++;
 	/* inform external module */
 	lpm_disable_for_input(true);
+
+#ifdef CONFIG_CPU_BOOST
 	touch_irq_boost();
+#endif
 
 	if (core_data->tp_already_suspend) {
 		ts_info("device in suspend, schedue to work");
