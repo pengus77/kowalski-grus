@@ -1,4 +1,4 @@
-/* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,15 +28,10 @@
 #define CAM_ISP_CTX_RES_MAX                     20
 
 /*
- * Maxiimum configuration entry size  - This is based on the
+ * Maximum configuration entry size  - This is based on the
  * worst case DUAL IFE use case plus some margin.
  */
 #define CAM_ISP_CTX_CFG_MAX                     22
-
-/* Maximum allowed sof count in rdi only bubble state
- * till buf_done is received for bubble req_id.
- */
-#define CAM_ISP_CTX_BUBBLE_SOF_COUNT_MAX        3
 
 /*
  * Maximum entries in state monitoring array for error logging
@@ -62,10 +57,22 @@ enum cam_isp_ctx_activated_substate {
 	CAM_ISP_CTX_ACTIVATED_BUBBLE_APPLIED,
 	CAM_ISP_CTX_ACTIVATED_HW_ERROR,
 	CAM_ISP_CTX_ACTIVATED_HALT,
-	CAM_ISP_CTX_ACTIVATED_FLUSH,
 	CAM_ISP_CTX_ACTIVATED_MAX,
 };
 
+/**
+ * enum cam_isp_state_change_trigger - Different types of ISP events
+ *
+ */
+enum cam_isp_state_change_trigger {
+	CAM_ISP_STATE_CHANGE_TRIGGER_ERROR,
+	CAM_ISP_STATE_CHANGE_TRIGGER_SOF,
+	CAM_ISP_STATE_CHANGE_TRIGGER_REG_UPDATE,
+	CAM_ISP_STATE_CHANGE_TRIGGER_EPOCH,
+	CAM_ISP_STATE_CHANGE_TRIGGER_EOF,
+	CAM_ISP_STATE_CHANGE_TRIGGER_DONE,
+	CAM_ISP_STATE_CHANGE_TRIGGER_MAX
+};
 
 /**
  * struct cam_isp_ctx_irq_ops - Function table for handling IRQ callbacks
@@ -108,6 +115,7 @@ struct cam_isp_ctx_req {
 	uint32_t                              num_acked;
 	int32_t                               bubble_report;
 	struct cam_isp_prepare_hw_update_data hw_update_data;
+	bool                                  bubble_detected;
 };
 
 /**
@@ -135,8 +143,6 @@ struct cam_isp_context_state_monitor {
  * @base:                      Common context object pointer
  * @frame_id:                  Frame id tracking for the isp context
  * @substate_actiavted:        Current substate for the activated state.
- * @process_bubble:            Atomic variable to check if ctx is still
- *                             processing bubble
  * @substate_machine:          ISP substate machine for external interface
  * @substate_machine_irq:      ISP substate machine for irq handling
  * @req_base:                  Common request object storage
@@ -153,8 +159,6 @@ struct cam_isp_context_state_monitor {
  * @cam_isp_ctx_state_monitor: State monitoring array
  * @rdi_only_context:          Get context type information.
  *                             true, if context is rdi only context
- * @bubble_sof_count:          Atomic variable to check if ctx has any sof's
- *                             while processing bubble
  *
  */
 struct cam_isp_context {
@@ -162,7 +166,6 @@ struct cam_isp_context {
 
 	int64_t                          frame_id;
 	uint32_t                         substate_activated;
-	atomic_t                         process_bubble;
 	struct cam_ctx_ops              *substate_machine;
 	struct cam_isp_ctx_irq_ops      *substate_machine_irq;
 
@@ -171,6 +174,7 @@ struct cam_isp_context {
 
 	void                            *hw_ctx;
 	uint64_t                         sof_timestamp_val;
+	uint64_t                         boot_timestamp;
 	int32_t                          active_req_cnt;
 	int64_t                          reported_req_id;
 	uint32_t                         subscribe_event;
@@ -179,8 +183,6 @@ struct cam_isp_context {
 	struct cam_isp_context_state_monitor cam_isp_ctx_state_monitor[
 		CAM_ISP_CTX_STATE_MONITOR_MAX_ENTRIES];
 	bool                             rdi_only_context;
-	atomic_t                         bubble_sof_count;
-	uint32_t                         frame_skip_count;
 };
 
 /**
