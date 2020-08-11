@@ -125,8 +125,6 @@
 		spi-max-frequency = <1000000>;
 
 		read-chunk-size  = <0x2000>;	/* 8192 bytes   */
-		/* for the spi load fw -110  timeout fail issue */
-		/* write-chunk-size = <0x20000>;   /* 131072 bytes */
 		write-chunk-size = <0x2000>;   /* 131072 bytes */
 		dma_min_buffer_size = <0>;
 	};
