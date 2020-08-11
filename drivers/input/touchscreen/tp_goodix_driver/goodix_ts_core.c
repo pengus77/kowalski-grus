@@ -793,7 +793,6 @@ static void release_all_touches(struct goodix_ts_core *core_data)
 	core_data->sleep_finger = core_data->touch_id;
 	core_data->touch_id = 0;
 	input_sync(core_data->input_dev);
-	lpm_disable_for_input(false);
 	mutex_unlock(&ts_dev->report_mutex);
 }
 
@@ -957,7 +956,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		r = ext_module->funcs->irq_event(core_data, ext_module);
 		if (r == EVT_CANCEL_IRQEVT) {
 			mutex_unlock(&goodix_modules.mutex);
-			lpm_disable_for_input(false);
 			return IRQ_HANDLED;
 		}
 	}
@@ -973,8 +971,6 @@ static irqreturn_t goodix_ts_threadirq_func(int irq, void *data)
 		}
 	}
 
-	if (!core_data->touch_id)
-		lpm_disable_for_input(false);
 	return IRQ_HANDLED;
 }
 
