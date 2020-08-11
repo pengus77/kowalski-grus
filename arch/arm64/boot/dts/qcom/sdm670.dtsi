@@ -453,7 +453,7 @@
 
 			vbmeta {
 				compatible = "android,vbmeta";
-				parts = "vbmeta,boot,system,vendor,dtbo";
+				parts = "vbmeta,boot,system,vendor,dtbo,recovery";
 			};
 
 			fstab {
@@ -463,7 +463,7 @@
 					dev = "/dev/block/platform/soc/7c4000.sdhci/by-name/system";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
-					fsmgr_flags = "wait,avb";
+					fsmgr_flags = "wait";
 					status = "ok";
 				};
 				vendor {
@@ -471,8 +471,7 @@
 					dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/vendor";
 					type = "ext4";
 					mnt_flags = "ro,barrier=1,discard";
-					fsmgr_flags = "wait,avb";
-					status = "ok";
+					fsmgr_flags = "wait";
 				};
 			};
 		};
