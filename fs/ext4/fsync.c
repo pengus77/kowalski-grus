@@ -27,8 +27,6 @@
 #include <linux/sched.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
-#include <linux/cred.h>
-#include <linux/uidgid.h>
 
 #include "ext4.h"
 #include "ext4_jbd2.h"
@@ -45,28 +43,30 @@
  */
 static int ext4_sync_parent(struct inode *inode)
 {
-	struct dentry *dentry, *next;
+	struct dentry *dentry = NULL;
+	struct inode *next;
 	int ret = 0;
 
 	if (!ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY))
 		return 0;
-	dentry = d_find_any_alias(inode);
-	if (!dentry)
-		return 0;
+	inode = igrab(inode);
 	while (ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
 		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
-
-		next = dget_parent(dentry);
+		dentry = d_find_any_alias(inode);
+		if (!dentry)
+			break;
+		next = igrab(d_inode(dentry->d_parent));
 		dput(dentry);
-		dentry = next;
-		inode = dentry->d_inode;
-
+		if (!next)
+			break;
+		iput(inode);
+		inode = next;
 		/*
 		 * The directory inode may have gone through rmdir by now. But
 		 * the inode itself and its blocks are still allocated (we hold
-		 * a reference to the inode via its dentry), so it didn't go
-		 * through ext4_evict_inode()) and so we are safe to flush
-		 * metadata blocks and the inode.
+		 * a reference to the inode so it didn't go through
+		 * ext4_evict_inode()) and so we are safe to flush metadata
+		 * blocks and the inode.
 		 */
 		ret = sync_mapping_buffers(inode->i_mapping);
 		if (ret)
@@ -75,7 +75,7 @@ static int ext4_sync_parent(struct inode *inode)
 		if (ret)
 			break;
 	}
-	dput(dentry);
+	iput(inode);
 	return ret;
 }
 
@@ -147,33 +147,6 @@ int ext4_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	if (journal->j_flags & JBD2_BARRIER &&
 	    !jbd2_trans_will_send_data_barrier(journal, commit_tid))
 		needs_barrier = true;
-
-	if (test_opt(inode->i_sb, ASYNC_FSYNC)) {
-		ext4_debug("ext4_sync_file: total sync is %u, async sync is %u\n",
-				  atomic_read(&EXT4_SB(inode->i_sb)->s_total_fsync),
-				  atomic_read(&EXT4_SB(inode->i_sb)->s_async_fsync));
-
-		atomic_inc(&EXT4_SB(inode->i_sb)->s_total_fsync);
-		/*
-		 * If current process is neither root process nor system process and
-		 * current process is not in system group, we don't want to wait
-		 * corresponding transcation to complete.
-		 */
-#define AID_SYSTEM 1000 /* system server */
-		if (!uid_eq(GLOBAL_ROOT_UID, current_fsuid()) &&
-			  !(in_group_p(make_kgid(current_user_ns(), AID_SYSTEM)))) {
-			atomic_inc(&EXT4_SB(inode->i_sb)->s_async_fsync);
-			/* Start committing transaction */
-			if (jbd2_transaction_need_wait(journal, commit_tid))
-				jbd2_log_start_commit(journal, commit_tid);
-
-			ext4_debug("comm: %s: (uid %u, gid %u): don't wait transaction finish\n",
-				  current->comm, from_kuid_munged(&init_user_ns, current_fsuid()),
-				  from_kgid_munged(&init_user_ns, current_fsgid()));
-			goto out;
-		}
-	}
-
 	ret = jbd2_complete_transaction(journal, commit_tid);
 	if (needs_barrier) {
 	issue_flush:

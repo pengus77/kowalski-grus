@@ -4,7 +4,6 @@
  * Written by Stephen C. Tweedie <sct@redhat.com>, 1998
  *
  * Copyright 1998 Red Hat corp --- All Rights Reserved
- * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This file is part of the Linux kernel and is made available under
  * the terms of the GNU General Public License, version 2, or at your
@@ -92,8 +91,6 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
 	atomic_set(&transaction->t_updates, 0);
 	atomic_set(&transaction->t_outstanding_credits,
 		   atomic_read(&journal->j_reserved_credits));
-	atomic_set(&transaction->t_write_inodes, 0);
-	atomic_set(&transaction->t_wait_inodes, 0);
 	atomic_set(&transaction->t_handle_count, 0);
 	INIT_LIST_HEAD(&transaction->t_inode_list);
 	INIT_LIST_HEAD(&transaction->t_private_list);
@@ -2490,7 +2487,7 @@ void jbd2_journal_refile_buffer(journal_t *journal, struct journal_head *jh)
  * File inode in the inode list of the handle's transaction
  */
 static int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode,
-		unsigned long flags, loff_t start_byte, loff_t end_byte)
+				   unsigned long flags)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal;
@@ -2502,9 +2499,26 @@ static int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode,
 	jbd_debug(4, "Adding inode %lu, tid:%d\n", jinode->i_vfs_inode->i_ino,
 			transaction->t_tid);
 
+	/*
+	 * First check whether inode isn't already on the transaction's
+	 * lists without taking the lock. Note that this check is safe
+	 * without the lock as we cannot race with somebody removing inode
+	 * from the transaction. The reason is that we remove inode from the
+	 * transaction only in journal_release_jbd_inode() and when we commit
+	 * the transaction. We are guarded from the first case by holding
+	 * a reference to the inode. We are safe against the second case
+	 * because if jinode->i_transaction == transaction, commit code
+	 * cannot touch the transaction because we hold reference to it,
+	 * and if jinode->i_next_transaction == transaction, commit code
+	 * will only file the inode where we want it.
+	 */
+	if ((jinode->i_transaction == transaction ||
+	    jinode->i_next_transaction == transaction) &&
+	    (jinode->i_flags & flags) == flags)
+		return 0;
+
 	spin_lock(&journal->j_list_lock);
 	jinode->i_flags |= flags;
-
 	/* Is inode already attached where we need it? */
 	if (jinode->i_transaction == transaction ||
 	    jinode->i_next_transaction == transaction)
@@ -2530,29 +2544,7 @@ static int jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *jinode,
 	J_ASSERT(!jinode->i_next_transaction);
 	jinode->i_transaction = transaction;
 	list_add(&jinode->i_list, &transaction->t_inode_list);
-	/* collect transaction inodes info */
-	if (flags & JI_WRITE_DATA)
-		atomic_inc(&transaction->t_write_inodes);
-	else
-		atomic_inc(&transaction->t_wait_inodes);
 done:
-	if (jinode->i_transaction == transaction) {
-		if (jinode->i_dirty_end) {
-			jinode->i_dirty_start = min(jinode->i_dirty_start, start_byte);
-			jinode->i_dirty_end = max(jinode->i_dirty_end, end_byte);
-		} else {
-			jinode->i_dirty_start = start_byte;
-			jinode->i_dirty_end = end_byte;
-		}
-	} else {
-		if (jinode->i_next_dirty_end) {
-			jinode->i_next_dirty_start = min(jinode->i_next_dirty_start, start_byte);
-			jinode->i_next_dirty_end = max(jinode->i_next_dirty_end, end_byte);
-		} else {
-			jinode->i_next_dirty_start = start_byte;
-			jinode->i_next_dirty_end = end_byte;
-		}
-	}
 	spin_unlock(&journal->j_list_lock);
 
 	return 0;
@@ -2561,31 +2553,13 @@ done:
 int jbd2_journal_inode_add_write(handle_t *handle, struct jbd2_inode *jinode)
 {
 	return jbd2_journal_file_inode(handle, jinode,
-			JI_WRITE_DATA | JI_WAIT_DATA, 0, LLONG_MAX);
+				       JI_WRITE_DATA | JI_WAIT_DATA);
 }
 
 int jbd2_journal_inode_add_wait(handle_t *handle, struct jbd2_inode *jinode)
 {
-	return jbd2_journal_file_inode(handle, jinode, JI_WAIT_DATA, 0,
-			LLONG_MAX);
+	return jbd2_journal_file_inode(handle, jinode, JI_WAIT_DATA);
 }
-
-int jbd2_journal_inode_ranged_write(handle_t *handle,
-		struct jbd2_inode *jinode, loff_t start_byte, loff_t length)
-{
-	return jbd2_journal_file_inode(handle, jinode,
-			JI_WRITE_DATA | JI_WAIT_DATA, start_byte,
-			start_byte + length - 1);
-}
-EXPORT_SYMBOL(jbd2_journal_inode_ranged_write);
-
-int jbd2_journal_inode_ranged_wait(handle_t *handle, struct jbd2_inode *jinode,
-		loff_t start_byte, loff_t length)
-{
-	return jbd2_journal_file_inode(handle, jinode, JI_WAIT_DATA,
-			start_byte, start_byte + length - 1);
-}
-EXPORT_SYMBOL(jbd2_journal_inode_ranged_wait);
 
 /*
  * File truncate and transaction commit interact with each other in a

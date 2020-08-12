@@ -82,7 +82,6 @@ static void alarmtimer_collect(struct alarm *alarm)
 
 	snprintf(alarmtimer_creator, sizeof(alarmtimer_creator), "%s", current->comm);
 	index_tail = m;
-	pr_info("Alarmtimer { %s', '%llu'}\n", alarmtimer_creator, ktime_to_ms(alarm->node.expires));
 	getnstimeofday(&alarmtimer_set_record_buff[m].alarmtimer_set_time);
 	sprintf(alarmtimer_set_record_buff[m++].alarmtimer_set_msg, "%s, %llu", alarmtimer_creator, ktime_to_ms(alarm->node.expires));
 
