@@ -7,7 +7,6 @@
  *
  *
  * (C) Copyright 2002-2004 by David Brownell
- * Copyright (C) 2020 XiaoMi, Inc.
  * All Rights Reserved.
  *
  * This software is licensed under the GNU GPL version 2.

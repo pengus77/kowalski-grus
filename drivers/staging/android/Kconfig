@@ -53,13 +53,6 @@ config ANDROID_LMK_NOTIFY_TRIGGER
 	a set threshold. The threshold is set by the new module parameter
 	"/sys/module/lowmemorykiller/parameters/notify_trigger".
 
-config MIGT
-        bool "boost cpufreq when load high"
-        ---help---
-          Boost cpufreq when current frame drawing time too long
-
-source "drivers/staging/android/ion/Kconfig"
-
 source "drivers/staging/android/ion/Kconfig"
 
 endif # if ANDROID

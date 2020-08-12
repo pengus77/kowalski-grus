@@ -2,7 +2,6 @@
  * udc.c - Core UDC Framework
  *
  * Copyright (C) 2010 Texas Instruments
- * Copyright (C) 2020 XiaoMi, Inc.
  * Author: Felipe Balbi <balbi@ti.com>
  *
  * This program is free software: you can redistribute it and/or modify
