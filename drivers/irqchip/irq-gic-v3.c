@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2013, 2014 ARM Limited, All Rights Reserved.
- * Copyright (C) 2020 XiaoMi, Inc.
  * Author: Marc Zyngier <marc.zyngier@arm.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -40,8 +39,6 @@
 #include <asm/exception.h>
 #include <asm/smp_plat.h>
 #include <asm/virt.h>
-#include <linux/wakeup_reason.h>
-#include <linux/syscore_ops.h>
 
 #include <linux/syscore_ops.h>
 
@@ -698,14 +695,7 @@ static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 	return 0;
 }
 
-
-
-#ifdef CONFIG_PM 
-extern int msm_show_resume_irq_mask;
-static inline void __iomem *gic_data_dist_base(struct gic_chip_data *data)
-{
-	return data->dist_base;
-}
+#ifdef CONFIG_PM
 
 static int gic_suspend(void)
 {
@@ -717,7 +707,7 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 	unsigned int i;
 	u32 enabled;
 	u32 pending[32];
-	void __iomem *base = gic_data_dist_base(gic);
+	void __iomem *base = gic_data.dist_base;
 
 	if (!msm_show_resume_irq_mask)
 		return;
@@ -729,8 +719,8 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 	}
 
 	for (i = find_first_bit((unsigned long *)pending, gic->irq_nr);
-		i < gic->irq_nr;
-		i = find_next_bit((unsigned long *)pending, gic->irq_nr, i+1)) {
+	     i < gic->irq_nr;
+	     i = find_next_bit((unsigned long *)pending, gic->irq_nr, i+1)) {
 		unsigned int irq = irq_find_mapping(gic->domain, i);
 		struct irq_desc *desc = irq_to_desc(irq);
 		const char *name = "null";
@@ -740,14 +730,7 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 		else if (desc->action && desc->action->name)
 			name = desc->action->name;
 
-		pr_warn("%s: %d triggered %s (hwirq %d)\n", __func__, irq, name, i);
-
-		//if (irq == 15)
-			//continue;
-		//if (irq == 414)
-			//continue;
-
-		log_wakeup_reason(irq);
+		pr_warn("%s: %d triggered %s\n", __func__, irq, name);
 	}
 }
 

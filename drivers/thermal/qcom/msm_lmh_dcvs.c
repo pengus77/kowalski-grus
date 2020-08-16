@@ -528,14 +528,7 @@ static int thermal_adjust_notify(struct notifier_block *nb, unsigned long val,
 		if (!hw)
 			break;
 
-		pr_debug("CPU%u policy max before thermal adjust: %u kHz\n",
-			 cpu, policy->max);
-		pr_debug("CPU%u boost max: %lu kHz\n", cpu, hw->hw_freq_limit);
-
 		cpufreq_verify_within_limits(policy, 0, hw->hw_freq_limit);
-
-		pr_debug("CPU%u policy max after boost: %u kHz\n",
-			 cpu, policy->max);
 		break;
 	}
 
