@@ -2,6 +2,7 @@
  * wm_adsp.h  --  Wolfson ADSP support
  *
  * Copyright 2012 Wolfson Microelectronics plc
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *

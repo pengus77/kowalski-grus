@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2017, The Linux Foundation. All rights reserved.
+Copyright (C) 2019 XiaoMi, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 and
@@ -19,7 +20,6 @@ GNU General Public License for more details.
 static int __init audio_q6_init(void)
 {
 	adsp_err_init();
-	audio_cal_init();
 	rtac_init();
 	adm_init();
 	afe_init();
@@ -30,9 +30,11 @@ static int __init audio_q6_init(void)
 	msm_audio_ion_init();
 	audio_slimslave_init();
 	avtimer_init();
-	elliptic_driver_init();
 #ifdef CONFIG_MSM_CSPL
 	crus_sp_init();
+#endif
+#ifdef CONFIG_ELLIPTIC_UPS
+	elliptic_driver_init();
 #endif
 	return 0;
 }
@@ -40,6 +42,9 @@ static int __init audio_q6_init(void)
 static void __exit audio_q6_exit(void)
 {
 	avtimer_exit();
+#ifdef CONFIG_ELLIPTIC_UPS
+	elliptic_driver_exit();
+#endif
 #ifdef CONFIG_MSM_CSPL
 	crus_sp_exit();
 #endif
@@ -52,9 +57,7 @@ static void __exit audio_q6_exit(void)
 	afe_exit();
 	adm_exit();
 	rtac_exit();
-	audio_cal_exit();
 	adsp_err_exit();
-	elliptic_driver_exit();
 }
 
 module_init(audio_q6_init);

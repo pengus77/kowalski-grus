@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -41,7 +41,6 @@
 #define CONFIG_SND_SOC_WCD_MBHC_ADC 1
 #define CONFIG_SND_SOC_WCD_MBHC_LEGACY 1
 #define CONFIG_SND_SOC_QDSP6V2 1
-#define CONFIG_SND_SOC_MSM_QDSP6V2_INTF 1
 #define CONFIG_QTI_PP 1
 #define CONFIG_QTI_PP_AUDIOSPHERE 1
 #define CONFIG_SND_HWDEP_ROUTING 1
@@ -53,7 +52,6 @@
 #define CONFIG_MSM_CDC_PINCTRL 1
 #define CONFIG_SND_SOC_MSM_STUB 1
 #define CONFIG_WCD_DSP_GLINK 1
-#define CONFIG_MSM_AVTIMER 1
 #define CONFIG_SND_SOC_EXT_CODEC 1
 #define CONFIG_SND_SOC_INT_CODEC 1
 #define CONFIG_SND_SOC_CPE 1
@@ -61,16 +59,7 @@
 #define CONFIG_SND_SOC_ANALOG_CDC 1
 #define CONFIG_SND_SOC_DIGITAL_CDC 1
 #define CONFIG_SND_SOC_MSM_SDW 1
-#define CONFIG_TAS2557_REGMAP 1
-#define CONFIG_TAS2557_CODEC 1
-#define CONFIG_TAS2557_MISC 1
-#define CONFIG_SND_SOC_TAS2557 1
-#define CONFIG_SND_SOC_CS35L41 1
-#define CONFIG_MSM_CSPL 1
-#define CONFIG_SPK_ID 1
-#define CONFIG_SND_SOC_USB_HEADSET 1
 #define CONFIG_SND_SOC_MSM_HDMI_CODEC_RX 1
-#define CONFIG_SND_SOC_TAS2562 1
-#define CONFIG_TAS2562_REGMAP 1
-#define CONFIG_TAS2562_CODEC 1
-#define CONFIG_TAS2562_MISC 1
+#define CONFIG_MSM_CSPL 1
+#define CONFIG_ELLIPTIC_UPS 1
+#define CONFIG_SND_SOC_CS35L41 1

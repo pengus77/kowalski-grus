@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,7 +10,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-#define DEBUG
 
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -32,13 +32,6 @@
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 3
 
-#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
-#define CS35L41_CODEC_NAME "cs35l41.2-0040"
-#if 0
-static atomic_t cs35l41_mclk_rsc_ref;
-#endif
-#endif
-
 #define WSA8810_NAME_1 "wsa881x.20170211"
 #define WSA8810_NAME_2 "wsa881x.20170212"
 #define MSM_LL_QOS_VALUE 300 /* time in us to ensure LPM doesn't go in C3/C4 */
@@ -58,18 +51,6 @@ enum {
 	BT_SLIM7_TX,
 	FM_SLIM8,
 	SLIM_MAX,
-};
-
-/*TDM default offset currently only supporting TDM_RX_0 and TDM_TX_0 */
-static unsigned int tdm_slot_offset[TDM_PORT_MAX][TDM_SLOT_OFFSET_MAX] = {
-	{0, 4, 8, 12, 16, 20, 24, 28},/* TX_0 | RX_0 */
-	{AFE_SLOT_MAPPING_OFFSET_INVALID},/* TX_1 | RX_1 */
-	{AFE_SLOT_MAPPING_OFFSET_INVALID},/* TX_2 | RX_2 */
-	{AFE_SLOT_MAPPING_OFFSET_INVALID},/* TX_3 | RX_3 */
-	{AFE_SLOT_MAPPING_OFFSET_INVALID},/* TX_4 | RX_4 */
-	{AFE_SLOT_MAPPING_OFFSET_INVALID},/* TX_5 | RX_5 */
-	{AFE_SLOT_MAPPING_OFFSET_INVALID},/* TX_6 | RX_6 */
-	{AFE_SLOT_MAPPING_OFFSET_INVALID},/* TX_7 | RX_7 */
 };
 
 static struct afe_clk_set int_mi2s_clk[INT_MI2S_MAX] = {
@@ -129,12 +110,6 @@ static struct afe_clk_set int_mi2s_clk[INT_MI2S_MAX] = {
 		Q6AFE_LPASS_CLK_ROOT_DEFAULT,
 		0,
 	},
-};
-
-struct dev_config {
-	u32 sample_rate;
-	u32 bit_format;
-	u32 channels;
 };
 
 /* Default configuration of MI2S channels */
@@ -1063,6 +1038,32 @@ static int msm_bt_sample_rate_tx_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int usbhs_direction_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = NULL;
+	struct snd_soc_card *card = NULL;
+	struct msm_asoc_mach_data *pdata = NULL;
+
+	ucontrol->value.integer.value[0] = 0;
+
+	codec = snd_soc_kcontrol_codec(kcontrol);
+	if (codec) {
+		card = codec->component.card;
+		if (card) {
+			pdata = snd_soc_card_get_drvdata(card);
+			if (pdata){
+				if (pdata->usbc_en2_gpio_p) {
+					ucontrol->value.integer.value[0] = gpio_get_value_cansleep(pdata->usbc_en2_gpio);
+				} else if (pdata->usbc_en2_gpio > 0) {
+					ucontrol->value.integer.value[0] = gpio_get_value_cansleep(pdata->usbc_en2_gpio);
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 static const struct snd_kcontrol_new msm_snd_controls[] = {
 	SOC_ENUM_EXT("INT0_MI2S_RX Format", int0_mi2s_rx_format,
 		     int_mi2s_bit_format_get, int_mi2s_bit_format_put),
@@ -1094,6 +1095,8 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 	SOC_ENUM_EXT("BT SampleRate TX", bt_sample_rate_tx,
 			msm_bt_sample_rate_tx_get,
 			msm_bt_sample_rate_tx_put),
+	SOC_SINGLE_EXT("USB Headset Direction", 0, 0, UINT_MAX, 0,
+			usbhs_direction_get, NULL),
 };
 
 static const struct snd_kcontrol_new msm_loopback_snd_controls[] = {
@@ -1715,166 +1718,13 @@ exit:
 	return ret;
 }
 
-static unsigned int tdm_param_set_slot_mask(u16 port_id, int slot_width,
-					    int slots)
-{
-	unsigned int slot_mask = 0;
-	int i, j;
-	unsigned int *slot_offset;
-
-	for (i = TDM_0; i < TDM_PORT_MAX; i++) {
-		slot_offset = tdm_slot_offset[i];
-
-		for (j = 0; j < TDM_SLOT_OFFSET_MAX; j++) {
-			if (slot_offset[j] != AFE_SLOT_MAPPING_OFFSET_INVALID)
-				slot_mask |=
-				(1 << ((slot_offset[j] * 8) / slot_width));
-			else
-				break;
-		}
-	}
-
-	return slot_mask;
-}
-
-static int msm_tdm_snd_hw_params(struct snd_pcm_substream *substream,
-				     struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int ret = 0;
-	int channels, slot_width, slots;
-	unsigned int slot_mask;
-	unsigned int *slot_offset;
-	int offset_channels = 0;
-	int i;
-
-	pr_debug("%s: dai id = 0x%x\n", __func__, cpu_dai->id);
-
-	channels = params_channels(params);
-	switch (channels) {
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-		switch (params_format(params)) {
-		case SNDRV_PCM_FORMAT_S32_LE:
-		case SNDRV_PCM_FORMAT_S24_LE:
-		case SNDRV_PCM_FORMAT_S16_LE:
-		/*
-		 * up to 8 channels HW config should
-		 * use 32 bit slot width for max support of
-		 * stream bit width. (slot_width > bit_width)
-		 */
-			slot_width = 32;
-			break;
-		default:
-			pr_err("%s: invalid param format 0x%x\n",
-				__func__, params_format(params));
-			return -EINVAL;
-		}
-		slots = 8;
-		slot_mask = tdm_param_set_slot_mask(cpu_dai->id,
-						    slot_width,
-						    slots);
-		if (!slot_mask) {
-			pr_err("%s: invalid slot_mask 0x%x\n",
-				__func__, slot_mask);
-			return -EINVAL;
-		}
-		break;
-	default:
-		pr_err("%s: invalid param channels %d\n",
-			__func__, channels);
-		return -EINVAL;
-	}
-	/* currently only supporting TDM_RX_0 and TDM_TX_0 */
-	switch (cpu_dai->id) {
-	case AFE_PORT_ID_PRIMARY_TDM_RX:
-	case AFE_PORT_ID_SECONDARY_TDM_RX:
-	case AFE_PORT_ID_TERTIARY_TDM_RX:
-	case AFE_PORT_ID_QUATERNARY_TDM_RX:
-	case AFE_PORT_ID_QUINARY_TDM_RX:
-	case AFE_PORT_ID_PRIMARY_TDM_TX:
-	case AFE_PORT_ID_SECONDARY_TDM_TX:
-	case AFE_PORT_ID_TERTIARY_TDM_TX:
-	case AFE_PORT_ID_QUATERNARY_TDM_TX:
-	case AFE_PORT_ID_QUINARY_TDM_TX:
-		slot_offset = tdm_slot_offset[TDM_0];
-		break;
-	default:
-		pr_err("%s: dai id 0x%x not supported\n",
-			__func__, cpu_dai->id);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < TDM_SLOT_OFFSET_MAX; i++) {
-		if (slot_offset[i] != AFE_SLOT_MAPPING_OFFSET_INVALID)
-			offset_channels++;
-		else
-			break;
-	}
-
-	if (offset_channels == 0) {
-		pr_err("%s: slot offset not supported, offset_channels %d\n",
-			__func__, offset_channels);
-		return -EINVAL;
-	}
-
-	if (channels > offset_channels) {
-		pr_err("%s: channels %d exceed offset_channels %d\n",
-			__func__, channels, offset_channels);
-		return -EINVAL;
-	}
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		ret = snd_soc_dai_set_tdm_slot(cpu_dai, 0, slot_mask,
-					       slots, slot_width);
-		if (ret < 0) {
-			pr_err("%s: failed to set tdm slot, err:%d\n",
-				__func__, ret);
-			goto end;
-		}
-
-		ret = snd_soc_dai_set_channel_map(cpu_dai, 0, NULL,
-						  channels, slot_offset);
-		if (ret < 0) {
-			pr_err("%s: failed to set channel map, err:%d\n",
-				__func__, ret);
-			goto end;
-		}
-	} else {
-		ret = snd_soc_dai_set_tdm_slot(cpu_dai, slot_mask, 0,
-					       slots, slot_width);
-		if (ret < 0) {
-			pr_err("%s: failed to set tdm slot, err:%d\n",
-				__func__, ret);
-			goto end;
-		}
-
-		ret = snd_soc_dai_set_channel_map(cpu_dai, channels,
-						  slot_offset, 0, NULL);
-		if (ret < 0) {
-			pr_err("%s: failed to set channel map, err:%d\n",
-				__func__, ret);
-			goto end;
-		}
-	}
-end:
-	return ret;
-}
-
 static int msm_snd_card_late_probe(struct snd_soc_card *card)
 {
 	const char *be_dl_name = LPASS_BE_INT0_MI2S_RX;
 	struct snd_soc_codec *ana_cdc;
 	struct snd_soc_pcm_runtime *rtd;
 	int ret = 0;
-#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
+#ifdef CONFIG_SND_SOC_CS35L41
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_codec *cs35l41_codec;
 	struct snd_soc_dapm_context * cs35l41_dapm;
@@ -1899,15 +1749,11 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 			"%s: msm_anlg_cdc_hs_detect failed\n", __func__);
 		kfree(mbhc_cfg_ptr->calibration);
 	}
-#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
-#if 0
-	atomic_set(&cs35l41_mclk_rsc_ref, 0);
-	dev_info(card->dev, "%s: set cs35l41_mclk_rsc_ref to 0 \n", __func__);
-#endif
+#ifdef CONFIG_SND_SOC_CS35L41
 	dai_link = rtd->dai_link;
 	if (dai_link && dai_link->codec_name) {
-		if (!strcmp(dai_link->codec_name, CS35L41_CODEC_NAME)) {
-			dev_info(card->dev, "%s: found codec[%s]\n", __func__, CS35L41_CODEC_NAME);
+		if (!strcmp(dai_link->codec_name, "cs35l41.2-0040")) {
+			dev_info(card->dev, "%s: found codec[%s]\n", __func__, "cs35l41.2-0040");
 			cs35l41_codec = rtd->codec;
 			cs35l41_dapm = snd_soc_codec_get_dapm(cs35l41_codec);
 			snd_soc_dapm_ignore_suspend(cs35l41_dapm, "AMP Playback");
@@ -1941,94 +1787,6 @@ static struct snd_soc_ops msm_mi2s_be_ops = {
 	.startup = msm_mi2s_snd_startup,
 	.shutdown = msm_mi2s_snd_shutdown,
 };
-
-#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
-#if 0
-static int msm_hw_params_cs35l41_fixup(struct snd_soc_pcm_runtime *rtd,
-                                struct snd_pcm_hw_params *params)
-{
-	struct snd_interval *rate = hw_param_interval(params,
-		SNDRV_PCM_HW_PARAM_RATE);
-
-	struct snd_interval *channels = hw_param_interval(params,
-		SNDRV_PCM_HW_PARAM_CHANNELS);
-
-	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S16_LE);
-
-	pr_debug("%s()\n", __func__);
-	rate->min = rate->max = 48000;
-	channels->min = channels->max = 2;
-
-	return 0;
-}
-
-static int msm_mi2s_cs35l41_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_codec *codec = codec_dai->codec;
-        int ret;
-
-        if (atomic_inc_return(&cs35l41_mclk_rsc_ref) == 1) {
-               ret = msm_mi2s_snd_startup(substream);
-                if (ret) {
-                        dev_err(card->dev, "%s: Failed to startup mi2s: %d\n", __func__, ret);
-                        return ret;
-                }
-
-                // Set cpu_dai as master
-                ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
-                if (ret < 0) {
-                        dev_err(card->dev, "%s: Failed to set fmt cpu dai: %d\n", __func__, ret);
-                        return ret;
-                }
-
-                // Set codec_dai as slave
-                ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S);
-                if (ret < 0) {
-                        dev_err(card->dev, "%s: Failed to set fmt codec dai: %d\n", __func__, ret);
-                        return ret;
-                }
-
-                // Set mclk to 12.288MHz for codec
-                ret = snd_soc_codec_set_sysclk(codec, 0, 0,
-                                                Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
-                                                SND_SOC_CLOCK_IN);
-                if (ret < 0) {
-                        dev_err(card->dev, "%s: Failed to set codec_sysclk: %d\n", __func__, ret);
-                        return ret;
-                }
-        }
-        dev_info(card->dev, "------%s\n", __func__);
-        return 0;
-}
-
-void msm_mi2s_cs35l41_shutdown(struct snd_pcm_substream *substream)
-{
-        struct snd_soc_pcm_runtime *rtd = substream->private_data;
-        struct snd_soc_card *card = rtd->card;
-        struct snd_soc_dai *codec_dai = rtd->codec_dai;
-        struct snd_soc_codec *codec = codec_dai->codec;
-        struct msm_asoc_mach_data *pdata = pdata = snd_soc_card_get_drvdata(codec->component.card);
-
-        dev_info(card->dev, "+++++%s, mclk refcount = %d \n", __func__, atomic_read(&cs35l41_mclk_rsc_ref));
-
-        if (atomic_dec_return(&cs35l41_mclk_rsc_ref) == 0) {
-
-               msm_mi2s_snd_shutdown(substream);
-        }
-        dev_info(card->dev, "-----%s\n", __func__);
-        return;
-}
-
-static struct snd_soc_ops msm_mi2s_cs35l41_be_ops = {
-        .startup = msm_mi2s_cs35l41_startup,
-        .shutdown = msm_mi2s_cs35l41_shutdown,
-};
-#endif
-#endif
 
 static struct snd_soc_ops msm_aux_pcm_be_ops = {
 	.startup = msm_aux_pcm_snd_startup,
@@ -2753,22 +2511,6 @@ static struct snd_soc_dai_link msm_int_dai[] = {
 		.ignore_pmdown_time = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA6,
 	},
-#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
-	{/* hw:x,40 */
-		.name = "Primary MI2S_TX Hostless",
-		.stream_name = "Primary MI2S_TX Hostless",
-		.cpu_dai_name = "PRI_MI2S_TX_HOSTLESS",
-		.platform_name = "msm-pcm-hostless",
-		.dynamic = 1,
-		.dpcm_capture = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-				SND_SOC_DPCM_TRIGGER_POST},
-		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-		.ignore_suspend = 1,
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-	},
-#endif
 };
 
 
@@ -3233,8 +2975,10 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.stream_name = "Primary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.0",
 		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
+#ifdef CONFIG_SND_SOC_CS35L41
+		.codec_name = "cs35l41.2-0040",
+		.codec_dai_name = "cs35l41-pcm",
+#endif
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_PRI_MI2S_RX,
@@ -3696,7 +3440,6 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dailink;
 	int len1;
-	int hw_platform;
 
 	if (snd_card_val == INT_SND_CARD)
 		card = &sdm660_card;
@@ -3733,37 +3476,6 @@ static struct snd_soc_card *msm_int_populate_sndcard_dailinks(
 
 	if (of_property_read_bool(dev->of_node,
 				  "qcom,mi2s-audio-intf")) {
-
-		hw_platform = get_hw_version_platform();
-		dev_info(dev, "%s: hw_platform is %d.\n", __func__, hw_platform);
-		/*if (HARDWARE_PLATFORM_COMET == hw_platform) {
-			dev_info(dev, "%s: hardware is HARDWARE_PLATFORM_COMET.\n", __func__);
-			msm_mi2s_be_dai_links[4].codec_name = "tas2557.2-004c";
-			msm_mi2s_be_dai_links[4].codec_dai_name = "tas2557 ASI1";
-		} else */
-		if (HARDWARE_PLATFORM_SIRIUS == hw_platform) {
-			dev_info(dev, "%s: hardware is HARDWARE_PLATFORM_SIRIUS.\n", __func__);
-			msm_mi2s_be_dai_links[0].codec_name = "tas2557.2-004c";
-			msm_mi2s_be_dai_links[0].codec_dai_name = "tas2557 ASI1";
-		} else if (HARDWARE_PLATFORM_GRUS == hw_platform) {
-			dev_info(dev, "%s: hardware is HARDWARE_PLATFORM_GRUS.\n", __func__);
-#ifdef CONFIG_SND_SOC_CS35L41_FOR_GRUS
-			msm_mi2s_be_dai_links[0].codec_name = CS35L41_CODEC_NAME;
-			msm_mi2s_be_dai_links[0].codec_dai_name = "cs35l41-pcm";
-#endif
-		} else if (HARDWARE_PLATFORM_PYXIS == hw_platform ||
-				HARDWARE_PLATFORM_VELA == hw_platform) {
-			dev_info(dev, "%s: hardware is HARDWARE_PLATFORM_PYXIS or BAMBOO or COSMOS.\n", __func__);
-			msm_mi2s_be_dai_links[0].codec_name = "tas2562.2-004c";
-			msm_mi2s_be_dai_links[0].codec_dai_name = "tas2562 ASI1";
-			msm_mi2s_be_dai_links[1].codec_name = "tas2562.2-004c";
-			msm_mi2s_be_dai_links[1].codec_dai_name = "tas2562 ASI1";
-		} else {
-			dev_info(dev, "%s: hardware is unknown, %d.\n", __func__, hw_platform);
-			msm_mi2s_be_dai_links[0].codec_name = "tas2557.2-004c";
-			msm_mi2s_be_dai_links[0].codec_dai_name = "tas2557 ASI1";
-		}
-
 		memcpy(dailink + len1,
 		       msm_mi2s_be_dai_links,
 		       sizeof(msm_mi2s_be_dai_links));

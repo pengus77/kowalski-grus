@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2017, The Linux Foundation. All rights reserved.
+Copyright (C) 2019 XiaoMi, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 and
@@ -26,9 +27,12 @@ int rtac_init(void);
 int msm_audio_ion_init(void);
 int audio_slimslave_init(void);
 int avtimer_init(void);
-int elliptic_driver_init(void);
 #ifdef CONFIG_MSM_CSPL
 int crus_sp_init(void);
+#endif
+#ifdef CONFIG_ELLIPTIC_UPS
+int elliptic_driver_init(void);
+int elliptic_driver_exit(void);
 #endif
 
 #ifdef CONFIG_MSM_CSPL
@@ -46,6 +50,5 @@ void q6asm_exit(void);
 void afe_exit(void);
 void adm_exit(void);
 void adsp_err_exit(void);
-int elliptic_driver_exit(void);
 #endif
 

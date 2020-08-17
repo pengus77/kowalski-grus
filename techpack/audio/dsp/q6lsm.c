@@ -55,7 +55,6 @@ enum {
 };
 
 enum {
-	LSM_INVALID_SESSION_ID = 0,
 	LSM_MIN_SESSION_ID = 1,
 	LSM_MAX_SESSION_ID = 8,
 	LSM_CONTROL_SESSION = 0x0F,
@@ -141,7 +140,7 @@ static int q6lsm_get_session_id_from_lsm_client(struct lsm_client *client)
 	}
 	pr_err("%s: cannot find matching lsm client. client = %pa\n",
 		__func__, client);
-	return LSM_INVALID_SESSION_ID;
+	return 0;
 }
 
 static bool q6lsm_is_valid_lsm_client(struct lsm_client *client)
@@ -294,9 +293,9 @@ static void q6lsm_session_free(struct lsm_client *client)
 
 	pr_debug("%s: Freeing session ID %d\n", __func__, client->session);
 	spin_lock_irqsave(&lsm_session_lock, flags);
-	lsm_session[client->session] = LSM_INVALID_SESSION_ID;
+	lsm_session[client->session] = NULL;
 	spin_unlock_irqrestore(&lsm_session_lock, flags);
-	client->session = LSM_INVALID_SESSION_ID;
+	client->session = 0;
 }
 
 static void *q6lsm_mmap_apr_reg(void)

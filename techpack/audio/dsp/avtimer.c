@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, 2017-2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015, 2017-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -25,7 +25,7 @@
 #include <linux/of.h>
 #include <linux/wait.h>
 #include <linux/sched.h>
-#if IS_ENABLED(CONFIG_AVTIMER_LEGACY)
+#if IS_ENABLED(CONFIG_MSM_AVTIMER)
 #include <media/msmb_isp.h>
 #endif
 #include <ipc/apr.h>
@@ -97,6 +97,13 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 		}
 
 		payload1 = data->payload;
+
+		if (data->payload_size < 2 * sizeof(uint32_t)) {
+			pr_err("%s: payload has invalid size %d\n",
+				__func__, data->payload_size);
+			return -EINVAL;
+		}
+
 		switch (payload1[0]) {
 		case AVCS_CMD_REMOTE_AVTIMER_RELEASE_REQUEST:
 			pr_debug("%s: Cmd = TIMER RELEASE status[0x%x]\n",
@@ -122,6 +129,11 @@ static int32_t aprv2_core_fn_q(struct apr_client_data *data, void *priv)
 	}
 
 	case AVCS_CMD_RSP_REMOTE_AVTIMER_VOTE_REQUEST:
+		if (data->payload_size < sizeof(uint32_t)) {
+			pr_err("%s: payload has invalid size %d\n",
+				__func__, data->payload_size);
+			return -EINVAL;
+		}
 		payload1 = data->payload;
 		pr_debug("%s: RSP_REMOTE_AVTIMER_VOTE_REQUEST handle %x\n",
 			__func__, payload1[0]);
@@ -317,7 +329,7 @@ int avcs_core_query_timer(uint64_t *avtimer_tick)
 }
 EXPORT_SYMBOL(avcs_core_query_timer);
 
-#if IS_ENABLED(CONFIG_AVTIMER_LEGACY)
+#if IS_ENABLED(CONFIG_MSM_AVTIMER)
 static void avcs_set_isp_fptr(bool enable)
 {
 	struct avtimer_fptr_t av_fptr;
