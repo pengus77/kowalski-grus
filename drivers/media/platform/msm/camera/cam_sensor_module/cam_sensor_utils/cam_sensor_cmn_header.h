@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,7 +28,6 @@
 #define MAX_POWER_CONFIG 12
 
 #define MAX_PER_FRAME_ARRAY 33
-#define BATCH_SIZE_MAX      16
 
 #define CAM_SENSOR_NAME    "cam-sensor"
 #define CAM_ACTUATOR_NAME  "cam-actuator"
@@ -319,9 +319,6 @@ enum msm_sensor_camera_id_t {
 	CAMERA_1,
 	CAMERA_2,
 	CAMERA_3,
-	CAMERA_4,
-	CAMERA_5,
-	CAMERA_6,
 	MAX_CAMERAS,
 };
 
