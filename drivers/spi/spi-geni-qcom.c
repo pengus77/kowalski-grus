@@ -28,7 +28,7 @@
 #include <linux/spi/spi-geni-qcom.h>
 
 #define SPI_NUM_CHIPSELECT	(4)
-#define SPI_XFER_TIMEOUT_MS	(1500)
+#define SPI_XFER_TIMEOUT_MS	(750)
 #define SPI_AUTO_SUSPEND_DELAY	(250)
 /* SPI SE specific registers */
 #define SE_SPI_CPHA		(0x224)
@@ -190,8 +190,6 @@ static int get_spi_clk_cfg(u32 speed_hz, struct spi_geni_master *mas,
 		return -EINVAL;
 	}
 
-	dev_dbg(mas->dev, "%s: req %u sclk %lu, idx %d, div %d\n", __func__,
-				speed_hz, sclk_freq, *clk_idx, *clk_div);
 	ret = clk_set_rate(rsc->se_clk, sclk_freq);
 	if (ret)
 		dev_err(mas->dev, "%s: clk_set_rate failed %d\n",
