@@ -701,7 +701,10 @@ static int gic_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu)
 
 
 #ifdef CONFIG_PM 
+#ifdef CONFIG_QCOM_SHOW_RESUME_IRQ
 extern int msm_show_resume_irq_mask;
+#endif
+
 static inline void __iomem *gic_data_dist_base(struct gic_chip_data *data)
 {
 	return data->dist_base;
