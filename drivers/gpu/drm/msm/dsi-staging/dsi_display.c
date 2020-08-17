@@ -172,6 +172,8 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 	panel->bl_config.bl_level = bl_lvl;
 
 	if (!dsi_panel_initialized(panel)) {
+		pr_info("[%s] set backlight before panel initialized, caching value: %d\n",
+		dsi_display->name, bl_lvl);
 		goto error;
 	}
 
@@ -196,7 +198,8 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 	rc = dsi_panel_set_backlight(panel, (u32)bl_temp);
 	if (rc)
 		pr_err("unable to set backlight\n");
-
+	else
+		pr_info("set backlight successfully at: bl_scale = %u, bl_scale_ad = %u, bl_lvl = %u\n", bl_scale, bl_scale_ad, (u32)bl_temp);
 	rc = dsi_display_clk_ctrl(dsi_display->dsi_clk_handle,
 			DSI_CORE_CLK, DSI_CLK_OFF);
 	if (rc) {
