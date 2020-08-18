@@ -4875,6 +4875,19 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 	u32  bl_level = 0;
 	u32 fod_backlight = 0;
 
+	struct drm_device *drm_dev = NULL;
+	struct dsi_display *display = NULL;
+	struct mipi_dsi_host *host = panel->host;
+
+	if (host) {
+		display = container_of(host, struct dsi_display, host);
+		if (!display || !display->drm_dev) {
+			pr_err("[LCD] invalid display/drm_dev\n");
+			return -EINVAL;
+		}
+		drm_dev = display->drm_dev;
+	}
+
 	mutex_lock(&panel->panel_lock);
 
 	if (!panel->panel_initialized
@@ -5038,16 +5051,19 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		pr_info("hbm on\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_ON);
 		panel->skip_dimmingon = STATE_DIM_BLOCK;
+		drm_dev->hbm_status = 1;
 		break;
 	case 0x20000:
 		pr_info("hbm fod on\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD_ON);
 		panel->skip_dimmingon = STATE_DIM_BLOCK;
 		panel->fod_hbm_enabled = true;
+		drm_dev->hbm_status = 1;
 		break;
 	case 0x30000:
 		pr_info("hbm fod to normal mode\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_FOD2NORM);
+		drm_dev->hbm_status = 1;
 		break;
 	case 0x60000:
 		panel->fodflag = param & 0x1;
@@ -5117,6 +5133,7 @@ static int panel_disp_param_send_lock(struct dsi_panel *panel, int param)
 		pr_info("hbm off\n");
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_HBM_OFF);
 		panel->skip_dimmingon = STATE_NONE;
+		drm_dev->hbm_status = 0;
 		break;
 	case DISPPARAM_DC_ON:
 		if (!panel->dim_layer_replace_dc) {
