@@ -198,6 +198,8 @@ int adm_programable_channel_mixer(int port_id, int copp_idx, int session_id,
 			char *ch_map);
 void msm_dts_srs_acquire_lock(void);
 void msm_dts_srs_release_lock(void);
+void adm_set_native_mode(int mode);
+
 #ifdef CONFIG_MSM_CSPL
 int crus_adm_set_params(int port_id, int copp_idx, uint32_t module_id,
 							uint32_t param_id, char *params,
