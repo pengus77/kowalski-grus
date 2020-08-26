@@ -1,2 +1,1 @@
-# UAPI Header export list
-no-export-headers += cifs_mount.h
+header-y += cifs_mount.h

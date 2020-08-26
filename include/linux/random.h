@@ -78,6 +78,17 @@ static inline unsigned long get_random_canary(void)
 	return val & CANARY_MASK;
 }
 
+unsigned int get_random_int(void);
+unsigned long get_random_long(void);
+unsigned long randomize_page(unsigned long start, unsigned long range);
+
+/*
+ * This is designed to be standalone for just prandom
+ * users, but for now we include it from <linux/random.h>
+ * for legacy reasons.
+ */
+#include <linux/prandom.h>
+
 unsigned long randomize_page(unsigned long start, unsigned long range);
 
 /*
