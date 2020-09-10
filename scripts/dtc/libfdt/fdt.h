@@ -7,6 +7,10 @@
  * Copyright 2012 Kim Phillips, Freescale Semiconductor.
  */
 
+#ifndef INT32_MAX
+#define INT32_MAX          (2147483647)
+#endif
+
 #ifndef __ASSEMBLY__
 
 struct fdt_header {

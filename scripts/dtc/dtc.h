@@ -30,6 +30,7 @@
 #endif
 
 #define DEFAULT_FDT_VERSION	17
+#define NO_YAML 1
 
 /*
  * Command line options
