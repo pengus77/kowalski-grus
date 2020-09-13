@@ -769,7 +769,6 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
-	pr_debug("++++>CSPL: %s, event = %d.\n", __func__, event);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_multi_reg_write_bypassed(cs35l41->regmap,
@@ -815,7 +814,6 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
 		ret = -EINVAL;
 	}
-	pr_debug("----CSPL: %s.\n", __func__);
 	return ret;
 }
 
@@ -968,8 +966,6 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 			snd_soc_codec_get_drvdata(codec_dai->codec);
 	unsigned int asp_fmt, lrclk_fmt, sclk_fmt, slave_mode;
 
-	pr_debug("++++>CSPL: %s, fmt = %d.\n", __func__, fmt);
-
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
 		slave_mode = 1;
@@ -1038,7 +1034,6 @@ static int cs35l41_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 				CS35L41_SCLK_INV_MASK,
 				sclk_fmt << CS35L41_SCLK_INV_SHIFT);
 
-	pr_debug("---->CSPL: %s, fmt = %d.\n", __func__, fmt);
 	return 0;
 }
 
@@ -1072,7 +1067,6 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int rate = params_rate(params);
 	u8 asp_width, asp_wl;
 
-	pr_debug("++++>CSPL: %s.\n", __func__);
 	for (i = 0; i < ARRAY_SIZE(cs35l41_fs_rates); i++) {
 		if (rate == cs35l41_fs_rates[i].rate)
 			break;
@@ -1116,7 +1110,6 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 	if ((cs35l41->clksrc == CS35L41_PLLSRC_SCLK) && (cs35l41->sclk != tclk))
 		cs35l41_codec_set_sysclk(dai->codec, 0, 0, tclk, 0);
 
-	pr_debug("---->CSPL: %s.\n", __func__);
 	return 0;
 }
 
@@ -1149,7 +1142,6 @@ static int cs35l41_pcm_startup(struct snd_pcm_substream *substream,
 {
 
 	struct snd_soc_codec *codec = dai->codec;
-	pr_debug("++++>CSPL: %s.\n", __func__);
 
 	cs35l41_set_dai_fmt(dai, SND_SOC_DAIFMT_CBS_CFS|SND_SOC_DAIFMT_I2S);
 	cs35l41_codec_set_sysclk(codec, 0, 0, 1536000, 0);
@@ -1158,7 +1150,6 @@ static int cs35l41_pcm_startup(struct snd_pcm_substream *substream,
 		return snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE, &cs35l41_constraints);
 #endif
-	pr_debug("---->CSPL: %s.\n", __func__);
 	return 0;
 }
 
@@ -1171,7 +1162,6 @@ static int cs35l41_codec_set_sysclk(struct snd_soc_codec *codec,
 	int val = 0;
 	cs35l41->extclk_freq = freq;
 
-	pr_debug("++++>CSPL: %s: clk_id = %d, src = %d, freq = %d, dir = %d.\n", __func__, clk_id, source, freq, dir);
 	dev_info(codec->dev, "%s: clk_id=%d, src=%d, freq=%d\n", __func__, clk_id, source, freq);
 
 	switch (clk_id) {
@@ -1223,7 +1213,6 @@ static int cs35l41_codec_set_sysclk(struct snd_soc_codec *codec,
 
 	regmap_read(cs35l41->regmap, CS35L41_PLL_CLK_CTRL, &val);
 	dev_info(codec->dev, "%s: 0x%x <== 0x%x\n",__func__, CS35L41_PLL_CLK_CTRL, val);
-	pr_debug("---->CSPL: %s.\n", __func__);
 
 	return 0;
 }
@@ -1234,7 +1223,6 @@ static int cs35l41_dai_set_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l41_private *cs35l41 = snd_soc_codec_get_drvdata(codec);
 
-	pr_debug("++++>CSPL: %s: clk_id=%d, freq=%d, dir=%d\n", __func__, clk_id, freq, dir);
 	if (cs35l41_get_clk_config(freq) < 0) {
 		dev_err(codec->dev, "Invalid CLK Config freq: %u\n", freq);
 		return -EINVAL;
@@ -1242,7 +1230,6 @@ static int cs35l41_dai_set_sysclk(struct snd_soc_dai *dai,
 
 	if (clk_id == CS35L41_PLLSRC_SCLK)
 		cs35l41->sclk = freq;
-	pr_debug("---->CSPL: %s.\n", __func__);
 
 	return 0;
 }
