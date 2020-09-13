@@ -6005,10 +6005,6 @@ static void fg_battery_soc_smooth_tracking(struct fg_chip *chip)
 		if (chip->batt_psy)
 			power_supply_changed(chip->batt_psy);
 	}
-
-	pr_info("soc:%d, last_soc:%d, raw_soc:%d, soc_changed:%d.\n",
-			chip->param.batt_soc, last_batt_soc,
-			chip->param.batt_raw_soc, soc_changed);
 }
 
 #define MONITOR_SOC_WAIT_MS					1000
