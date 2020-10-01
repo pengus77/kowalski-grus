@@ -28,7 +28,6 @@
 #include "goodix_cfg_bin.h"
 #include <linux/input/mt.h>
 #include <linux/input.h>
-#include "../xiaomi/xiaomi_touch.h"
 
 #define TS_DT_COMPATIBLE "goodix,gt9889"
 #define TS_DRIVER_NAME "goodix_i2c"
