@@ -1,5 +1,4 @@
 /* Copyright (c) 2017, The Linux Foundation. All rights reserved.
- * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,15 +55,29 @@
 		gpio = <&tlmm 76 0>;
 	};
 
+	thermal-message {
+		thermal,batt-array-size = "13";
+		thermal,batt-level-screen-on = "0 2 4 6 8 8 9 12 13 14 14 14 16";
+		thermal,batt-level-screen-off = "0 0 0 0 4 4 4 5 6 8 9 14 16";
+	};
+
+	fingerprint_goodix {
+		compatible = "goodix,fingerprint";
+		goodix,gpio-reset = <&tlmm 80 0x0>;
+		goodix,gpio-irq = <&tlmm 121 0x0>;
+		fp-gpio-pwr = <&tlmm 99 0>;
+		status = "ok";
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		label = "gpio-keys";
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&key_cam_snapshot_default
-			   &key_cam_focus_default
-			   &key_vol_up_default
-			   &key_hall_default>;
+			&key_cam_focus_default
+			&key_vol_up_default
+			&key_hall_default>;
 
 		vol_up {
 			label = "volume_up";
@@ -75,6 +88,7 @@
 			debounce-interval = <15>;
 			linux,can-disable;
 		};
+
 		hall_key {
 			label = "hall_key";
 			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
@@ -83,24 +97,6 @@
 			gpio-key,wakeup;
 			debounce-interval = <15>;
 		};
-	};
-	thermal-message {
-		thermal,batt-array-size = "13";
-		thermal,batt-level-screen-on = "0 2 4 6 8 8 9 12 13 14 14 14 16";
-		thermal,batt-level-screen-off = "0 0 0 0 4 4 4 5 6 8 9 14 16";
-	};
-
-	xiaomi_touch {
-		compatible = "xiaomi-touch";
-		status = "ok";
-		touch,name = "xiaomi-touch";
-	};
-	fingerprint_goodix {
-		compatible = "goodix,fingerprint";
-		goodix,gpio-reset = <&tlmm 80 0x0>;
-		goodix,gpio-irq = <&tlmm 121 0x0>;
-		fp-gpio-pwr = <&tlmm 99 0>;
-		status = "ok";
 	};
 };
 
@@ -129,7 +125,7 @@
 	config {
 		pins = "gpio75", "gpio76";
 		drive-strength = <8>;	/* 8 mA */
-		bias-disable = <0>;   /* no pull */
+		bias-disable = <0>;	/* no pull */
 	};
 };
 
@@ -142,7 +138,7 @@
 	config {
 		pins = "gpio75", "gpio76";
 		drive-strength = <2>;	/* 2 mA */
-		bias-pull-down; 		/* PULL DOWN */
+		bias-pull-down; 	/* PULL DOWN */
 	};
 };
 
@@ -221,7 +217,7 @@
 	config {
 		pins = "gpio125";
 		drive-strength = <16>;
-		bias-diable;
+		bias-disable;
 		input-enable;
 	};
 
@@ -240,81 +236,41 @@
 	};
 };
 
-&qupv3_se4_spi {
-	status = "ok";
-	irled@1 {
-		compatible = "ir-spi";
-		reg = <0x1>;
-		status = "ok";
-		spi-max-frequency = <19200000>;
-	};
-};
-
-&removed_region {
-	reg = <0 0x85fc0000 0 0x4b40000>;
-};
-
-&qcom_seecom {
-	compatible = "qcom,qseecom";
-	reg = <0x86d00000 0x3e00000>;
-};
-
-&firmware {
-	android {
-		compatible = "android,firmware";
-		vbmeta {
-			compatible = "android,vbmeta";
-			parts = "vbmeta,boot,system,vendor,dtbo,recovery";
-		};
-
-		fstab {
-			compatible = "android,fstab";
-			system {
-				status = "disabled";
-			};
-		};
-	};
-};
-
 &qupv3_se9_i2c {
+	status = "ok";
+	normandy-i2c@5d {
+		compatible = "goodix,gt9889";
+		reg = <0x5d>;
 		status = "ok";
-		normandy-i2c@5d {
-			compatible = "goodix,gt9889";
-			reg = <0x5d>;
-			status = "ok";
-			interrupt-parent = <&tlmm>;
-			interrupts = <125 0x2800>;
-			vtouch-supply = <&pm660l_l8>;
-			iotouch-supply = <&pm660_l13>;
-			vtouch-load = <600000>;
-			pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
-			pinctrl-0 = <&ts_active>;
-			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-			goodix,reset-gpio = <&tlmm 5 0x0>;
-			goodix,irq-gpio = <&tlmm 125 0x2800>;
-			goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
-			goodix,panel-max-id = <10>;
-			goodix,panel-max-x = <1079>;
-			goodix,panel-max-y = <2339>;
-			goodix,panel-max-w = <127>;
-			goodix,panel-max-p = <127>;
-			goodix,panel-max-fod = <127>;
-	/*		goodix,panel-key-map = <158 172 217>; */ /*KEY_BACK, KEY_HOMEPAGE, KEY_SEARCH*/
-			goodix,power-on-delay-us = <20000>; /*20ms*/
-			goodix,power-off-delay-us = <5000>;
-			goodix,cfg-name = "goodix_gt9886_cfg_f2.bin";
-	/*		goodix,swap-axis; */
-			goodix,x2x;
-			goodix,y2y;
-	/*		goodix,pen-enable; */
-	/*		goodix,key-of-pen = <331 332>; */ /*BTN_STYLUS, BTN_STYLUS2*/
-			sensor1 {
-					normal-cfg = [ 
-					];
-					goodix,fw-name = "goodix_gt9886_fw_f2.bin";
-					goodix,limit-name = "goodix_gt9886_limit_f2.tporder";
-			};
+		interrupt-parent = <&tlmm>;
+		interrupts = <125 0x2800>;
+		vtouch-supply = <&pm660l_l8>;
+		iotouch-supply = <&pm660_l13>;
+		vtouch-load = <600000>;
+		pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
+		pinctrl-0 = <&ts_active>;
+		pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+		goodix,reset-gpio = <&tlmm 5 0x0>;
+		goodix,irq-gpio = <&tlmm 125 0x2800>;
+		goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
+		goodix,panel-max-id = <10>;
+		goodix,panel-max-x = <1079>;
+		goodix,panel-max-y = <2339>;
+		goodix,panel-max-w = <127>;
+		goodix,panel-max-p = <127>;
+		goodix,panel-max-fod = <127>;
+		goodix,power-on-delay-us = <20000>; /*20ms*/
+		goodix,power-off-delay-us = <5000>;
+		goodix,cfg-name = "goodix_gt9886_cfg_f2.bin";
+		goodix,x2x;
+		goodix,y2y;
+		sensor1 {
+			normal-cfg = [ 
+			];
+			goodix,fw-name = "goodix_gt9886_fw_f2.bin";
+			goodix,limit-name = "goodix_gt9886_limit_f2.tporder";
 		};
+	};
 };
 
 &qupv3_se10_i2c {
@@ -329,7 +285,6 @@
 
 		qcom,chg-vadc = <&pm660_vadc>;
 
-		/*ti,bq2591x,enable-term;*/
 		ti,bq2591x,charge-voltage = <4400>;
 		ti,bq2591x,charge-current = <3000>;
 		ti,bq2591x,input-current-limit = <3000>;
@@ -340,6 +295,49 @@
 };
 
 &tlmm {
+	/* GPIO_80 : FP_RESET_N */
+	msm_gpio_80: msm_gpio_80 {
+		mux {
+			 pins = "gpio80";
+			 function = "gpio";
+		};
+
+		config {
+			pins = "gpio80";
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	/* GPIO_80 : FP_RESET_N, state device active*/
+	msm_gpio_80_output_high: msm_gpio_80_output_high {
+		mux {
+			pins = "gpio80";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio80";
+			drive-strength = <2>;
+			bias-disable;
+			output-high;
+		};
+	};
+
+	/* GPIO_121 : FP_INT_N */
+	msm_gpio_121: msm_gpio_121 {
+		mux {
+			pins = "gpio121";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio121";
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
 
 	/* GPIO_96 : SPKR_INT */
 	smartpa_int_active: smartpa_int_active {
@@ -433,6 +431,16 @@
 	};
 };
 
+&qupv3_se4_spi {
+	status = "ok";
+	irled@1 {
+		compatible = "ir-spi";
+		reg = <0x1>;
+		status = "ok";
+		spi-max-frequency = <19200000>;
+	};
+};
+
 &pm660_charger {
 	qcom,usb-icl-ua = <2500000>;
 	qcom,fcc-max-ua = <2950000>;
@@ -441,7 +449,6 @@
 	qcom,fcc-cool-temp-delta = <2100000>;
 	qcom,auto-recharge-soc;
 	qcom,sw-jeita-enable;
-	qcom,dynamic-fv-enable;
 	qcom,thermal-mitigation
 				= <1800000 1600000 1400000 1200000 1000000 1000000 1000000>;
 	qcom,thermal-mitigation-dcp
@@ -510,26 +517,26 @@
 };
 
 &qusb_phy0 {
-		qcom,qusb-phy-init-seq =
-			/* <value reg_offset> */
-				<0x23 0x210 /* PWR_CTRL1 */
-				0x03 0x04  /* PLL_ANALOG_CONTROLS_TWO */
-				0x7c 0x18c /* PLL_CLOCK_INVERTERS */
-				0x80 0x2c  /* PLL_CMODE */
-				0x0a 0x184 /* PLL_LOCK_DELAY */
-				0x19 0xb4  /* PLL_DIGITAL_TIMERS_TWO */
-				0x40 0x194 /* PLL_BIAS_CONTROL_1 */
-				0x20 0x198 /* PLL_BIAS_CONTROL_2 */
-				0x21 0x214 /* PWR_CTRL2 */
-				0x08 0x220 /* IMP_CTRL1 */
-				0x58 0x224 /* IMP_CTRL2 */
-				0x07 0x240 /* TUNE1 */
-				0x29 0x244 /* TUNE2 */
-				0xca 0x248 /* TUNE3 */
-				0x04 0x24c /* TUNE4 */
-				0x03 0x250 /* TUNE5 */
-				0x00 0x23c /* CHG_CTRL2 */
-				0x22 0x210>; /* PWR_CTRL1 */
+	qcom,qusb-phy-init-seq =
+		/* <value reg_offset> */
+		<0x23 0x210 /* PWR_CTRL1 */
+		0x03 0x04  /* PLL_ANALOG_CONTROLS_TWO */
+		0x7c 0x18c /* PLL_CLOCK_INVERTERS */
+		0x80 0x2c  /* PLL_CMODE */
+		0x0a 0x184 /* PLL_LOCK_DELAY */
+		0x19 0xb4  /* PLL_DIGITAL_TIMERS_TWO */
+		0x40 0x194 /* PLL_BIAS_CONTROL_1 */
+		0x20 0x198 /* PLL_BIAS_CONTROL_2 */
+		0x21 0x214 /* PWR_CTRL2 */
+		0x08 0x220 /* IMP_CTRL1 */
+		0x58 0x224 /* IMP_CTRL2 */
+		0x07 0x240 /* TUNE1 */
+		0x29 0x244 /* TUNE2 */
+		0xca 0x248 /* TUNE3 */
+		0x04 0x24c /* TUNE4 */
+		0x03 0x250 /* TUNE5 */
+		0x00 0x23c /* CHG_CTRL2 */
+		0x22 0x210>; /* PWR_CTRL1 */
 		mi,efuse-pll-bias;
 };
 
@@ -795,6 +802,15 @@
 	};
 };
 
+&removed_region {
+	reg = <0 0x85fc0000 0 0x4b40000>;
+};
+
+&qcom_seecom {
+	compatible = "qcom,qseecom";
+	reg = <0x86d00000 0x3e00000>;
+};
+
 &pil_cdsp_mem {
 	compatible = "removed-dma-pool";
 	no-map;
@@ -831,4 +847,19 @@
 	reg = <0 0x97615000 0 0x2000>;
 };
 
+&firmware {
+	android {
+		compatible = "android,firmware";
+		vbmeta {
+			compatible = "android,vbmeta";
+			parts = "vbmeta,boot,system,vendor,dtbo,recovery";
+		};
 
+		fstab {
+			compatible = "android,fstab";
+			system {
+				status = "disabled";
+			};
+		};
+	};
+};
