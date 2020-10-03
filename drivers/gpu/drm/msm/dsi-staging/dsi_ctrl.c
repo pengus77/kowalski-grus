@@ -124,7 +124,7 @@ static ssize_t debugfs_state_info_read(struct file *file,
 	if (len > count)
 		len = count;
 
-	len = min_t(size_t, len, SZ_4K);
+	/* TODO: make sure that this does not exceed 4K */
 	if (copy_to_user(buff, buf, len)) {
 		kfree(buf);
 		return -EFAULT;
@@ -182,7 +182,7 @@ static ssize_t debugfs_reg_dump_read(struct file *file,
 	if (len > count)
 		len = count;
 
-	len = min_t(size_t, len, SZ_4K);
+	/* TODO: make sure that this does not exceed 4K */
 	if (copy_to_user(buff, buf, len)) {
 		kfree(buf);
 		return -EFAULT;
@@ -896,7 +896,6 @@ static int dsi_ctrl_copy_and_pad_cmd(struct dsi_ctrl *dsi_ctrl,
 	int rc = 0;
 	u8 *buf = NULL;
 	u32 len, i;
-	u8 cmd_type = 0;
 
 	len = packet->size;
 	len += 0x3; len &= ~0x03; /* Align to 32 bits */
@@ -919,11 +918,7 @@ static int dsi_ctrl_copy_and_pad_cmd(struct dsi_ctrl *dsi_ctrl,
 
 
 	/* send embedded BTA for read commands */
-	cmd_type = buf[2] & 0x3f;
-	if ((cmd_type == MIPI_DSI_DCS_READ) ||
-	    (cmd_type == MIPI_DSI_GENERIC_READ_REQUEST_0_PARAM) ||
-	    (cmd_type == MIPI_DSI_GENERIC_READ_REQUEST_1_PARAM) ||
-	    (cmd_type == MIPI_DSI_GENERIC_READ_REQUEST_2_PARAM))
+	if ((buf[2] & 0x3f) == MIPI_DSI_DCS_READ)
 		buf[3] |= BIT(5);
 
 	*buffer = buf;
@@ -1749,7 +1744,7 @@ static int dsi_ctrl_dev_probe(struct platform_device *pdev)
 
 	dsi_ctrl->pdev = pdev;
 	platform_set_drvdata(pdev, dsi_ctrl);
-	pr_info("Probe successful for %s\n", dsi_ctrl->name);
+	pr_debug("Probe successful for %s\n", dsi_ctrl->name);
 
 	return 0;
 
@@ -2394,7 +2389,7 @@ static int _dsi_ctrl_setup_isr(struct dsi_ctrl *dsi_ctrl)
 			dsi_ctrl->irq_info.irq_num = irq_num;
 			disable_irq_nosync(irq_num);
 
-			pr_info("[DSI_%d] IRQ %d registered\n",
+			pr_debug("[DSI_%d] IRQ %d registered\n",
 					dsi_ctrl->cell_index, irq_num);
 		}
 	}

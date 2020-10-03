@@ -2,7 +2,7 @@
  * MIPI DSI Bus
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
- * Copyright (C) 2020 XiaoMi, Inc.
+ * Copyright (C) 2019 XiaoMi, Inc.
  * Andrzej Hajda <a.hajda@samsung.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -1034,11 +1034,11 @@ EXPORT_SYMBOL(mipi_dsi_dcs_set_pixel_format);
  */
 int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 {
-	u8 payload[2] = { scanline >> 8, scanline & 0xff };
+	u8 payload[3] = { MIPI_DCS_SET_TEAR_SCANLINE, scanline >> 8,
+			  scanline & 0xff };
 	ssize_t err;
 
-	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_TEAR_SCANLINE, payload,
-				 sizeof(payload));
+	err = mipi_dsi_generic_write(dsi, payload, sizeof(payload));
 	if (err < 0)
 		return err;
 
@@ -1046,11 +1046,20 @@ int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_tear_scanline);
 
+#define DIMMINGOFFCMD 0x20
 int mipi_dsi_dcs_set_display_brightness_ss(struct mipi_dsi_device *dsi,
 					u16 brightness)
 {
 	u8 payload[2] = { brightness >> 8, brightness & 0xff };
+	u8 dimmingoffcmd = DIMMINGOFFCMD;
 	ssize_t err;
+
+	if (brightness == 0) {
+		err = mipi_dsi_dcs_write(dsi, MIPI_DCS_WRITE_CONTROL_DISPLAY,
+					&dimmingoffcmd, sizeof(dimmingoffcmd));
+		if (err < 0)
+			pr_err("dimming off send failed\n");
+	}
 
 	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_DISPLAY_BRIGHTNESS,
 				 payload, sizeof(payload));

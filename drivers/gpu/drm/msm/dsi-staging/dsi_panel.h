@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,7 +37,6 @@
 #define DSI_MODE_MAX 5
 
 #define HIST_BL_OFFSET_LIMIT 48
-#define DEFAULT_FOD_OFF_DIMMING_DELAY  170
 
 enum dsi_panel_rotation {
 	DSI_PANEL_ROTATE_NONE = 0,
@@ -162,29 +161,18 @@ struct drm_panel_esd_config {
 	int esd_interrupt_flags;
 };
 
-enum dsi_panel_type {
-	DSI_PANEL = 0,
-	EXT_BRIDGE,
-	DSI_PANEL_TYPE_MAX,
-};
-
-/* Extended Panel config for panels with additional gpios */
-struct dsi_panel_exd_config {
-	int display_1p8_en;
-	int led_5v_en;
-	int switch_power;
-	int led_en1;
-	int led_en2;
-	int oenab;
-	int selab;
-};
-
 struct dsi_read_config {
 	bool enabled;
 	struct dsi_panel_cmd_set read_cmd;
 	u32 cmds_rlen;
 	u32 valid_bits;
 	u8 rbuf[64];
+};
+
+enum dsi_panel_type {
+	DSI_PANEL = 0,
+	EXT_BRIDGE,
+	DSI_PANEL_TYPE_MAX,
 };
 
 struct dsi_panel {
@@ -228,23 +216,16 @@ struct dsi_panel {
 
 	bool dispparam_enabled;
 
+	bool panel_reset_skip;
 	u32 skip_dimmingon;
 
-	bool fod_hbm_enabled;/*prevent set DISPPARAM_DOZE_BRIGHTNESS_HBM/LBM in FOD HBM*/
-	bool fod_dimlayer_enabled;
- 	bool fod_dimlayer_hbm_enabled;
-	bool fod_ui_ready;
-	u32 fod_off_dimming_delay;
+	bool fod_hbm_enabled;
 	ktime_t fod_hbm_off_time;
-	bool panel_reset_skip;
-	ktime_t fod_backlight_off_time;
 
 	char dsc_pps_cmd[DSI_CMD_PPS_SIZE];
 	enum dsi_dms_mode dms_mode;
 
 	bool sync_broadcast_en;
-
-	struct dsi_panel_exd_config exd_config;
 
 	u32 last_bl_lvl;
 	s32 backlight_delta;
@@ -257,31 +238,11 @@ struct dsi_panel {
 	bool elvss_dimming_check_enable;
 	struct dsi_read_config elvss_dimming_cmds;
 	struct dsi_panel_cmd_set elvss_dimming_offset;
+
 	bool fod_backlight_flag;
 	bool fod_flag;
 	bool in_aod;
 	u32 fod_target_backlight;
-
-	bool fod_crc_p3_gamut_calibration;
-
-	/* Display count */
-	bool panel_active_count_enable;
-	u64 boottime;
-	u64 bootRTCtime;
-	u64 bootdays;
-	u64 panel_active;
-	u64 kickoff_count;
-	u64 bl_duration;
-	u64 bl_level_integral;
-	u64 bl_highlevel_duration;
-	u64 bl_lowlevel_duration;
-	u64 hbm_duration;
-	u64 hbm_times;
-	u32 dc_threshold;
-	bool dc_enable;
-	bool dim_layer_replace_dc;
-	bool fod_dimlayer_bl_block;
-	bool fodflag;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -360,6 +321,8 @@ int dsi_panel_disable(struct dsi_panel *panel);
 int dsi_panel_unprepare(struct dsi_panel *panel);
 
 int dsi_panel_post_unprepare(struct dsi_panel *panel);
+
+int dsi_panel_enable_doze_backlight(struct dsi_panel *panel, u32 bl_lvl);
 
 int dsi_panel_set_backlight(struct dsi_panel *panel, u32 bl_lvl);
 

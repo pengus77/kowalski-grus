@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -86,7 +86,7 @@ struct dp_display_private {
 
 	struct workqueue_struct *wq;
 	struct delayed_work hdcp_cb_work;
-	struct work_struct connect_work;
+	struct delayed_work connect_work;
 	struct work_struct attention_work;
 	struct mutex hdcp_mutex;
 	struct mutex session_lock;
@@ -140,8 +140,17 @@ static void dp_display_hdcp_cb_work(struct work_struct *work)
 	struct sde_hdcp_ops *ops;
 	int rc = 0;
 	u32 hdcp_auth_state;
+	u8 sink_status = 0;
 
 	dp = container_of(dw, struct dp_display_private, hdcp_cb_work);
+
+	drm_dp_dpcd_readb(dp->aux->drm_aux, DP_SINK_STATUS, &sink_status);
+	sink_status &= (DP_RECEIVE_PORT_0_STATUS | DP_RECEIVE_PORT_1_STATUS);
+	if (sink_status < 1) {
+		pr_debug("Sink not synchronized. Queuing again then exiting\n");
+		queue_delayed_work(dp->wq, &dp->hdcp_cb_work, HZ);
+		return;
+	}
 
 	rc = dp->catalog->ctrl.read_hdcp_status(&dp->catalog->ctrl);
 	if (rc >= 0) {
@@ -262,7 +271,8 @@ static void dp_display_deinitialize_hdcp(struct dp_display_private *dp)
 
 	sde_dp_hdcp2p2_deinit(dp->hdcp.data);
 	dp_display_destroy_hdcp_workqueue(dp);
-	mutex_destroy(&dp->hdcp_mutex);
+	if (&dp->hdcp_mutex)
+		mutex_destroy(&dp->hdcp_mutex);
 }
 
 static int dp_display_initialize_hdcp(struct dp_display_private *dp)
@@ -455,7 +465,7 @@ static void dp_display_post_open(struct dp_display *dp_display)
 
 	/* if cable is already connected, send notification */
 	if (dp->usbpd->hpd_high)
-		queue_work(dp->wq, &dp->connect_work);
+		queue_delayed_work(dp->wq, &dp->connect_work, HZ * 10);
 	else
 		dp_display->post_open = NULL;
 }
@@ -463,12 +473,15 @@ static void dp_display_post_open(struct dp_display *dp_display)
 static int dp_display_send_hpd_notification(struct dp_display_private *dp,
 		bool hpd)
 {
+	u32 timeout_sec;
 	int ret = 0;
 
 	dp->dp_display.is_connected = hpd;
 
-	if (!dp_display_framework_ready(dp))
-		return ret;
+	if  (dp_display_framework_ready(dp))
+		timeout_sec = 5;
+	else
+		timeout_sec = 10;
 
 	dp->aux->state |= DP_STATE_NOTIFICATION_SENT;
 
@@ -476,7 +489,7 @@ static int dp_display_send_hpd_notification(struct dp_display_private *dp,
 	dp_display_send_hpd_event(dp);
 
 	if (!wait_for_completion_timeout(&dp->notification_comp,
-						HZ * 5)) {
+						HZ * timeout_sec)) {
 		pr_warn("%s timeout\n", hpd ? "connect" : "disconnect");
 		ret = -EINVAL;
 	}
@@ -522,7 +535,6 @@ static int dp_display_process_hpd_high(struct dp_display_private *dp)
 	dp->panel->handle_sink_request(dp->panel);
 
 	dp->dp_display.max_pclk_khz = dp->parser->max_pclk_khz;
-	dp->dp_display.yuv_support = dp->parser->yuv_support;
 notify:
 	dp_display_send_hpd_notification(dp, true);
 
@@ -611,9 +623,9 @@ static int dp_display_usbpd_configure_cb(struct device *dev)
 
 	dp_display_host_init(dp);
 
-	/* check for hpd high */
-	if  (dp->usbpd->hpd_high)
-		queue_work(dp->wq, &dp->connect_work);
+	/* check for hpd high and framework ready */
+	if  (dp->usbpd->hpd_high && dp_display_framework_ready(dp))
+		queue_delayed_work(dp->wq, &dp->connect_work, 0);
 end:
 	return rc;
 }
@@ -692,11 +704,12 @@ static int dp_display_usbpd_disconnect_cb(struct device *dev)
 	dp->aux->abort(dp->aux);
 
 	/* wait for idle state */
-	cancel_work(&dp->connect_work);
+	cancel_delayed_work(&dp->connect_work);
 	cancel_work(&dp->attention_work);
 	flush_workqueue(dp->wq);
 
 	dp_display_handle_disconnect(dp);
+	atomic_set(&dp->aborted, 0);
 end:
 	return rc;
 }
@@ -734,7 +747,7 @@ static void dp_display_attention_work(struct work_struct *work)
 			return;
 		}
 
-		queue_work(dp->wq, &dp->connect_work);
+		queue_delayed_work(dp->wq, &dp->connect_work, 0);
 		return;
 	}
 
@@ -780,12 +793,18 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 		return -ENODEV;
 	}
 
+	/* check if framework is ready */
+	if (!dp_display_framework_ready(dp)) {
+		pr_err("framework not ready\n");
+		return -ENODEV;
+	}
+
 	if (dp->usbpd->hpd_irq && dp->usbpd->hpd_high &&
 	    dp->power_on) {
 		dp->link->process_request(dp->link);
 		queue_work(dp->wq, &dp->attention_work);
 	} else if (dp->usbpd->hpd_high) {
-		queue_work(dp->wq, &dp->connect_work);
+		queue_delayed_work(dp->wq, &dp->connect_work, 0);
 	} else {
 		/* cancel any pending request */
 		atomic_set(&dp->aborted, 1);
@@ -793,7 +812,7 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 		dp->aux->abort(dp->aux);
 
 		/* wait for idle state */
-		cancel_work(&dp->connect_work);
+		cancel_delayed_work(&dp->connect_work);
 		cancel_work(&dp->attention_work);
 		flush_workqueue(dp->wq);
 
@@ -806,7 +825,8 @@ static int dp_display_usbpd_attention_cb(struct device *dev)
 
 static void dp_display_connect_work(struct work_struct *work)
 {
-	struct dp_display_private *dp = container_of(work,
+	struct delayed_work *dw = to_delayed_work(work);
+	struct dp_display_private *dp = container_of(dw,
 			struct dp_display_private, connect_work);
 
 	if (dp->dp_display.is_connected && dp_display_framework_ready(dp)) {
@@ -1024,8 +1044,6 @@ static int dp_display_set_mode(struct dp_display *dp_display,
 {
 	const u32 num_components = 3, default_bpp = 24;
 	struct dp_display_private *dp;
-	u32 pixel_clk_khz = 0;
-	u32 rate_ratio = RGB_24BPP_TMDS_CHAR_RATE_RATIO;
 
 	if (!dp_display) {
 		pr_err("invalid input\n");
@@ -1034,43 +1052,13 @@ static int dp_display_set_mode(struct dp_display *dp_display,
 	dp = container_of(dp_display, struct dp_display_private, dp_display);
 
 	mutex_lock(&dp->session_lock);
-	if (mode->timing.out_format == MSM_MODE_FLAG_COLOR_FORMAT_YCBCR420) {
-		mode->timing.bpp =
-			dp_display->connector->display_info.y420_bpc *
-			num_components;
-		rate_ratio = YUV420_24BPP_TMDS_CHAR_RATE_RATIO;
-	} else {
-		mode->timing.bpp =
-			dp_display->connector->display_info.bpc *
-			num_components;
-	}
-
-	pixel_clk_khz = mode->timing.pixel_clk_khz / rate_ratio;
-
+	mode->timing.bpp =
+		dp_display->connector->display_info.bpc * num_components;
 	if (!mode->timing.bpp)
 		mode->timing.bpp = default_bpp;
 
 	mode->timing.bpp = dp->panel->get_mode_bpp(dp->panel,
-			mode->timing.bpp, pixel_clk_khz);
-
-	/* Refactor bits per pixel for YUV422 format */
-	if (mode->timing.out_format == MSM_MODE_FLAG_COLOR_FORMAT_YCBCR422) {
-		switch (mode->timing.bpp) {
-		case 18:
-			mode->timing.bpp = 24;
-			break;
-		case 24:
-			mode->timing.bpp = 30;
-			break;
-		case 30:
-			mode->timing.bpp = 36;
-			break;
-		default:
-			mode->timing.bpp = 30;
-			break;
-		};
-		pr_debug("YCC422 bpp = %d\n", mode->timing.bpp);
-	}
+			mode->timing.bpp, mode->timing.pixel_clk_khz);
 
 	dp->panel->pinfo = mode->timing;
 	dp->panel->init(dp->panel);
@@ -1320,14 +1308,12 @@ static int dp_display_unprepare(struct dp_display *dp)
 	return 0;
 }
 
-static int dp_display_get_dc_support(struct dp_display *dp,
-		u32 mode_pclk_khz, u32 out_format, bool dc_enable)
+static int dp_display_validate_mode(struct dp_display *dp, u32 mode_pclk_khz)
 {
+	const u32 num_components = 3, default_bpp = 24;
 	struct dp_display_private *dp_display;
 	struct drm_dp_link *link_info;
-	u32 mode_rate_khz = 0, supported_rate_khz = 0;
-	u32 default_bpp = 24, max_supported_bpp = 30;
-	u32 rate_ratio = RGB_24BPP_TMDS_CHAR_RATE_RATIO;
+	u32 mode_rate_khz = 0, supported_rate_khz = 0, mode_bpp = 0;
 
 	if (!dp || !mode_pclk_khz || !dp->connector) {
 		pr_err("invalid params\n");
@@ -1337,51 +1323,7 @@ static int dp_display_get_dc_support(struct dp_display *dp,
 	dp_display = container_of(dp, struct dp_display_private, dp_display);
 	link_info = &dp_display->panel->link_info;
 
-	if (out_format & MSM_MODE_FLAG_COLOR_FORMAT_YCBCR420)
-		rate_ratio = YUV420_24BPP_TMDS_CHAR_RATE_RATIO;
-
-	mode_pclk_khz /= rate_ratio;
-
-	mode_rate_khz = mode_pclk_khz * default_bpp;
-	if (dc_enable)
-		mode_rate_khz = mode_pclk_khz * max_supported_bpp;
-
-	supported_rate_khz = link_info->num_lanes * link_info->rate * 8;
-
-	if (mode_rate_khz > supported_rate_khz)
-		return false;
-
-	return true;
-}
-
-static int dp_display_validate_mode(struct dp_display *dp,
-		u32 mode_pclk_khz, u32 flags)
-{
-	const u32 num_components = 3, default_bpp = 24;
-	struct dp_display_private *dp_display;
-	struct drm_dp_link *link_info;
-	u32 mode_rate_khz = 0, supported_rate_khz = 0, mode_bpp = 0;
-
-	if (!dp || !dp->connector) {
-		pr_err("invalid params\n");
-		return -EINVAL;
-	}
-
-	if (!mode_pclk_khz) {
-		pr_err("invalid mode_pclk_khz\n");
-		return -EINVAL;
-	}
-
-	dp_display = container_of(dp, struct dp_display_private, dp_display);
-	link_info = &dp_display->panel->link_info;
-
-	if ((flags & SDE_DRM_MODE_FLAG_FMT_MASK) ==
-			DRM_MODE_FLAG_SUPPORTS_YUV420)
-		mode_bpp =
-			dp->connector->display_info.y420_bpc * num_components;
-	else
-		mode_bpp = dp->connector->display_info.bpc * num_components;
-
+	mode_bpp = dp->connector->display_info.bpc * num_components;
 	if (!mode_bpp)
 		mode_bpp = default_bpp;
 
@@ -1435,42 +1377,6 @@ static int dp_display_config_hdr(struct dp_display *dp_display,
 	return rc;
 }
 
-static int dp_display_get_display_type(struct dp_display *dp_display,
-		const char **display_type)
-{
-	struct dp_display_private *dp;
-
-	if (!dp_display || !display_type) {
-		pr_err("invalid input\n");
-		return -EINVAL;
-	}
-
-	dp = container_of(dp_display, struct dp_display_private, dp_display);
-
-	*display_type = dp->parser->display_type;
-
-	if (!strcmp(*display_type, "primary"))
-		dp_display->is_primary = true;
-	else
-		dp_display->is_primary = false;
-
-	return 0;
-}
-
-static bool dp_display_vsc_sdp_supported(struct dp_display *dp_display)
-{
-	struct dp_display_private *dp;
-
-	if (!dp_display) {
-		pr_err("invalid input\n");
-		return 0;
-	}
-
-	dp = container_of(dp_display, struct dp_display_private, dp_display);
-
-	return dp->panel->vsc_sdp_supported(dp->panel);
-}
-
 static int dp_display_create_workqueue(struct dp_display_private *dp)
 {
 	dp->wq = create_singlethread_workqueue("drm_dp");
@@ -1480,7 +1386,7 @@ static int dp_display_create_workqueue(struct dp_display_private *dp)
 	}
 
 	INIT_DELAYED_WORK(&dp->hdcp_cb_work, dp_display_hdcp_cb_work);
-	INIT_WORK(&dp->connect_work, dp_display_connect_work);
+	INIT_DELAYED_WORK(&dp->connect_work, dp_display_connect_work);
 	INIT_WORK(&dp->attention_work, dp_display_attention_work);
 
 	return 0;
@@ -1527,7 +1433,6 @@ static int dp_display_probe(struct platform_device *pdev)
 	g_dp_display->set_mode      = dp_display_set_mode;
 	g_dp_display->validate_mode = dp_display_validate_mode;
 	g_dp_display->get_modes     = dp_display_get_modes;
-	g_dp_display->get_dc_support = dp_display_get_dc_support;
 	g_dp_display->prepare       = dp_display_prepare;
 	g_dp_display->unprepare     = dp_display_unprepare;
 	g_dp_display->request_irq   = dp_request_irq;
@@ -1535,8 +1440,6 @@ static int dp_display_probe(struct platform_device *pdev)
 	g_dp_display->post_open     = dp_display_post_open;
 	g_dp_display->post_init     = dp_display_post_init;
 	g_dp_display->config_hdr    = dp_display_config_hdr;
-	g_dp_display->get_display_type = dp_display_get_display_type;
-	g_dp_display->vsc_sdp_supported = dp_display_vsc_sdp_supported;
 
 	rc = component_add(&pdev->dev, &dp_display_comp_ops);
 	if (rc) {

@@ -1,5 +1,4 @@
 /* Copyright (c) 2009-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -3485,7 +3484,7 @@ int sde_dbg_init(struct device *dev, struct sde_dbg_power_ctrl *power_ctrl)
 	sde_dbg_base.panic_on_err = DEFAULT_PANIC;
 	sde_dbg_base.enable_reg_dump = DEFAULT_REGDUMP;
 
-	pr_info("evtlog_status: enable:%d, panic:%d, dump:%d\n",
+	pr_debug("evtlog_status: enable:%d, panic:%d, dump:%d\n",
 		sde_dbg_base.evtlog->enable, sde_dbg_base.panic_on_err,
 		sde_dbg_base.enable_reg_dump);
 

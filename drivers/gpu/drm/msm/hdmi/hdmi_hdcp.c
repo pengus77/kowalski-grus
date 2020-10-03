@@ -227,7 +227,7 @@ void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 	DBG("hdcp irq %x", hdcp_int_status);
 
 	if (hdcp_int_status & HDMI_HDCP_INT_CTRL_AUTH_SUCCESS_INT) {
-		pr_info("%s:AUTH_SUCCESS_INT received\n", __func__);
+		pr_debug("%s:AUTH_SUCCESS_INT received\n", __func__);
 		if (HDCP_STATE_AUTHENTICATING == hdcp_ctrl->hdcp_state) {
 			set_bit(AUTH_RESULT_RDY_EV, &hdcp_ctrl->auth_event);
 			wake_up_all(&hdcp_ctrl->auth_event_queue);
@@ -236,7 +236,7 @@ void msm_hdmi_hdcp_irq(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 
 	if (hdcp_int_status & HDMI_HDCP_INT_CTRL_AUTH_FAIL_INT) {
 		reg_val = hdmi_read(hdmi, REG_HDMI_HDCP_LINK0_STATUS);
-		pr_info("%s: AUTH_FAIL_INT rcvd, LINK0_STATUS=0x%08x\n",
+		pr_debug("%s: AUTH_FAIL_INT rcvd, LINK0_STATUS=0x%08x\n",
 			__func__, reg_val);
 		if (HDCP_STATE_AUTHENTICATED == hdcp_ctrl->hdcp_state)
 			queue_work(hdmi->workq, &hdcp_ctrl->hdcp_reauth_work);
@@ -256,7 +256,7 @@ static int msm_hdmi_hdcp_msleep(struct hdmi_hdcp_ctrl *hdcp_ctrl, u32 ms, u32 ev
 		!!test_bit(ev, &hdcp_ctrl->auth_event),
 		msecs_to_jiffies(ms));
 	if (rc) {
-		pr_info("%s: msleep is canceled by event %d\n",
+		pr_debug("%s: msleep is canceled by event %d\n",
 				__func__, ev);
 		clear_bit(ev, &hdcp_ctrl->auth_event);
 		return -ECANCELED;
@@ -323,7 +323,7 @@ static int msm_reset_hdcp_ddc_failures(struct hdmi_hdcp_ctrl *hdcp_ctrl)
 		/* Check if the FAILURE got Cleared */
 		reg_val = hdmi_read(hdmi, REG_HDMI_HDCP_DDC_STATUS);
 		if (reg_val & HDMI_HDCP_DDC_STATUS_FAILED)
-			pr_info("%s: Unable to clear HDCP DDC Failure\n",
+			pr_debug("%s: Unable to clear HDCP DDC Failure\n",
 				__func__);
 
 		/* Re-Enable HDCP DDC */
@@ -432,7 +432,7 @@ static void msm_hdmi_hdcp_reauth_work(struct work_struct *work)
 
 	/* Wait to be clean on DDC HW engine */
 	if (msm_hdmi_hdcp_hw_ddc_clean(hdcp_ctrl)) {
-		pr_info("%s: reauth work aborted\n", __func__);
+		pr_debug("%s: reauth work aborted\n", __func__);
 		return;
 	}
 
@@ -452,7 +452,7 @@ static void msm_hdmi_hdcp_reauth_work(struct work_struct *work)
 	if (++hdcp_ctrl->auth_retries == AUTH_RETRIES_TIME) {
 		hdcp_ctrl->hdcp_state = HDCP_STATE_INACTIVE;
 		hdcp_ctrl->auth_retries = 0;
-		pr_info("%s: abort reauthentication!\n", __func__);
+		pr_debug("%s: abort reauthentication!\n", __func__);
 
 		return;
 	}
@@ -1271,7 +1271,7 @@ static void msm_hdmi_hdcp_auth_work(struct work_struct *work)
 		pr_err("%s: verify r0 failed %d\n", __func__, rc);
 		goto end;
 	}
-	pr_info("%s: Authentication Part I successful\n", __func__);
+	pr_debug("%s: Authentication Part I successful\n", __func__);
 	if (hdcp_ctrl->ds_type == DS_RECEIVER)
 		goto end;
 
@@ -1300,9 +1300,9 @@ static void msm_hdmi_hdcp_auth_work(struct work_struct *work)
 
 end:
 	if (rc == -ECANCELED) {
-		pr_info("%s: hdcp authentication canceled\n", __func__);
+		pr_debug("%s: hdcp authentication canceled\n", __func__);
 	} else if (rc == -ENOTSUPP) {
-		pr_info("%s: hdcp is not supported\n", __func__);
+		pr_debug("%s: hdcp is not supported\n", __func__);
 	} else if (rc) {
 		pr_err("%s: hdcp authentication failed\n", __func__);
 		msm_hdmi_hdcp_auth_fail(hdcp_ctrl);

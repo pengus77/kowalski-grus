@@ -230,7 +230,7 @@ struct sde_crtc {
 	u32 num_ctls;
 	u32 num_mixers;
 	bool mixers_swapped;
-	struct sde_crtc_mixer mixers[MAX_MIXERS_PER_CRTC];
+	struct sde_crtc_mixer mixers[CRTC_DUAL_MIXERS];
 
 	struct drm_pending_vblank_event *event;
 	u32 vsync_count;
@@ -280,7 +280,7 @@ struct sde_crtc {
 	spinlock_t event_lock;
 	bool misr_enable;
 	u32 misr_frame_count;
-	u32 misr_data[MAX_MIXERS_PER_CRTC];
+	u32 misr_data[CRTC_DUAL_MIXERS];
 
 	bool enable_sui_enhancement;
 
@@ -300,7 +300,6 @@ struct sde_crtc {
 
 	/* blob for histogram data */
 	struct drm_property_blob *hist_blob;
-	bool is_primary_sde_crtc;
 };
 
 #define to_sde_crtc(x) container_of(x, struct sde_crtc, base)
@@ -406,8 +405,8 @@ struct sde_crtc_state {
 
 	bool is_ppsplit;
 	struct sde_rect crtc_roi;
-	struct sde_rect lm_bounds[MAX_MIXERS_PER_CRTC];
-	struct sde_rect lm_roi[MAX_MIXERS_PER_CRTC];
+	struct sde_rect lm_bounds[CRTC_DUAL_MIXERS];
+	struct sde_rect lm_roi[CRTC_DUAL_MIXERS];
 	struct msm_roi_list user_roi_list;
 
 	struct msm_property_state property_state;
@@ -426,10 +425,6 @@ struct sde_crtc_state {
 	u32 sbuf_prefill_line;
 	u64 sbuf_clk_rate[2];
 	bool sbuf_clk_shifted;
-
-	bool finger_down;
-	bool dim_layer_status;
-	struct sde_hw_dim_layer *fingerprint_dim_layer;
 
 	struct sde_crtc_respool rp;
 };
@@ -488,7 +483,8 @@ static inline int sde_crtc_get_mixer_width(struct sde_crtc *sde_crtc,
 	if (cstate->num_ds_enabled)
 		mixer_width = cstate->ds_cfg[0].lm_width;
 	else
-		mixer_width = mode->hdisplay / sde_crtc->num_mixers;
+		mixer_width = (sde_crtc->num_mixers == CRTC_DUAL_MIXERS ?
+			mode->hdisplay / CRTC_DUAL_MIXERS : mode->hdisplay);
 
 	return mixer_width;
 }
@@ -569,13 +565,7 @@ struct drm_crtc *sde_crtc_init(struct drm_device *dev, struct drm_plane *plane);
  * @crtc: Pointer to drm crtc structure
  */
 int sde_crtc_post_init(struct drm_device *dev, struct drm_crtc *crtc);
-/**
- * sde_crtc_fod_ui_ready - callback to notify fod ui ready message
- * @crtc: Pointer to drm crtc object
- * @old_state: Pointer to drm crtc old state object
- */
-void sde_crtc_fod_ui_ready(struct drm_crtc *crtc,
-		struct drm_crtc_state *old_state);
+
 /**
  * sde_crtc_complete_flip - complete flip for clients
  * @crtc: Pointer to drm crtc object

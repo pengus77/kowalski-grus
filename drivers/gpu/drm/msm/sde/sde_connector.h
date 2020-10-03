@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -184,37 +184,12 @@ struct sde_connector_ops {
 			struct msm_display_kickoff_params *params);
 
 	/**
-	 * mode_needs_full_range - does the mode need full range
-	 * quantization
-	 * @display: Pointer to private display structure
-	 * Returns: true or false based on whether full range is needed
-	 */
-	bool (*mode_needs_full_range)(void *display);
-
-	/**
-	 * mode_is_cea_mode - is this mode a CE video format
-	 * or IT video format.
-	 * @display: Pointer to private display structure
-	 * Returns: true or false based on CE or IT video format
-	 */
-	bool (*mode_is_cea_mode)(void *display);
-
-	/**
 	 * clk_ctrl - perform clk enable/disable on the connector
 	 * @handle: Pointer to clk handle
 	 * @type: Type of clks
 	 * @enable: State of clks
 	 */
 	int (*clk_ctrl)(void *handle, u32 type, u32 state);
-	/**
-	 * get_csc_type - returns the CSC type to be used
-	 * by the CDM block based on HDR state
-	 * @connector: Pointer to drm connector structure
-	 * @display: Pointer to private display structure
-	 * Returns: type of CSC matrix to be used
-	 */
-	enum sde_csc_type (*get_csc_type)(struct drm_connector *connector,
-		void *display);
 
 	/**
 	 * set_power - update dpms setting
@@ -353,6 +328,8 @@ struct sde_connector_evt {
  * @esd_status_check: Flag to indicate if ESD thread is scheduled or not
  * @bl_scale_dirty: Flag to indicate PP BL scale value(s) is changed
  * @bl_scale: BL scale value for ABA feature
+ * @unset_bl_level: BL level that needs to be set later
+ * @allow_bl_update: Flag to indicate if BL update is allowed currently or not
  * @bl_scale_ad: BL scale value for AD feature
  * @unset_bl_level: BL level that needs to be set later
  * @allow_bl_update: Flag to indicate if BL update is allowed currently or not
@@ -728,30 +705,6 @@ static inline bool sde_connector_needs_offset(struct drm_connector *connector)
 }
 
 /**
- * sde_connector_mode_needs_full_range - query quantization type
- * for the connector mode
- * @connector: Pointer to drm connector object
- * Returns: true OR false based on connector mode
- */
-bool sde_connector_mode_needs_full_range(struct drm_connector *connector);
-
-/**
- * sde_connector_mode_is_cea_mode - query if this mode is
- * CE or IT video format
- * @connector: Pointer to drm connector object
- * Returns: true OR false based on CE or IT video format mode
- */
-bool sde_connector_mode_is_cea_mode(struct drm_connector *connector);
-
-/**
- * sde_connector_get_csc_type - query csc type
- * to be used for the connector
- * @connector: Pointer to drm connector object
- * Returns: csc type based on connector HDR state
- */
-enum sde_csc_type sde_connector_get_csc_type(struct drm_connector *conn);
-
-/**
  * sde_connector_get_dither_cfg - get dither property data
  * @conn: Pointer to drm_connector struct
  * @state: Pointer to drm_connector_state struct
@@ -841,6 +794,13 @@ int sde_connector_get_panel_vfp(struct drm_connector *connector,
  */
 int sde_connector_esd_status(struct drm_connector *connector);
 
-int sde_connector_update_hbm(struct sde_connector *c_conn);
-
+/**
+ * sde_connector_get_panel_vfp - helper to get panel vfp
+ * @connector: pointer to drm connector
+ * @h_active: panel width
+ * @v_active: panel heigth
+ * Returns: v_front_porch on success error-code on failure
+ */
+int sde_connector_get_panel_vfp(struct drm_connector *connector,
+	struct drm_display_mode *mode);
 #endif /* _SDE_CONNECTOR_H_ */

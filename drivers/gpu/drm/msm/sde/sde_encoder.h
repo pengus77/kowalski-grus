@@ -58,13 +58,11 @@ struct sde_encoder_hw_resources {
  * @is_primary: set to true if the display is primary display
  * @affected_displays:  bitmask, bit set means the ROI of the commit lies within
  *                      the bounds of the physical display at the bit index
- * @num_channels: Add number of encoder channels
  */
 struct sde_encoder_kickoff_params {
 	u32 inline_rotate_prefill;
 	u32 is_primary;
 	unsigned long affected_displays;
-	u32 num_channels;
 };
 
 /**

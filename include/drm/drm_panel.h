@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2013, NVIDIA Corporation.  All rights reserved.
- * Copyright (C) 2020 XiaoMi, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),

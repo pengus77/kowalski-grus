@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -226,29 +226,21 @@ int sde_hw_cdm_enable(struct sde_hw_cdm *ctx,
 	u32 opmode = 0;
 	u32 csc = 0;
 
-	if ((cdm->output_type == CDM_CDWN_OUTPUT_WB) &&
-			!SDE_FORMAT_IS_YUV(fmt))
+	if (!SDE_FORMAT_IS_YUV(fmt))
 		return -EINVAL;
 
 	if (cdm->output_type == CDM_CDWN_OUTPUT_HDMI) {
-		if (fmt->chroma_sample == SDE_CHROMA_H1V2)
+		if (fmt->chroma_sample != SDE_CHROMA_H1V2)
 			return -EINVAL; /*unsupported format */
-		if (fmt->chroma_sample == SDE_CHROMA_RGB) {
-			opmode = 0;
-		} else {
-			opmode = BIT(0);
-			opmode |= (fmt->chroma_sample << 1);
-		}
+		opmode = BIT(0);
+		opmode |= (fmt->chroma_sample << 1);
 		cdm_cfg.intf_en = true;
 	} else {
 		opmode = 0;
 		cdm_cfg.wb_en = true;
 	}
 
-	if (fmt->chroma_sample == SDE_CHROMA_RGB)
-		csc &= ~BIT(2);
-	else
-		csc |= BIT(2);
+	csc |= BIT(2);
 	csc &= ~BIT(1);
 	csc |= BIT(0);
 

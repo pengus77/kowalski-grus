@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -790,8 +790,6 @@ static int dp_link_parse_request(struct dp_link_private *link)
 
 	pr_debug("device service irq vector = 0x%x\n", data);
 
-	drm_dp_cec_irq(link->aux->drm_aux);
-
 	if (!(data & DP_AUTOMATED_TEST_REQUEST)) {
 		pr_debug("no test requested\n");
 		return 0;
@@ -1095,11 +1093,11 @@ static int dp_link_process_phy_test_pattern_request(
 
 	pr_debug("start\n");
 
-	pr_info("Current: bw_code = 0x%x, lane count = 0x%x\n",
+	pr_debug("Current: bw_code = 0x%x, lane count = 0x%x\n",
 			link->dp_link.link_params.bw_code,
 			link->dp_link.link_params.lane_count);
 
-	pr_info("Requested: bw_code = 0x%x, lane count = 0x%x\n",
+	pr_debug("Requested: bw_code = 0x%x, lane count = 0x%x\n",
 			test_link_rate, test_lane_count);
 
 	link->dp_link.link_params.lane_count = link->request.test_lane_count;
