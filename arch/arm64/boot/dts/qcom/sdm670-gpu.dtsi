@@ -63,6 +63,8 @@
 
 		qcom,initial-pwrlevel = <3>;
 
+		qcom,disable-wake-on-touch;
+
 		qcom,gpu-quirk-hfi-use-reg;
 		qcom,gpu-quirk-limit-uche-gbif-rw;
 		qcom,gpu-quirk-secvid-set-once;
