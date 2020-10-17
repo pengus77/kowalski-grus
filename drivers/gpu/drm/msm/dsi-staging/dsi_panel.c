@@ -4012,7 +4012,8 @@ int dsi_panel_get_mode(struct dsi_panel *panel,
 			pr_err("failed to parse command sets, rc=%d\n", rc);
 			goto parse_fail;
 		} else {
-			if (panel->elvss_dimming_check_enable && panel->elvss_dimming_cmds.rbuf) {
+			if (panel->elvss_dimming_check_enable &&
+			    panel->elvss_dimming_cmds.rbuf != NULL) {
 				if (panel->elvss_dimming_cmds.rbuf[0]) {
 					((u8 *)prv_info->cmd_sets[DSI_CMD_SET_DISP_HBM_FOD_ON].cmds[4].msg.tx_buf)[1]
 						= (panel->elvss_dimming_cmds.rbuf[0]) & 0x7F;
