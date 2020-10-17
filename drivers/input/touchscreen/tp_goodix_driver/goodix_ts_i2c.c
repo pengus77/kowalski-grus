@@ -1145,7 +1145,7 @@ static int goodix_send_config(struct goodix_ts_device *dev,
 		ts_err("cfg register is NULL");
 		return -EINVAL;
 	}*/
-	if (!config || !config->data) {
+	if (!config || config->data == NULL) {
 		ts_err("Null config data");
 		return -EINVAL;
 	}
