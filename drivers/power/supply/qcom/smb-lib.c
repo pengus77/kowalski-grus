@@ -39,6 +39,10 @@
 				__func__, ##__VA_ARGS__);	\
 	} while (0)
 
+int last_charger_type;
+
+extern int elliptic_notify_usbc_headset(int connected);
+
 static bool off_charge_flag;
 
 static bool is_secure(struct smb_charger *chg, int addr)
@@ -5496,15 +5500,26 @@ static void smblib_handle_typec_cc_state_change(struct smb_charger *chg)
 
 	if (!chg->typec_present && chg->typec_mode != POWER_SUPPLY_TYPEC_NONE) {
 		chg->typec_present = true;
+
+		if (chg->typec_mode == POWER_SUPPLY_TYPEC_SINK_AUDIO_ADAPTER)
+			elliptic_notify_usbc_headset(1);
+
 		smblib_dbg(chg, PR_MISC, "TypeC %s insertion\n",
 			smblib_typec_mode_name[chg->typec_mode]);
 		smblib_handle_typec_insertion(chg);
 	} else if (chg->typec_present &&
 				chg->typec_mode == POWER_SUPPLY_TYPEC_NONE) {
 		chg->typec_present = false;
-		smblib_dbg(chg, PR_MISC, "TypeC removal\n");
+
+		if (last_charger_type == POWER_SUPPLY_TYPEC_SINK_AUDIO_ADAPTER)
+			elliptic_notify_usbc_headset(0);
+
+		smblib_dbg(chg, PR_MISC, "TypeC %s removal\n",
+			smblib_typec_mode_name[last_charger_type]);
 		smblib_handle_typec_removal(chg);
 	}
+
+	last_charger_type = chg->typec_mode;
 
 	/* suspend usb if sink */
 	if ((chg->typec_status[3] & UFP_DFP_MODE_STATUS_BIT)

@@ -331,6 +331,9 @@ int elliptic_ultrasound_enable_set(struct snd_kcontrol *kcontrol,
 	static bool triggered_engine_info;
 	int32_t msg[4] = {0, 0, 0, 0};
 
+	if (is_usbc_headset_connected())
+		return 0;
+
 	ultrasound_enable_cache = ucontrol->value.integer.value[0];
 
 	if (!triggered_engine_info && ultrasound_enable_cache) {

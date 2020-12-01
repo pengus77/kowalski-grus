@@ -132,6 +132,10 @@ int elliptic_data_push(int deviceid, const char *buffer, size_t buffer_size, ell
 int32_t elliptic_data_write(uint32_t message_id,
     const char *data, size_t data_size);
 
+/* Simple usbc headset notification handler */
+void elliptic_notify_usbc_headset(int connected);
+int is_usbc_headset_connected(void);
+
 /* Opens port */
 int elliptic_open_port(int portid);
 
