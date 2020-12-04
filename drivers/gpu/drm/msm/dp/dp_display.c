@@ -271,7 +271,7 @@ static void dp_display_deinitialize_hdcp(struct dp_display_private *dp)
 
 	sde_dp_hdcp2p2_deinit(dp->hdcp.data);
 	dp_display_destroy_hdcp_workqueue(dp);
-	if (&dp->hdcp_mutex)
+	if (&dp->hdcp_mutex != NULL)
 		mutex_destroy(&dp->hdcp_mutex);
 }
 
