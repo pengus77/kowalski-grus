@@ -139,7 +139,7 @@ static int q6lsm_get_session_id_from_lsm_client(struct lsm_client *client)
 			return n;
 	}
 	pr_err("%s: cannot find matching lsm client.\n", __func__);
-	return LSM_INVALID_SESSION_ID;
+	return 0;
 }
 
 static bool q6lsm_is_valid_lsm_client(struct lsm_client *client)
