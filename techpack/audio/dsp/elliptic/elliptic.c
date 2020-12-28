@@ -62,27 +62,29 @@ static struct wakeup_source *wake_source;
 
 int usbc_headset_connected;
 
-void elliptic_notify_usbc_headset(int connected) {
+void elliptic_notify_usbc_headset(int connected)
+{
 	struct elliptic_device *device;
 	struct elliptic_data *elliptic_data;
 
-	usbc_headset_connected = connected;
-	EL_PRINT_I("usb-c headset connection status: %d", connected);
+	device = &elliptic_devices[0];
+	if (!device) {
+		EL_PRINT_E("device not found");
+		return;
+	}
 
+	EL_PRINT_I("usb-c headset connection status: %d", connected);
+	usbc_headset_connected = connected;
 	if (usbc_headset_connected) {
-		device = &elliptic_devices[0];
-		if (device->opened == 0)
+		if (!device->opened) {
+			EL_PRINT_I("device already closed");
 			return;
+		}
 
 		elliptic_close_port(ULTRASOUND_TX_PORT_ID);
 		elliptic_close_port(ULTRASOUND_RX_PORT_ID);
 
 		elliptic_data = &device->el_data;
-
-		if (device == NULL) {
-			EL_PRINT_E("device not found");
-			return;
-		}
 
 		device->opened = 0;
 		elliptic_data_update_debug_counters(elliptic_data);
