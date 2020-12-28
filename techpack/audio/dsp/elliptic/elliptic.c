@@ -66,9 +66,9 @@ void elliptic_notify_usbc_headset(int connected)
 {
 	struct elliptic_device *device;
 	struct elliptic_data *elliptic_data;
+	int i = 0;
 
-	device = &elliptic_devices[0];
-	if (!device) {
+	if (!(&elliptic_devices[0])) {
 		EL_PRINT_E("device not found");
 		return;
 	}
@@ -76,21 +76,24 @@ void elliptic_notify_usbc_headset(int connected)
 	EL_PRINT_I("usb-c headset connection status: %d", connected);
 	usbc_headset_connected = connected;
 	if (usbc_headset_connected) {
-		if (!device->opened) {
-			EL_PRINT_I("device already closed");
-			return;
+		for (i; i < ELLIPTIC_NUM_DEVICES; ++i) {
+			device = &elliptic_devices[i];
+			if (!device->opened) {
+				EL_PRINT_I("device%d already closed", i);
+				continue;
+			}
+
+			elliptic_close_port(ULTRASOUND_TX_PORT_ID);
+			elliptic_close_port(ULTRASOUND_RX_PORT_ID);
+
+			elliptic_data = &device->el_data;
+
+			device->opened = 0;
+			elliptic_data_update_debug_counters(elliptic_data);
+			elliptic_data_print_debug_counters(elliptic_data);
+			elliptic_data_cancel(elliptic_data);
+			up(&device->sem);
 		}
-
-		elliptic_close_port(ULTRASOUND_TX_PORT_ID);
-		elliptic_close_port(ULTRASOUND_RX_PORT_ID);
-
-		elliptic_data = &device->el_data;
-
-		device->opened = 0;
-		elliptic_data_update_debug_counters(elliptic_data);
-		elliptic_data_print_debug_counters(elliptic_data);
-		elliptic_data_cancel(elliptic_data);
-		up(&device->sem);
 	}
 }
 
